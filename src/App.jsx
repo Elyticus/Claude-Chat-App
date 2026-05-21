@@ -160,7 +160,7 @@ function OrbitalHub({
       className="relative w-full h-screen bg-black flex items-center justify-center overflow-hidden"
     >
       {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4 z-30">
+      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 z-30">
         <div className="flex items-center gap-2">
           <span className="text-white font-semibold tracking-wide text-xl">
             Chatloop<span className="text-purple-400">.</span>
@@ -221,7 +221,7 @@ function OrbitalHub({
       {/* Empty state */}
       {rooms.length === 0 && (
         <p className="absolute text-white/20 text-sm tracking-wide pointer-events-none" style={{ marginTop: "220px" }}>
-          Click the orb to start a conversation
+          Tap the orb to start a conversation
         </p>
       )}
 
@@ -238,7 +238,7 @@ function OrbitalHub({
         return (
           <div
             key={room.id}
-            className={`absolute cursor-pointer flex flex-col items-center select-none ${hoveredId === null ? "transition-transform duration-[50ms]" : "transition-none"}`}
+            className={`absolute cursor-pointer flex flex-col items-center select-none active:scale-95 ${hoveredId === null ? "transition-transform duration-[50ms]" : "transition-none"}`}
             style={{
               transform: `translate(${pos.x}px, ${pos.y}px)`,
               zIndex: pos.zIndex,
@@ -890,9 +890,10 @@ function ChatApp({ token, currentUser, onLogout }) {
         unreadCounts={unreadCounts}
       />
 
-      {/* Chat Panel — slides in from right */}
+      {/* Chat Panel — fixed overflow shell clips the translated panel so it never creates horizontal scroll */}
+      <div className="fixed inset-0 z-[200] overflow-hidden pointer-events-none">
       <div
-        className={`fixed inset-y-0 right-0 w-full md:w-[480px] bg-black/[0.96] border-l border-white/[0.08] z-[200] flex flex-col transition-transform duration-500 ease-out ${activeRoomId ? "translate-x-0" : "translate-x-full"}`}
+        className={`absolute inset-y-0 right-0 w-full md:w-[480px] bg-black/[0.96] border-l border-white/[0.08] flex flex-col transition-transform duration-500 ease-out pointer-events-auto ${activeRoomId ? "translate-x-0" : "translate-x-full"}`}
         style={{ backdropFilter: "blur(24px)" }}
       >
         {activeRoomId && activeRoom && (
@@ -1074,6 +1075,7 @@ function ChatApp({ token, currentUser, onLogout }) {
             </div>
           </>
         )}
+      </div>
       </div>
 
       {/* New Chat Modal */}
