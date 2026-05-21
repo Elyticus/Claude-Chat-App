@@ -384,12 +384,12 @@ function NewChatModal({ users, onlineIds, onSelectUser, onCreateGroup, onClose }
         className="absolute inset-0 bg-black/90 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative bg-[#0d0d0d] border border-white/[0.1] rounded-t-3xl sm:rounded-2xl w-full sm:w-[400px] max-h-[88vh] flex flex-col shadow-2xl">
+      <div className="relative bg-[#0d0d0d] border border-white/[0.1] rounded-t-3xl sm:rounded-2xl w-full sm:w-[400px] max-h-[80dvh] sm:max-h-[88vh] flex flex-col shadow-2xl overflow-hidden">
         {/* Mobile drag handle */}
         <div className="w-10 h-1 bg-white/15 rounded-full mx-auto mt-3 mb-1 sm:hidden" />
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08] shrink-0">
           <span className="text-white font-semibold">
             {mode === "dm" ? "New Message" : "New Group"}
           </span>
@@ -402,7 +402,7 @@ function NewChatModal({ users, onlineIds, onSelectUser, onCreateGroup, onClose }
         </div>
 
         {/* Mode tabs */}
-        <div className="flex gap-1 p-3 pb-0">
+        <div className="flex gap-1 p-3 pb-0 shrink-0">
           {[
             { id: "dm", label: "Direct Message" },
             { id: "group", label: "Group Chat" },
@@ -419,7 +419,7 @@ function NewChatModal({ users, onlineIds, onSelectUser, onCreateGroup, onClose }
 
         {/* Group name input */}
         {mode === "group" && (
-          <div className="px-4 pt-3">
+          <div className="px-4 pt-3 shrink-0">
             <input
               className="w-full bg-white/[0.05] border border-white/[0.1] rounded-xl px-4 py-2.5 text-white text-sm outline-none placeholder:text-white/25 focus:border-white/25 transition-colors"
               placeholder="Group name…"
@@ -431,7 +431,7 @@ function NewChatModal({ users, onlineIds, onSelectUser, onCreateGroup, onClose }
 
         {/* Selected chips */}
         {mode === "group" && selectedIds.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 px-4 pt-3">
+          <div className="flex flex-wrap gap-1.5 px-4 pt-3 shrink-0">
             {selectedIds.map((id) => {
               const u = users.find((x) => x.id === id);
               return u ? (
@@ -448,7 +448,7 @@ function NewChatModal({ users, onlineIds, onSelectUser, onCreateGroup, onClose }
         )}
 
         {/* Search */}
-        <div className="px-4 pt-3">
+        <div className="px-4 pt-3 shrink-0">
           <div className="flex items-center gap-2 bg-white/[0.05] border border-white/[0.08] rounded-xl px-3 py-2.5">
             <Search size={14} className="text-white/35 shrink-0" />
             <input
@@ -463,7 +463,7 @@ function NewChatModal({ users, onlineIds, onSelectUser, onCreateGroup, onClose }
         </div>
 
         {/* User list */}
-        <div className="flex-1 overflow-y-auto px-3 py-2 mt-1 space-y-0.5">
+        <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2 mt-1 space-y-0.5">
           {filtered.length === 0 && (
             <p className="text-center text-white/25 text-sm py-10">No users found</p>
           )}
@@ -495,7 +495,7 @@ function NewChatModal({ users, onlineIds, onSelectUser, onCreateGroup, onClose }
 
         {/* Create group CTA */}
         {mode === "group" && (
-          <div className="px-4 pb-5 pt-2 border-t border-white/[0.08]">
+          <div className="px-4 pb-5 pt-2 border-t border-white/[0.08] shrink-0">
             <button
               onClick={submitGroup}
               disabled={selectedIds.length < 1 || !groupName.trim() || creating}
