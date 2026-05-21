@@ -153,95 +153,7 @@ function OrbitalHub({
   );
 
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
-  const isMobile = containerSize.w < 640;
 
-  // ── Mobile: standard chat list ─────────────────────────────────────────────
-  if (isMobile) {
-    return (
-      <div ref={containerRef} className="relative w-full h-screen bg-black flex flex-col overflow-hidden">
-        {/* Top bar */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06] shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="text-white font-semibold tracking-wide text-lg">
-              Chatloop<span className="text-purple-400">.</span>
-            </span>
-            {totalUnread > 0 && (
-              <span className="bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">
-                {totalUnread > 99 ? "99+" : totalUnread}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <Avatar userId={currentUser.id} username={currentUser.username} size={26} />
-            <button
-              onClick={onLogout}
-              title="Sign out"
-              className="w-8 h-8 rounded-full border border-white/15 flex items-center justify-center text-white/50 hover:text-white hover:border-white/30 transition-all"
-            >
-              <LogOut size={14} />
-            </button>
-          </div>
-        </div>
-
-        {/* New conversation orb */}
-        <div className="flex flex-col items-center pt-6 pb-4 shrink-0">
-          <button
-            onClick={onNewChat}
-            className="w-14 h-14 rounded-full flex items-center justify-center"
-            style={{
-              background: "linear-gradient(135deg, #6366f1, #3b82f6, #14b8a6)",
-              boxShadow: "0 0 30px rgba(99,102,241,0.35)",
-              animation: "pulse 2.5s cubic-bezier(0.4,0,0.6,1) infinite",
-            }}
-          >
-            <MessageCircle size={22} className="text-white" />
-          </button>
-          <span className="text-white/25 text-xs mt-2">New conversation</span>
-        </div>
-
-        {/* Chat list */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-4">
-          {rooms.length === 0 ? (
-            <p className="text-center text-white/20 text-sm py-10">Tap the orb to start a conversation</p>
-          ) : (
-            <div className="space-y-0.5">
-              {rooms.map((room) => {
-                const displayName = room.is_group ? room.name || "Group" : room.other_username || "User";
-                const avatarId = room.is_group ? room.id : room.other_user_id;
-                const isOnline = !room.is_group && onlineIds.has(room.other_user_id);
-                const unread = unreadCounts[room.id] || 0;
-                return (
-                  <button
-                    key={room.id}
-                    onClick={() => onSelectRoom(room.id)}
-                    className="w-full flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-white/[0.05] active:bg-white/[0.08] transition-colors text-left"
-                  >
-                    <Avatar userId={avatarId} username={displayName} size={44} online={isOnline} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-white text-sm font-medium truncate">{displayName}</span>
-                        <span className="text-white/25 text-xs shrink-0">{formatTime(room.last_message_at)}</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-2 mt-0.5">
-                        <span className="text-white/40 text-xs truncate">{room.last_message || "No messages yet"}</span>
-                        {unread > 0 && (
-                          <span className="min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shrink-0">
-                            {unread > 99 ? "99+" : unread}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // ── Desktop: orbital ───────────────────────────────────────────────────────
   return (
     <div
       ref={containerRef}
@@ -262,7 +174,7 @@ function OrbitalHub({
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <Avatar userId={currentUser.id} username={currentUser.username} size={28} />
-            <span className="text-white/40 text-sm">{currentUser.username}</span>
+            <span className="text-white/40 text-sm hidden sm:block">{currentUser.username}</span>
           </div>
           <button
             onClick={onLogout}
