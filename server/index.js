@@ -11,7 +11,9 @@ import { generateToken, verifyToken } from "./auth.js";
 const app = express();
 const httpServer = createServer(app);
 
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
+const CLIENT_ORIGIN = // eslint-disable-next-line no-undef
+  (process.env.CLIENT_ORIGIN || "http://localhost:5173").replace(/\/$/, "");
+// eslint-disable-next-line no-undef
 const PORT = Number(process.env.PORT) || 4000;
 
 const io = new Server(httpServer, {
@@ -53,15 +55,23 @@ function requireAuth(req, res, next) {
 app.post("/api/auth/register", async (req, res) => {
   const { username, email, password } = req.body ?? {};
   if (!username?.trim() || !email?.trim() || !password) {
-    return res.status(400).json({ error: "username, email, and password are required" });
+    return res
+      .status(400)
+      .json({ error: "username, email, and password are required" });
   }
 
   const taken =
-    queries.getUserByEmail.get(email) || queries.getUserByUsername.get(username);
-  if (taken) return res.status(409).json({ error: "Username or email already in use" });
+    queries.getUserByEmail.get(email) ||
+    queries.getUserByUsername.get(username);
+  if (taken)
+    return res.status(409).json({ error: "Username or email already in use" });
 
   const hash = await bcrypt.hash(password, 10);
-  const { lastInsertRowid: id } = queries.createUser.run(username.trim(), email.trim(), hash);
+  const { lastInsertRowid: id } = queries.createUser.run(
+    username.trim(),
+    email.trim(),
+    hash,
+  );
 
   const user = { id, username: username.trim(), email: email.trim() };
   res.status(201).json({ token: generateToken(user), user });
@@ -114,13 +124,14 @@ app.get("/api/rooms", requireAuth, (req, res) => {
     rows.map((r) => ({
       ...r,
       other_user_online: r.other_user_id ? isOnline(r.other_user_id) : false,
-    }))
+    })),
   );
 });
 
 app.post("/api/rooms/dm", requireAuth, (req, res) => {
   const { targetUserId } = req.body ?? {};
-  if (!targetUserId) return res.status(400).json({ error: "targetUserId required" });
+  if (!targetUserId)
+    return res.status(400).json({ error: "targetUserId required" });
 
   const target = queries.getUserById.get(targetUserId);
   if (!target) return res.status(404).json({ error: "User not found" });
@@ -220,7 +231,11 @@ io.on("connection", (socket) => {
     if (!text?.trim() || !roomId) return;
     if (!queries.isMember.get(roomId, userId)) return;
 
-    const { lastInsertRowid: msgId } = queries.insertMessage.run(roomId, userId, text.trim());
+    const { lastInsertRowid: msgId } = queries.insertMessage.run(
+      roomId,
+      userId,
+      text.trim(),
+    );
     const message = queries.getMessageById.get(msgId);
 
     // Broadcast to everyone else in the room
@@ -249,11 +264,15 @@ io.on("connection", (socket) => {
   // ── typing ───────────────────────────────────────────────────────────────────
   socket.on("typing:start", ({ roomId }) => {
     if (!queries.isMember.get(roomId, userId)) return;
-    socket.to(`room:${roomId}`).emit("typing:update", { roomId, userId, username, typing: true });
+    socket
+      .to(`room:${roomId}`)
+      .emit("typing:update", { roomId, userId, username, typing: true });
   });
 
   socket.on("typing:stop", ({ roomId }) => {
-    socket.to(`room:${roomId}`).emit("typing:update", { roomId, userId, username, typing: false });
+    socket
+      .to(`room:${roomId}`)
+      .emit("typing:update", { roomId, userId, username, typing: false });
   });
 
   // ── disconnect ───────────────────────────────────────────────────────────────
