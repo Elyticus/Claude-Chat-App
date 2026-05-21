@@ -9,7 +9,7 @@ export function getSocket() {
 export function connectSocket(token) {
   if (socket?.connected) return socket;
 
-  socket = io("/", {
+  socket = io(import.meta.env.VITE_SOCKET_URL ?? "/", {
     auth: { token },
     autoConnect: true,
     reconnection: true,

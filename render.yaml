@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: chatloop-server
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CLIENT_ORIGIN
+        # Set this to your Netlify site URL after the first deploy
+        value: https://your-site.netlify.app
