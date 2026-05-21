@@ -58,7 +58,7 @@ export const queries = {
   getAllUsersExcept: db.prepare("SELECT id, username, email, last_seen FROM users WHERE id != ?"),
 
   createUser: db.prepare(
-    "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)"
+    "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)",
   ),
   touchUser: db.prepare("UPDATE users SET last_seen = unixepoch() WHERE id = ?"),
 
@@ -103,11 +103,11 @@ export const queries = {
   `),
 
   isMember: db.prepare(
-    "SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?"
+    "SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?",
   ),
 
   insertMessage: db.prepare(
-    "INSERT INTO messages (room_id, user_id, text) VALUES (?, ?, ?)"
+    "INSERT INTO messages (room_id, user_id, text) VALUES (?, ?, ?)",
   ),
 
   getMessageById: db.prepare(`
