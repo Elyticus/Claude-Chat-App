@@ -957,9 +957,10 @@ function ChatApp({ token, currentUser, onLogout }) {
             )}
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+            <div className="flex-1 overflow-y-auto px-4 py-4">
+              <div className="flex flex-col justify-end min-h-full gap-3">
               {displayedMessages.length === 0 && messages[activeRoomId] !== undefined && (
-                <div className="flex flex-col items-center justify-center h-full text-center">
+                <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
                   <div
                     className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
                     style={{ background: userBg(activeAvatarId) }}
@@ -979,7 +980,7 @@ function ChatApp({ token, currentUser, onLogout }) {
                 return (
                   <div
                     key={msg.id}
-                    className={`flex items-end gap-2 ${isMine ? "flex-row-reverse" : "flex-row"}`}
+                    className={`flex w-full items-end gap-2 ${isMine ? "flex-row-reverse" : "flex-row"}`}
                     onContextMenu={(e) => !isTemp && handleContextMenu(e, msg)}
                   >
                     {!isMine && (
@@ -1015,6 +1016,7 @@ function ChatApp({ token, currentUser, onLogout }) {
                 );
               })}
               <div ref={messagesEndRef} />
+              </div>
             </div>
 
             {/* Emoji picker */}
