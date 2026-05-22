@@ -112,30 +112,6 @@ a, button, [role="button"] {
   }
 }
 
-@keyframes slideInRight {
-  from { transform: translate3d(100%, 0, 0); }
-  to   { transform: translate3d(0, 0, 0); }
-}
-
-@keyframes slideOutRight {
-  from { transform: translate3d(0, 0, 0); }
-  to   { transform: translate3d(100%, 0, 0); }
-}
-
-.panel-hidden {
-  transform: translate3d(100%, 0, 0);
-}
-
-.panel-open {
-  animation: slideInRight 220ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  will-change: transform;
-}
-
-.panel-closed {
-  animation: slideOutRight 220ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  will-change: transform;
-}
-
 /* Animation utilities */
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;

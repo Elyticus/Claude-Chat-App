@@ -560,7 +560,6 @@ function ChatApp({ token, currentUser, onLogout }) {
   const [rooms, setRooms] = useState([]);
   const [activeRoomId, setActiveRoomId] = useState(null);
   const [displayRoomId, setDisplayRoomId] = useState(null);
-  const hasOpenedRoom = useRef(false);
   const [messages, setMessages] = useState({});
   const [typingMap, setTypingMap] = useState({});
   const [onlineIds, setOnlineIds] = useState(new Set());
@@ -839,7 +838,6 @@ function ChatApp({ token, currentUser, onLogout }) {
 
   function selectRoom(roomId) {
     clearTimeout(closeTimerRef.current);
-    hasOpenedRoom.current = true;
     setDisplayRoomId(roomId);
     setActiveRoomId(roomId);
     setUnreadCounts((prev) => ({ ...prev, [roomId]: 0 }));
@@ -852,7 +850,7 @@ function ChatApp({ token, currentUser, onLogout }) {
   function closeRoom() {
     stopTyping();
     setActiveRoomId(null);
-    closeTimerRef.current = setTimeout(() => setDisplayRoomId(null), 500);
+    closeTimerRef.current = setTimeout(() => setDisplayRoomId(null), 200);
     setShowEmojiPicker(false);
     setShowMsgSearch(false);
     setMsgSearch("");
@@ -900,9 +898,9 @@ function ChatApp({ token, currentUser, onLogout }) {
       />
 
       {/* Chat Panel */}
-      <div className="fixed inset-0 z-[200] overflow-hidden pointer-events-none">
+      <div className="fixed inset-0 z-[200] pointer-events-none">
       <div
-        className={`absolute inset-0 bg-black flex flex-col pointer-events-auto ${activeRoomId ? "panel-open" : hasOpenedRoom.current ? "panel-closed" : "panel-hidden"}`}
+        className={`absolute inset-0 bg-black flex flex-col transition-opacity duration-200 ${activeRoomId ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
       >
         {displayRoomId && activeRoom && (
           <>
