@@ -4,7 +4,8 @@ import {
   LogOut,
   ArrowLeft,
   Send,
-  Smile,
+  Sun,
+  Moon,
   Search,
   X,
   Trash2,
@@ -60,39 +61,6 @@ function formatFullTime(ts) {
 
 const REACTIONS = ["🔥", "🙌", "❤️", "😀", "😝", "👍"];
 
-const EMOJI_PICKER_ITEMS = [
-  "😀",
-  "😂",
-  "😍",
-  "🥰",
-  "😎",
-  "🤔",
-  "😅",
-  "😢",
-  "😭",
-  "😡",
-  "🤯",
-  "🙏",
-  "👍",
-  "👎",
-  "❤️",
-  "🔥",
-  "🎉",
-  "💯",
-  "🤣",
-  "🥺",
-  "🚀",
-  "⭐",
-  "💪",
-  "🤝",
-  "🙌",
-  "👋",
-  "😝",
-  "🎊",
-  "✨",
-  "💀",
-  "🥶",
-];
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
@@ -123,20 +91,20 @@ function Avatar({ userId, username, size = 48, online = false }) {
 
 // ─── Typing indicator ─────────────────────────────────────────────────────────
 
-function TypingIndicator({ names }) {
+function TypingIndicator({ names, isDark }) {
   if (!names.length) return null;
   const label =
     names.length === 1
       ? `${names[0]} is typing`
       : `${names.join(", ")} are typing`;
   return (
-    <span className="flex items-center gap-1 text-white/50 text-xs">
+    <span className={`flex items-center gap-1 text-xs ${isDark ? "text-white/50" : "text-slate-500"}`}>
       {label}
       <span className="flex gap-0.5 items-end ml-0.5">
         {[0, 1, 2].map((i) => (
           <span
             key={i}
-            className="w-1 h-1 bg-white/40 rounded-full animate-bounce"
+            className={`w-1 h-1 rounded-full animate-bounce ${isDark ? "bg-white/40" : "bg-slate-400"}`}
             style={{ animationDelay: `${i * 0.15}s` }}
           />
         ))}
@@ -155,10 +123,11 @@ function OrbitalHub({
   currentUser,
   onlineIds,
   unreadCounts,
+  isDark,
+  onToggleTheme,
 }) {
   const [rotationAngle, setRotationAngle] = useState(0);
   const [hoveredId, setHoveredId] = useState(null);
-  // Initialize with real window size so first frame never overflows on mobile
   const [containerSize, setContainerSize] = useState(() => ({
     w: window.innerWidth,
     h: window.innerHeight,
@@ -211,12 +180,18 @@ function OrbitalHub({
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-dvh bg-black flex items-center justify-center overflow-hidden"
+      className={`relative w-full h-dvh flex items-center justify-center overflow-hidden transition-colors duration-300 ${isDark ? "bg-black" : "bg-indigo-50"}`}
     >
+      {/* Futuristic background */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className={`absolute inset-0 futuristic-grid ${isDark ? "opacity-100" : "opacity-50"}`} />
+        <div className={`absolute inset-0 futuristic-aurora ${isDark ? "opacity-100" : "opacity-40"}`} />
+      </div>
+
       {/* Top bar */}
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 z-30">
         <div className="flex items-center gap-2">
-          <span className="text-white font-semibold tracking-wide text-xl">
+          <span className={`font-semibold tracking-wide text-xl ${isDark ? "text-white" : "text-slate-900"}`}>
             Chatloop<span className="text-purple-400">.</span>
           </span>
           {totalUnread > 0 && (
@@ -225,21 +200,24 @@ function OrbitalHub({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <div className="flex items-center gap-2">
-            <Avatar
-              userId={currentUser.id}
-              username={currentUser.username}
-              size={28}
-            />
-            <span className="text-white/40 text-sm hidden sm:block">
+            <Avatar userId={currentUser.id} username={currentUser.username} size={28} />
+            <span className={`text-sm hidden sm:block ${isDark ? "text-white/40" : "text-slate-400"}`}>
               {currentUser.username}
             </span>
           </div>
           <button
+            onClick={onToggleTheme}
+            title={isDark ? "Light mode" : "Dark mode"}
+            className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all ${isDark ? "border-white/15 text-white/50 hover:text-white hover:border-white/30" : "border-slate-300 text-slate-400 hover:text-slate-700 hover:border-slate-400"}`}
+          >
+            {isDark ? <Sun size={14} /> : <Moon size={14} />}
+          </button>
+          <button
             onClick={onLogout}
             title="Sign out"
-            className="w-8 h-8 rounded-full border border-white/15 flex items-center justify-center text-white/50 hover:text-white hover:border-white/30 transition-all"
+            className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all ${isDark ? "border-white/15 text-white/50 hover:text-white hover:border-white/30" : "border-slate-300 text-slate-400 hover:text-slate-700 hover:border-slate-400"}`}
           >
             <LogOut size={14} />
           </button>
@@ -248,11 +226,11 @@ function OrbitalHub({
 
       {/* Orbit rings */}
       <div
-        className="absolute rounded-full border border-white/[0.07] pointer-events-none"
+        className={`absolute rounded-full border pointer-events-none ${isDark ? "border-white/[0.07]" : "border-indigo-300/50"}`}
         style={{ width: "min(64vmin, 500px)", height: "min(64vmin, 500px)" }}
       />
       <div
-        className="absolute rounded-full border border-white/4 pointer-events-none"
+        className={`absolute rounded-full border pointer-events-none ${isDark ? "border-white/4" : "border-indigo-300/30"}`}
         style={{ width: "min(44vmin, 340px)", height: "min(44vmin, 340px)" }}
       />
 
@@ -261,8 +239,7 @@ function OrbitalHub({
         className="absolute w-20 h-20 rounded-full flex items-center justify-center cursor-pointer z-20 select-none"
         style={{
           background: "linear-gradient(135deg, #6366f1, #3b82f6, #14b8a6)",
-          boxShadow:
-            "0 0 50px rgba(99, 102, 241, 0.35), 0 0 100px rgba(99, 102, 241, 0.15)",
+          boxShadow: "0 0 50px rgba(99, 102, 241, 0.35), 0 0 100px rgba(99, 102, 241, 0.15)",
           animation: "pulse 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         }}
         onClick={onNewChat}
@@ -270,20 +247,11 @@ function OrbitalHub({
       >
         <div
           className="absolute rounded-full border border-white/15"
-          style={{
-            width: 96,
-            height: 96,
-            animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite",
-          }}
+          style={{ width: 96, height: 96, animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite" }}
         />
         <div
           className="absolute rounded-full border border-white/[0.07]"
-          style={{
-            width: 116,
-            height: 116,
-            animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite",
-            animationDelay: "0.6s",
-          }}
+          style={{ width: 116, height: 116, animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite", animationDelay: "0.6s" }}
         />
         <MessageCircle size={28} className="text-white relative z-10" />
       </div>
@@ -291,7 +259,7 @@ function OrbitalHub({
       {/* Empty state */}
       {rooms.length === 0 && (
         <p
-          className="absolute text-white/20 text-sm tracking-wide pointer-events-none"
+          className={`absolute text-sm tracking-wide pointer-events-none ${isDark ? "text-white/20" : "text-slate-400"}`}
           style={{ marginTop: "220px" }}
         >
           Tap the orb to start a conversation
@@ -301,9 +269,7 @@ function OrbitalHub({
       {/* Room nodes */}
       {rooms.map((room, index) => {
         const pos = getNodePosition(index, rooms.length);
-        const displayName = room.is_group
-          ? room.name || "Group"
-          : room.other_username || "User";
+        const displayName = room.is_group ? room.name || "Group" : room.other_username || "User";
         const avatarId = room.is_group ? room.id : room.other_user_id;
         const isOnline = !room.is_group && onlineIds.has(room.other_user_id);
         const unread = unreadCounts[room.id] || 0;
@@ -312,11 +278,7 @@ function OrbitalHub({
           <div
             key={room.id}
             className={`absolute cursor-pointer flex flex-col items-center select-none active:scale-95 ${hoveredId === null ? "transition-transform duration-50" : "transition-none"}`}
-            style={{
-              transform: `translate(${pos.x}px, ${pos.y}px)`,
-              zIndex: pos.zIndex,
-              opacity: pos.opacity,
-            }}
+            style={{ transform: `translate(${pos.x}px, ${pos.y}px)`, zIndex: pos.zIndex, opacity: pos.opacity }}
             onMouseEnter={() => setHoveredId(room.id)}
             onMouseLeave={() => setHoveredId(null)}
             onClick={() => onSelectRoom(room.id)}
@@ -325,24 +287,19 @@ function OrbitalHub({
             <div
               className="absolute rounded-full pointer-events-none"
               style={{
-                width: 72,
-                height: 72,
-                left: "50%",
-                top: "50%",
+                width: 72, height: 72, left: "50%", top: "50%",
                 transform: "translate(-50%, -50%)",
-                background:
-                  "radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%)",
+                background: "radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%)",
               }}
             />
-
             {/* Node circle */}
             <div
-              className="relative w-12 h-12 rounded-full flex items-center justify-center text-white text-sm font-bold border-2 border-white/25 shadow-lg hover:border-white/50 hover:scale-110 transition-all duration-200"
+              className={`relative w-12 h-12 rounded-full flex items-center justify-center text-white text-sm font-bold border-2 shadow-lg hover:scale-110 transition-all duration-200 ${isDark ? "border-white/25 hover:border-white/50" : "border-white/50 hover:border-white/80"}`}
               style={{ background: userBg(avatarId) }}
             >
               {initials(displayName)}
               {isOnline && (
-                <span className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-black" />
+                <span className={`absolute bottom-0.5 right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 ${isDark ? "border-black" : "border-indigo-50"}`} />
               )}
               {unread > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-md">
@@ -350,13 +307,12 @@ function OrbitalHub({
                 </span>
               )}
             </div>
-
             {/* Name label */}
-            <span className="mt-2 text-[11px] text-white/55 font-medium max-w-19 truncate text-center leading-tight">
+            <span className={`mt-2 text-[11px] font-medium max-w-19 truncate text-center leading-tight ${isDark ? "text-white/55" : "text-slate-500"}`}>
               {displayName}
             </span>
             {room.last_message_at && (
-              <span className="text-[10px] text-white/25 mt-0.5">
+              <span className={`text-[10px] mt-0.5 ${isDark ? "text-white/25" : "text-slate-400"}`}>
                 {formatTime(room.last_message_at)}
               </span>
             )}
@@ -369,7 +325,7 @@ function OrbitalHub({
 
 // ─── Context Menu ─────────────────────────────────────────────────────────────
 
-function ContextMenu({ msg, position, onClose, onReact, onCopy, onDelete }) {
+function ContextMenu({ msg, position, onClose, onReact, onCopy, onDelete, isDark }) {
   const menuW = 240;
   const menuH = 420;
   const style = {
@@ -381,34 +337,35 @@ function ContextMenu({ msg, position, onClose, onReact, onCopy, onDelete }) {
     <>
       <div className="fixed inset-0 z-300" onClick={onClose} />
       <div
-        className="fixed z-300 bg-[#111] border border-white/12 rounded-2xl shadow-2xl shadow-black/70 overflow-hidden w-60"
+        className={`fixed z-300 border rounded-2xl shadow-2xl overflow-hidden w-60 transition-colors duration-300 ${isDark ? "bg-[#111] border-white/12 shadow-black/70" : "bg-white border-black/8 shadow-black/10"}`}
         style={style}
       >
         {/* Preview */}
-        <div className="px-4 py-3 border-b border-white/8">
+        <div className={`px-4 py-3 border-b ${isDark ? "border-white/8" : "border-black/6"}`}>
           {msg.reaction && <span className="text-lg mr-1">{msg.reaction}</span>}
-          <p className="text-white/65 text-sm leading-relaxed line-clamp-2">
+          <p className={`text-sm leading-relaxed line-clamp-2 ${isDark ? "text-white/65" : "text-slate-500"}`}>
             {msg.text}
           </p>
-          <span className="text-white/25 text-[10px] mt-1 block">
+          <span className={`text-[10px] mt-1 block ${isDark ? "text-white/25" : "text-slate-400"}`}>
             {formatFullTime(msg.created_at)}
           </span>
         </div>
 
         {/* Reactions */}
-        <div className="px-3 py-2.5 border-b border-white/8">
-          <p className="text-white/35 text-[10px] uppercase tracking-widest mb-2">
+        <div className={`px-3 py-2.5 border-b ${isDark ? "border-white/8" : "border-black/6"}`}>
+          <p className={`text-[10px] uppercase tracking-widest mb-2 ${isDark ? "text-white/35" : "text-slate-400"}`}>
             React
           </p>
           <div className="flex gap-1">
             {REACTIONS.map((emoji) => (
               <button
                 key={emoji}
-                onClick={() => {
-                  onReact(msg.id, emoji);
-                  onClose();
-                }}
-                className={`w-8 h-8 flex items-center justify-center rounded-lg text-base transition-all hover:bg-white/10 ${msg.reaction === emoji ? "bg-white/20 ring-1 ring-white/30" : ""}`}
+                onClick={() => { onReact(msg.id, emoji); onClose(); }}
+                className={`w-8 h-8 flex items-center justify-center rounded-lg text-base transition-all ${
+                  msg.reaction === emoji
+                    ? isDark ? "bg-white/20 ring-1 ring-white/30" : "bg-black/10 ring-1 ring-black/20"
+                    : isDark ? "hover:bg-white/10" : "hover:bg-black/6"
+                }`}
               >
                 {emoji}
               </button>
@@ -419,20 +376,14 @@ function ContextMenu({ msg, position, onClose, onReact, onCopy, onDelete }) {
         {/* Actions */}
         <div className="p-1.5">
           <button
-            onClick={() => {
-              onCopy(msg.text);
-              onClose();
-            }}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-white/65 hover:text-white hover:bg-white/[0.07] text-sm transition-all"
+            onClick={() => { onCopy(msg.text); onClose(); }}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm transition-all ${isDark ? "text-white/65 hover:text-white hover:bg-white/[0.07]" : "text-slate-500 hover:text-slate-900 hover:bg-black/5"}`}
           >
             Copy text
-            <kbd className="text-white/25 text-[10px]">⌘C</kbd>
+            <kbd className={`text-[10px] ${isDark ? "text-white/25" : "text-slate-400"}`}>⌘C</kbd>
           </button>
           <button
-            onClick={() => {
-              onDelete(msg.id);
-              onClose();
-            }}
+            onClick={() => { onDelete(msg.id); onClose(); }}
             className="w-full flex items-center px-3 py-2 rounded-xl text-red-400/80 hover:text-red-400 hover:bg-red-500/10 text-sm transition-all"
           >
             Delete
@@ -451,6 +402,7 @@ function NewChatModal({
   onSelectUser,
   onCreateGroup,
   onClose,
+  isDark,
 }) {
   const [mode, setMode] = useState("dm");
   const [search, setSearch] = useState("");
@@ -480,18 +432,18 @@ function NewChatModal({
   return (
     <div className="fixed inset-0 z-500 flex items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-black/90 backdrop-blur-sm"
+        className={`absolute inset-0 backdrop-blur-sm ${isDark ? "bg-black/90" : "bg-slate-900/30"}`}
         onClick={onClose}
       />
-      <div className="relative bg-[#0d0d0d] border border-white/10 rounded-2xl w-full sm:w-100 max-h-[85dvh] flex flex-col shadow-2xl overflow-hidden">
+      <div className={`relative border rounded-2xl w-full sm:w-100 max-h-[85dvh] flex flex-col shadow-2xl overflow-hidden transition-colors duration-300 ${isDark ? "bg-[#0d0d0d] border-white/10" : "bg-white border-black/10"}`}>
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/8 shrink-0">
-          <span className="text-white font-semibold">
+        <div className={`flex items-center justify-between px-5 py-4 border-b shrink-0 ${isDark ? "border-white/8" : "border-black/6"}`}>
+          <span className={`font-semibold ${isDark ? "text-white" : "text-slate-900"}`}>
             {mode === "dm" ? "New Message" : "New Group"}
           </span>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all"
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isDark ? "text-white/40 hover:text-white hover:bg-white/10" : "text-slate-400 hover:text-slate-900 hover:bg-black/6"}`}
           >
             <X size={16} />
           </button>
@@ -505,11 +457,12 @@ function NewChatModal({
           ].map((m) => (
             <button
               key={m.id}
-              onClick={() => {
-                setMode(m.id);
-                setSelectedIds([]);
-              }}
-              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${mode === m.id ? "bg-white text-black" : "text-white/45 hover:text-white hover:bg-white/8"}`}
+              onClick={() => { setMode(m.id); setSelectedIds([]); }}
+              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${
+                mode === m.id
+                  ? isDark ? "bg-white text-black" : "bg-slate-900 text-white"
+                  : isDark ? "text-white/45 hover:text-white hover:bg-white/8" : "text-slate-400 hover:text-slate-900 hover:bg-black/5"
+              }`}
             >
               {m.label}
             </button>
@@ -520,7 +473,7 @@ function NewChatModal({
         {mode === "group" && (
           <div className="px-4 pt-3 shrink-0">
             <input
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none placeholder:text-white/25 focus:border-white/25 transition-colors"
+              className={`w-full border rounded-xl px-4 py-2.5 text-sm outline-none transition-colors ${isDark ? "bg-white/5 border-white/10 text-white placeholder:text-white/25 focus:border-white/25" : "bg-black/4 border-black/10 text-slate-900 placeholder:text-slate-400 focus:border-black/20"}`}
               placeholder="Group name…"
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
@@ -537,7 +490,7 @@ function NewChatModal({
                 <button
                   key={id}
                   onClick={() => toggleSelect(id)}
-                  className="flex items-center gap-1 bg-white/10 text-white text-xs px-2.5 py-1 rounded-full hover:bg-white/20 transition-colors"
+                  className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full transition-colors ${isDark ? "bg-white/10 text-white hover:bg-white/20" : "bg-black/8 text-slate-700 hover:bg-black/12"}`}
                 >
                   {u.username} <X size={10} />
                 </button>
@@ -548,14 +501,14 @@ function NewChatModal({
 
         {/* Search */}
         <div className="px-4 pt-3 shrink-0">
-          <div className="flex items-center gap-2 bg-white/5 border border-white/8 rounded-xl px-3 py-2.5">
-            <Search size={14} className="text-white/35 shrink-0" />
+          <div className={`flex items-center gap-2 border rounded-xl px-3 py-2.5 ${isDark ? "bg-white/5 border-white/8" : "bg-black/4 border-black/8"}`}>
+            <Search size={14} className={`shrink-0 ${isDark ? "text-white/35" : "text-slate-400"}`} />
             <input
               type="text"
               placeholder={mode === "dm" ? "Search users…" : "Add members…"}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 bg-transparent text-white text-sm outline-none placeholder:text-white/25"
+              className={`flex-1 bg-transparent text-sm outline-none ${isDark ? "text-white placeholder:text-white/25" : "text-slate-900 placeholder:text-slate-400"}`}
             />
           </div>
         </div>
@@ -563,7 +516,7 @@ function NewChatModal({
         {/* User list */}
         <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2 mt-1 space-y-0.5">
           {filtered.length === 0 && (
-            <p className="text-center text-white/25 text-sm py-10">
+            <p className={`text-center text-sm py-10 ${isDark ? "text-white/25" : "text-slate-400"}`}>
               No users found
             </p>
           )}
@@ -572,29 +525,24 @@ function NewChatModal({
             return (
               <button
                 key={u.id}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left ${selected ? "bg-white/12" : "hover:bg-white/6"}`}
-                onClick={() =>
-                  mode === "dm" ? onSelectUser(u) : toggleSelect(u.id)
-                }
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left ${
+                  selected
+                    ? isDark ? "bg-white/12" : "bg-black/8"
+                    : isDark ? "hover:bg-white/6" : "hover:bg-black/4"
+                }`}
+                onClick={() => mode === "dm" ? onSelectUser(u) : toggleSelect(u.id)}
               >
-                <Avatar
-                  userId={u.id}
-                  username={u.username}
-                  size={40}
-                  online={onlineIds.has(u.id)}
-                />
+                <Avatar userId={u.id} username={u.username} size={40} online={onlineIds.has(u.id)} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-white text-sm font-medium truncate">
+                  <div className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-slate-900"}`}>
                     {u.username}
                   </div>
-                  <div className="text-white/35 text-xs truncate">
+                  <div className={`text-xs truncate ${isDark ? "text-white/35" : "text-slate-400"}`}>
                     {u.email}
                   </div>
                 </div>
                 {mode === "dm" && onlineIds.has(u.id) && (
-                  <span className="text-[10px] text-green-400 font-semibold shrink-0">
-                    Online
-                  </span>
+                  <span className="text-[10px] text-green-400 font-semibold shrink-0">Online</span>
                 )}
                 {mode === "group" && selected && (
                   <span className="text-purple-400 font-bold shrink-0">✓</span>
@@ -606,7 +554,7 @@ function NewChatModal({
 
         {/* Create group CTA */}
         {mode === "group" && (
-          <div className="px-4 pb-5 pt-2 border-t border-white/8 shrink-0">
+          <div className={`px-4 pb-5 pt-2 border-t shrink-0 ${isDark ? "border-white/8" : "border-black/6"}`}>
             <button
               onClick={submitGroup}
               disabled={selectedIds.length < 1 || !groupName.trim() || creating}
@@ -675,10 +623,20 @@ function ChatApp({ token, currentUser, onLogout }) {
   const [showNewChat, setShowNewChat] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
   const [inputText, setInputText] = useState("");
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMsgSearch, setShowMsgSearch] = useState(false);
   const [msgSearch, setMsgSearch] = useState("");
   const [unreadCounts, setUnreadCounts] = useState({});
+  const [isDark, setIsDark] = useState(
+    () => localStorage.getItem("chatloop_theme") !== "light",
+  );
+
+  function toggleTheme() {
+    setIsDark((prev) => {
+      const next = !prev;
+      localStorage.setItem("chatloop_theme", next ? "dark" : "light");
+      return next;
+    });
+  }
 
   const socketRef = useRef(null);
   const typingTimerRef = useRef(null);
@@ -932,12 +890,6 @@ function ChatApp({ token, currentUser, onLogout }) {
     navigator.clipboard.writeText(text).catch(console.error);
   }
 
-  function handleEmojiPick(emoji) {
-    setInputText((prev) => prev + emoji);
-    setShowEmojiPicker(false);
-    inputRef.current?.focus();
-  }
-
   function handleDeleteMessage(messageId) {
     if (!activeRoomId) return;
     setMessages((prev) => ({
@@ -994,7 +946,6 @@ function ChatApp({ token, currentUser, onLogout }) {
     setDisplayRoomId(roomId);
     setActiveRoomId(roomId);
     setUnreadCounts((prev) => ({ ...prev, [roomId]: 0 }));
-    setShowEmojiPicker(false);
     setShowMsgSearch(false);
     setMsgSearch("");
     stopTyping();
@@ -1004,7 +955,6 @@ function ChatApp({ token, currentUser, onLogout }) {
     stopTyping();
     setActiveRoomId(null);
     closeTimerRef.current = setTimeout(() => setDisplayRoomId(null), 200);
-    setShowEmojiPicker(false);
     setShowMsgSearch(false);
     setMsgSearch("");
   }
@@ -1046,7 +996,10 @@ function ChatApp({ token, currentUser, onLogout }) {
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="relative w-full h-dvh bg-black overflow-hidden">
+    <div
+      data-theme={isDark ? "dark" : "light"}
+      className={`relative w-full h-dvh overflow-hidden transition-colors duration-300 ${isDark ? "bg-black" : "bg-indigo-50"}`}
+    >
       {/* Orbital Hub — always in background */}
       <OrbitalHub
         rooms={rooms}
@@ -1056,64 +1009,54 @@ function ChatApp({ token, currentUser, onLogout }) {
         currentUser={currentUser}
         onlineIds={onlineIds}
         unreadCounts={unreadCounts}
+        isDark={isDark}
+        onToggleTheme={toggleTheme}
       />
 
       {/* Chat Panel */}
       <div className="fixed inset-0 z-200 pointer-events-none">
         <div
-          className={`absolute inset-0 bg-black flex flex-col transition-opacity duration-200 ${activeRoomId ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+          className={`absolute inset-0 flex flex-col transition-opacity duration-200 ${isDark ? "bg-black" : "bg-white"} ${activeRoomId ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
         >
           {displayRoomId && activeRoom && (
             <>
               {/* Chat header */}
-              <div className="flex items-center gap-3 px-4 py-3 border-b border-white/8 shrink-0">
+              <div className={`flex items-center gap-3 px-4 py-3 border-b shrink-0 ${isDark ? "border-white/8" : "border-black/8"}`}>
                 <button
                   onClick={closeRoom}
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all"
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isDark ? "text-white/50 hover:text-white hover:bg-white/10" : "text-slate-400 hover:text-slate-900 hover:bg-black/6"}`}
                 >
                   <ArrowLeft size={18} />
                 </button>
-                <Avatar
-                  userId={activeAvatarId}
-                  username={activeRoomName}
-                  size={40}
-                  online={activeRoomOnline}
-                />
+                <Avatar userId={activeAvatarId} username={activeRoomName} size={40} online={activeRoomOnline} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-white font-semibold text-sm truncate">
+                  <div className={`font-semibold text-sm truncate ${isDark ? "text-white" : "text-slate-900"}`}>
                     {activeRoomName}
                   </div>
                   <div className="text-xs mt-0.5">
                     {typingNames.length > 0 ? (
-                      <TypingIndicator names={typingNames} />
+                      <TypingIndicator names={typingNames} isDark={isDark} />
                     ) : (
-                      <span
-                        className={
-                          activeRoomOnline ? "text-green-400" : "text-white/35"
-                        }
-                      >
-                        {activeRoom.is_group
-                          ? "Group chat"
-                          : activeRoomOnline
-                            ? "Online"
-                            : "Offline"}
+                      <span className={activeRoomOnline ? "text-green-400" : isDark ? "text-white/35" : "text-slate-400"}>
+                        {activeRoom.is_group ? "Group chat" : activeRoomOnline ? "Online" : "Offline"}
                       </span>
                     )}
                   </div>
                 </div>
                 <button
-                  onClick={() => {
-                    setShowMsgSearch((v) => !v);
-                    setMsgSearch("");
-                  }}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${showMsgSearch ? "text-white bg-white/10" : "text-white/40 hover:text-white hover:bg-white/8"}`}
+                  onClick={() => { setShowMsgSearch((v) => !v); setMsgSearch(""); }}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                    showMsgSearch
+                      ? isDark ? "text-white bg-white/10" : "text-slate-900 bg-black/8"
+                      : isDark ? "text-white/40 hover:text-white hover:bg-white/8" : "text-slate-400 hover:text-slate-900 hover:bg-black/5"
+                  }`}
                   title="Search messages"
                 >
                   <Search size={16} />
                 </button>
                 <button
                   onClick={() => handleDeleteRoom(activeRoomId)}
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isDark ? "text-white/40 hover:text-red-400 hover:bg-red-500/10" : "text-slate-400 hover:text-red-400 hover:bg-red-500/10"}`}
                   title="Delete chat"
                 >
                   <Trash2 size={16} />
@@ -1122,21 +1065,18 @@ function ChatApp({ token, currentUser, onLogout }) {
 
               {/* Message search bar */}
               {showMsgSearch && (
-                <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/8 bg-white/3 shrink-0">
-                  <Search size={13} className="text-white/35 shrink-0" />
+                <div className={`flex items-center gap-2 px-4 py-2.5 border-b shrink-0 ${isDark ? "border-white/8 bg-white/3" : "border-black/6 bg-black/3"}`}>
+                  <Search size={13} className={`shrink-0 ${isDark ? "text-white/35" : "text-slate-400"}`} />
                   <input
                     type="text"
                     placeholder="Search messages…"
                     value={msgSearch}
                     onChange={(e) => setMsgSearch(e.target.value)}
-                    className="flex-1 bg-transparent text-white text-sm outline-none placeholder:text-white/25"
+                    className={`flex-1 bg-transparent text-sm outline-none ${isDark ? "text-white placeholder:text-white/25" : "text-slate-900 placeholder:text-slate-400"}`}
                   />
                   <button
-                    onClick={() => {
-                      setShowMsgSearch(false);
-                      setMsgSearch("");
-                    }}
-                    className="text-white/35 hover:text-white transition-colors"
+                    onClick={() => { setShowMsgSearch(false); setMsgSearch(""); }}
+                    className={`transition-colors ${isDark ? "text-white/35 hover:text-white" : "text-slate-400 hover:text-slate-700"}`}
                   >
                     <X size={14} />
                   </button>
@@ -1146,27 +1086,17 @@ function ChatApp({ token, currentUser, onLogout }) {
               {/* Messages */}
               <div className="flex-1 overflow-y-auto px-4 py-4">
                 <div className="flex flex-col justify-end min-h-full gap-3">
-                  {displayedMessages.length === 0 &&
-                    messages[activeRoomId] !== undefined && (
-                      <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
-                        <div
-                          className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-                          style={{ background: userBg(activeAvatarId) }}
-                        >
-                          <span className="text-white text-xl font-bold">
-                            {initials(activeRoomName)}
-                          </span>
-                        </div>
-                        <p className="text-white/50 text-sm font-medium">
-                          {activeRoomName}
-                        </p>
-                        <p className="text-white/25 text-xs mt-1">
-                          {msgSearch
-                            ? "No matching messages"
-                            : "No messages yet — say hello! 👋"}
-                        </p>
+                  {displayedMessages.length === 0 && messages[activeRoomId] !== undefined && (
+                    <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
+                      <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: userBg(activeAvatarId) }}>
+                        <span className="text-white text-xl font-bold">{initials(activeRoomName)}</span>
                       </div>
-                    )}
+                      <p className={`text-sm font-medium ${isDark ? "text-white/50" : "text-slate-500"}`}>{activeRoomName}</p>
+                      <p className={`text-xs mt-1 ${isDark ? "text-white/25" : "text-slate-400"}`}>
+                        {msgSearch ? "No matching messages" : "No messages yet — say hello! 👋"}
+                      </p>
+                    </div>
+                  )}
 
                   {displayedMessages.map((msg) => {
                     const isMine = msg.user_id === currentUser.id;
@@ -1175,22 +1105,12 @@ function ChatApp({ token, currentUser, onLogout }) {
                       <div
                         key={msg.id}
                         className={`flex w-full items-end gap-2 ${isMine ? "flex-row-reverse" : "flex-row"}`}
-                        onContextMenu={(e) =>
-                          !isTemp && handleContextMenu(e, msg)
-                        }
+                        onContextMenu={(e) => !isTemp && handleContextMenu(e, msg)}
                       >
-                        {!isMine && (
-                          <Avatar
-                            userId={msg.user_id}
-                            username={msg.username}
-                            size={28}
-                          />
-                        )}
-                        <div
-                          className={`flex flex-col ${isMine ? "items-end" : "items-start"} max-w-[72%]`}
-                        >
+                        {!isMine && <Avatar userId={msg.user_id} username={msg.username} size={28} />}
+                        <div className={`flex flex-col ${isMine ? "items-end" : "items-start"} max-w-[72%]`}>
                           {!isMine && !!activeRoom.is_group && (
-                            <span className="text-[11px] text-white/35 mb-1 ml-1">
+                            <span className={`text-[11px] mb-1 ml-1 ${isDark ? "text-white/35" : "text-slate-400"}`}>
                               {msg.username}
                             </span>
                           )}
@@ -1199,7 +1119,9 @@ function ChatApp({ token, currentUser, onLogout }) {
                               className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed wrap-break-word ${
                                 isMine
                                   ? "bg-linear-to-br from-purple-600 to-blue-600 text-white rounded-br-sm"
-                                  : "bg-white/10 text-white rounded-bl-sm"
+                                  : isDark
+                                    ? "bg-white/10 text-white rounded-bl-sm"
+                                    : "bg-slate-100 text-slate-900 rounded-bl-sm"
                               } ${isTemp ? "opacity-50" : ""}`}
                             >
                               {msg.text}
@@ -1208,7 +1130,7 @@ function ChatApp({ token, currentUser, onLogout }) {
                               </span>
                             </div>
                             {msg.reaction && (
-                              <span className="absolute -bottom-3.5 right-1 text-base bg-black/80 rounded-full px-1.5 py-0.5 border border-white/10 leading-none">
+                              <span className={`absolute -bottom-3.5 right-1 text-base rounded-full px-1.5 py-0.5 border leading-none ${isDark ? "bg-black/80 border-white/10" : "bg-white border-black/10 shadow-sm"}`}>
                                 {msg.reaction}
                               </span>
                             )}
@@ -1221,32 +1143,8 @@ function ChatApp({ token, currentUser, onLogout }) {
                 </div>
               </div>
 
-              {/* Emoji picker */}
-              {showEmojiPicker && (
-                <div className="px-4 pb-2 shrink-0">
-                  <div className="bg-white/5 border border-white/8 rounded-2xl p-3 flex flex-wrap gap-1">
-                    {EMOJI_PICKER_ITEMS.map((em) => (
-                      <button
-                        key={em}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-base transition-colors"
-                        onClick={() => handleEmojiPick(em)}
-                      >
-                        {em}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Message input */}
-              <div className="px-4 py-3 border-t border-white/8 flex items-center gap-2.5 shrink-0">
-                <button
-                  onClick={() => setShowEmojiPicker((v) => !v)}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all shrink-0 ${showEmojiPicker ? "text-white bg-white/10" : "text-white/35 hover:text-white hover:bg-white/8"}`}
-                  title="Emoji"
-                >
-                  <Smile size={18} />
-                </button>
+              <div className={`px-4 py-3 border-t flex items-center gap-2.5 shrink-0 ${isDark ? "border-white/8" : "border-black/8"}`}>
                 <input
                   ref={inputRef}
                   type="text"
@@ -1255,7 +1153,7 @@ function ChatApp({ token, currentUser, onLogout }) {
                   onKeyDown={handleKeyDown}
                   onBlur={stopTyping}
                   placeholder="Type a message…"
-                  className="flex-1 bg-white/5 border border-white/10 rounded-full px-4 py-2.5 text-white text-sm outline-none placeholder:text-white/25 focus:border-white/20 transition-colors"
+                  className={`flex-1 border rounded-full px-4 py-2.5 text-sm outline-none transition-colors ${isDark ? "bg-white/5 border-white/10 text-white placeholder:text-white/25 focus:border-white/20" : "bg-black/4 border-black/10 text-slate-900 placeholder:text-slate-400 focus:border-black/20"}`}
                 />
                 <button
                   onClick={sendMessage}
@@ -1264,7 +1162,7 @@ function ChatApp({ token, currentUser, onLogout }) {
                   style={{
                     background: inputText.trim()
                       ? "linear-gradient(135deg, #7c3aed, #2563eb)"
-                      : "rgba(255,255,255,0.05)",
+                      : isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.06)",
                   }}
                 >
                   <Send size={16} className="text-white" />
@@ -1283,6 +1181,7 @@ function ChatApp({ token, currentUser, onLogout }) {
           onSelectUser={handleSelectUser}
           onCreateGroup={handleCreateGroup}
           onClose={() => setShowNewChat(false)}
+          isDark={isDark}
         />
       )}
 
@@ -1295,6 +1194,7 @@ function ChatApp({ token, currentUser, onLogout }) {
           onReact={handleReact}
           onCopy={handleCopy}
           onDelete={handleDeleteMessage}
+          isDark={isDark}
         />
       )}
     </div>
