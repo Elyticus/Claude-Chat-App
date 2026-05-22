@@ -338,12 +338,12 @@ function OrbitalHub({
         title="See all chats"
       >
         <div
-          className="absolute rounded-full border border-white/15"
-          style={{ width: 96, height: 96, animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite" }}
+          className="absolute rounded-full border"
+          style={{ width: 96, height: 96, animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite", borderColor: isDark ? "rgba(255,255,255,0.35)" : "rgba(99,102,241,0.5)" }}
         />
         <div
-          className="absolute rounded-full border border-white/[0.07]"
-          style={{ width: 116, height: 116, animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite", animationDelay: "0.6s" }}
+          className="absolute rounded-full border"
+          style={{ width: 116, height: 116, animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite", animationDelay: "0.6s", borderColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(99,102,241,0.3)" }}
         />
         <MessageCircle size={28} className="text-white relative z-10" />
         {pendingCount > 0 && (
