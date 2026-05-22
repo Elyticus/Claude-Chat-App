@@ -191,6 +191,7 @@ function OrbitalHub({
   avatarMap,
   myAvatar,
   onAvatarClick,
+  hasGroupNotif,
 }) {
   const [rotationAngle, setRotationAngle] = useState(0);
   const [hoveredId, setHoveredId] = useState(null);
@@ -360,6 +361,9 @@ function OrbitalHub({
           <span className="absolute -top-1 -right-1 min-w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-md z-20">
             {pendingCount > 9 ? "9+" : pendingCount}
           </span>
+        )}
+        {hasGroupNotif && (
+          <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-purple-500 rounded-full border-2 border-black shadow-md z-20 animate-pulse" />
         )}
       </div>
 
@@ -1380,6 +1384,29 @@ function ChatApp({ token, currentUser, onLogout }) {
       }));
     });
 
+    s.on("room:deleted", ({ roomId }) => {
+      setRooms((prev) => prev.filter((r) => r.id !== roomId));
+      if (activeRoomIdRef.current === roomId) {
+        setActiveRoomId(null);
+        setTimeout(() => setDisplayRoomId(null), 200);
+      }
+    });
+
+    s.on("room:member_left", ({ roomId, username }) => {
+      setMessages((prev) => ({
+        ...prev,
+        [roomId]: [
+          ...(prev[roomId] || []),
+          {
+            id: `sys_${Date.now()}`,
+            text: `${username} left the group`,
+            system: true,
+            created_at: Math.floor(Date.now() / 1000),
+          },
+        ],
+      }));
+    });
+
     s.on("contact:request", () => {
       api.getUsers().then(setAllUsers).catch(console.error);
     });
@@ -1409,6 +1436,8 @@ function ChatApp({ token, currentUser, onLogout }) {
       s.off("user:status");
       s.off("room:new");
       s.off("message:deleted");
+      s.off("room:deleted");
+      s.off("room:member_left");
       s.off("contact:request");
       s.off("contact:accepted");
       s.off("user:avatar");
@@ -1588,7 +1617,11 @@ function ChatApp({ token, currentUser, onLogout }) {
   }
 
   async function handleDeleteRoom(roomId) {
-    if (!window.confirm("Delete this chat? This cannot be undone.")) return;
+    const room = rooms.find((r) => r.id === roomId);
+    const msg = room?.is_group
+      ? "Leave this group? If you're the last or second-to-last member, it will be deleted for everyone."
+      : "Delete this chat? This cannot be undone.";
+    if (!window.confirm(msg)) return;
     closeRoom();
     setRooms((prev) => prev.filter((r) => r.id !== roomId));
     try {
@@ -1771,6 +1804,7 @@ function ChatApp({ token, currentUser, onLogout }) {
         avatarMap={avatarMap}
         myAvatar={myAvatar}
         onAvatarClick={() => avatarFileRef.current?.click()}
+        hasGroupNotif={groupNotif !== null}
       />
       <input
         ref={avatarFileRef}
@@ -1926,6 +1960,15 @@ function ChatApp({ token, currentUser, onLogout }) {
                     )}
 
                   {displayedMessages.map((msg) => {
+                    if (msg.system) {
+                      return (
+                        <div key={msg.id} className="flex justify-center py-1">
+                          <span className={`text-xs px-3 py-1 rounded-full ${isDark ? "bg-white/8 text-white/35" : "bg-black/6 text-black/45"}`}>
+                            {msg.text}
+                          </span>
+                        </div>
+                      );
+                    }
                     const isMine = msg.user_id === currentUser.id;
                     const isTemp = !!msg.temp;
                     return (

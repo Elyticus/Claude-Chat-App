@@ -419,9 +419,32 @@ app.delete("/api/rooms/:roomId", requireAuth, async (req, res) => {
   if (!(await queries.isMember.get(roomId, req.user.id))) {
     return res.status(403).json({ error: "Forbidden" });
   }
-  await queries.removeMember.run(roomId, req.user.id);
-  const { cnt } = await queries.memberCount.get(roomId);
-  if (cnt === 0) await queries.deleteRoom.run(roomId);
+
+  const allMembers = await queries.getRoomMembers.all(roomId);
+  const otherMembers = allMembers.filter((m) => m.id !== req.user.id);
+
+  function notifyMembers(members, event, payload) {
+    members.forEach(({ id: memberId }) => {
+      online.get(memberId)?.forEach((sid) => {
+        io.sockets.sockets.get(sid)?.emit(event, payload);
+      });
+    });
+  }
+
+  if (otherMembers.length <= 1) {
+    // 2-person room (DM or group) — delete entirely for all
+    await queries.deleteRoom.run(roomId);
+    notifyMembers(otherMembers, "room:deleted", { roomId });
+  } else {
+    // 3+ member group — user leaves, room continues
+    await queries.removeMember.run(roomId, req.user.id);
+    notifyMembers(otherMembers, "room:member_left", {
+      roomId,
+      userId: req.user.id,
+      username: req.user.username,
+    });
+  }
+
   res.json({ ok: true });
 });
 
