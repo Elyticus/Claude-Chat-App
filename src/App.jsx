@@ -332,30 +332,11 @@ function OrbitalHub({
         className="absolute w-20 h-20 rounded-full flex items-center justify-center cursor-pointer z-20 select-none"
         style={{
           background: "linear-gradient(135deg, #6366f1, #3b82f6, #14b8a6)",
-          boxShadow:
-            "0 0 50px rgba(99, 102, 241, 0.35), 0 0 100px rgba(99, 102, 241, 0.15)",
-          animation: "pulse 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+          boxShadow: "0 0 50px rgba(99, 102, 241, 0.35), 0 0 100px rgba(99, 102, 241, 0.15)",
         }}
         onClick={() => setShowContactsList((v) => !v)}
         title="See all chats"
       >
-        <div
-          className="absolute rounded-full border border-white/15"
-          style={{
-            width: 96,
-            height: 96,
-            animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite",
-          }}
-        />
-        <div
-          className="absolute rounded-full border border-white/[0.07]"
-          style={{
-            width: 116,
-            height: 116,
-            animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite",
-            animationDelay: "0.6s",
-          }}
-        />
         <MessageCircle size={28} className="text-white relative z-10" />
         {pendingCount > 0 && (
           <span className="absolute -top-1 -right-1 min-w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-md z-20">
