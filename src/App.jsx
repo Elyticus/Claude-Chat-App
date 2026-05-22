@@ -621,13 +621,17 @@ function OrbitalHub({
                               </span>
                             )}
                           </div>
-                          {room.last_message && (
+                          {!!room.is_group && !!room.is_new ? (
+                            <div className="text-xs truncate mt-0.5 text-yellow-400/90">
+                              You were added by {room.added_by}
+                            </div>
+                          ) : room.last_message ? (
                             <div
                               className={`text-xs truncate mt-0.5 ${isDark ? "text-white/40" : "text-black/60"}`}
                             >
                               {room.last_message}
                             </div>
-                          )}
+                          ) : null}
                         </div>
                         <div className="flex flex-col items-end gap-1 shrink-0">
                           {room.last_message_at && (
@@ -1117,6 +1121,45 @@ function NewChatModal({
   );
 }
 
+// ─── Confirm Modal ────────────────────────────────────────────────────────────
+
+function ConfirmModal({ title, body, confirmLabel, onConfirm, onClose, isDark }) {
+  return (
+    <div className="fixed inset-0 z-[600] flex items-end sm:items-center justify-center p-4">
+      <div
+        className={`absolute inset-0 backdrop-blur-sm ${isDark ? "bg-black/80" : "bg-slate-900/40"}`}
+        onClick={onClose}
+      />
+      <div
+        className={`relative border rounded-2xl w-full sm:w-96 shadow-2xl overflow-hidden transition-colors duration-300 ${isDark ? "bg-[#111] border-white/10" : "bg-white border-black/10"}`}
+      >
+        <div className="px-6 pt-6 pb-4">
+          <p className={`font-semibold text-base ${isDark ? "text-white" : "text-black"}`}>
+            {title}
+          </p>
+          <p className={`text-sm mt-2 leading-relaxed ${isDark ? "text-white/50" : "text-black/60"}`}>
+            {body}
+          </p>
+        </div>
+        <div className={`flex gap-2 px-6 pb-6`}>
+          <button
+            onClick={onClose}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${isDark ? "bg-white/8 text-white/70 hover:bg-white/12" : "bg-black/6 text-black/70 hover:bg-black/10"}`}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => { onConfirm(); onClose(); }}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all bg-red-500/15 text-red-400 hover:bg-red-500/25"
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Group Members Panel ──────────────────────────────────────────────────────
 
 function GroupMembersPanel({ members, onClose, onlineIds, avatarMap, isDark }) {
@@ -1240,6 +1283,7 @@ function ChatApp({ token, currentUser, onLogout }) {
   );
   const [myAvatar, setMyAvatar] = useState(() => currentUser.avatar || null);
   const [groupMembersPanel, setGroupMembersPanel] = useState(null);
+  const [confirmModal, setConfirmModal] = useState(null);
 
   function toggleTheme() {
     setIsDark((prev) => {
@@ -1616,19 +1660,25 @@ function ChatApp({ token, currentUser, onLogout }) {
     api.deleteMessage(messageId).catch(console.error);
   }
 
-  async function handleDeleteRoom(roomId) {
+  function handleDeleteRoom(roomId) {
     const room = rooms.find((r) => r.id === roomId);
-    const msg = room?.is_group
-      ? "Leave this group? If you're the last or second-to-last member, it will be deleted for everyone."
-      : "Delete this chat? This cannot be undone.";
-    if (!window.confirm(msg)) return;
-    closeRoom();
-    setRooms((prev) => prev.filter((r) => r.id !== roomId));
-    try {
-      await api.deleteRoom(roomId);
-    } catch (err) {
-      console.error(err);
-    }
+    const isGroup = !!room?.is_group;
+    setConfirmModal({
+      title: isGroup ? "Leave group?" : "Delete conversation?",
+      body: isGroup
+        ? "You'll be removed from the group. If only one member remains after you leave, the group will be deleted for everyone."
+        : "This conversation will be permanently deleted. Neither of you will be able to see the messages again.",
+      confirmLabel: isGroup ? "Leave" : "Delete",
+      onConfirm: async () => {
+        closeRoom();
+        setRooms((prev) => prev.filter((r) => r.id !== roomId));
+        try {
+          await api.deleteRoom(roomId);
+        } catch (err) {
+          console.error(err);
+        }
+      },
+    });
   }
 
   async function handleSelectUser(user) {
@@ -2107,6 +2157,18 @@ function ChatApp({ token, currentUser, onLogout }) {
           onCopy={handleCopy}
           onDelete={handleDeleteMessage}
           currentUserId={currentUser.id}
+          isDark={isDark}
+        />
+      )}
+
+      {/* Confirm Modal */}
+      {confirmModal && (
+        <ConfirmModal
+          title={confirmModal.title}
+          body={confirmModal.body}
+          confirmLabel={confirmModal.confirmLabel}
+          onConfirm={confirmModal.onConfirm}
+          onClose={() => setConfirmModal(null)}
           isDark={isDark}
         />
       )}

@@ -389,7 +389,7 @@ app.post("/api/rooms/group", requireAuth, async (req, res) => {
   const { lastInsertRowid: roomId } = await queries.createRoom.run(1, name.trim());
   const allMembers = [req.user.id, ...userIds];
   await Promise.all(allMembers.map((uid) => queries.addMember.run(roomId, uid)));
-  await Promise.all(userIds.map((uid) => queries.setRoomNew.run(roomId, uid)));
+  await Promise.all(userIds.map((uid) => queries.setRoomNew.run(roomId, uid, req.user.username)));
 
   notifyNewRoom(roomId, allMembers, {
     isGroup: true,
