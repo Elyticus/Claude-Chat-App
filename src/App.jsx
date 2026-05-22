@@ -562,7 +562,7 @@ function NewChatModal({
             >
               {creating
                 ? "Creating…"
-                : `Create Group${selectedIds.length > 0 ? ` (${selectedIds.length + 1} members)` : ""}`}
+                : `Create Group${selectedIds.length > 0 ? ` (${selectedIds.length} selected)` : ""}`}
             </button>
           </div>
         )}
