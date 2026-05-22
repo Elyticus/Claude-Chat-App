@@ -317,11 +317,11 @@ function OrbitalHub({
 
       {/* Orbit rings */}
       <div
-        className={`absolute rounded-full border pointer-events-none ${isDark ? "border-white/[0.07]" : "border-black/25"}`}
+        className={`absolute rounded-full border pointer-events-none ${isDark ? "border-white/30" : "border-black/25"}`}
         style={{ width: "min(64vmin, 500px)", height: "min(64vmin, 500px)" }}
       />
       <div
-        className={`absolute rounded-full border pointer-events-none ${isDark ? "border-white/4" : "border-black/15"}`}
+        className={`absolute rounded-full border pointer-events-none ${isDark ? "border-white/20" : "border-black/15"}`}
         style={{ width: "min(44vmin, 340px)", height: "min(44vmin, 340px)" }}
       />
 
