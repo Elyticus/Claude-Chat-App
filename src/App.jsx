@@ -61,6 +61,44 @@ function formatFullTime(ts) {
 
 const REACTIONS = ["🔥", "🙌", "❤️", "😀", "😝", "👍"];
 
+function ContactStatusButton({ status, onAdd, onRemove, isDark }) {
+  if (status === "accepted") {
+    return (
+      <button
+        onClick={onRemove}
+        className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${isDark ? "bg-white/8 text-white/50 hover:bg-red-500/15 hover:text-red-400" : "bg-black/6 text-slate-400 hover:bg-red-500/10 hover:text-red-400"}`}
+      >
+        Remove
+      </button>
+    );
+  }
+  if (status === "pending_sent") {
+    return (
+      <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold opacity-50 ${isDark ? "bg-white/8 text-white/40" : "bg-black/6 text-slate-400"}`}>
+        Pending
+      </span>
+    );
+  }
+  if (status === "pending_received") {
+    return (
+      <button
+        onClick={onRemove}
+        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-all"
+      >
+        Decline
+      </button>
+    );
+  }
+  return (
+    <button
+      onClick={onAdd}
+      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-500/15 text-purple-400 hover:bg-purple-500/25 transition-all"
+    >
+      Add
+    </button>
+  );
+}
+
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
@@ -125,6 +163,7 @@ function OrbitalHub({
   unreadCounts,
   isDark,
   onToggleTheme,
+  pendingCount,
 }) {
   const [rotationAngle, setRotationAngle] = useState(0);
   const [hoveredId, setHoveredId] = useState(null);
@@ -254,6 +293,11 @@ function OrbitalHub({
           style={{ width: 116, height: 116, animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite", animationDelay: "0.6s" }}
         />
         <MessageCircle size={28} className="text-white relative z-10" />
+        {pendingCount > 0 && (
+          <span className="absolute -top-1 -right-1 min-w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-md z-20">
+            {pendingCount > 9 ? "9+" : pendingCount}
+          </span>
+        )}
       </div>
 
       {/* Empty state */}
@@ -397,10 +441,14 @@ function ContextMenu({ msg, position, onClose, onReact, onCopy, onDelete, isDark
 // ─── New Chat Modal ───────────────────────────────────────────────────────────
 
 function NewChatModal({
-  users,
+  contacts,
+  allUsers,
   onlineIds,
   onSelectUser,
   onCreateGroup,
+  onSendRequest,
+  onAcceptContact,
+  onRemoveContact,
   onClose,
   isDark,
 }) {
@@ -409,8 +457,11 @@ function NewChatModal({
   const [selectedIds, setSelectedIds] = useState([]);
   const [groupName, setGroupName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [findError, setFindError] = useState("");
 
-  const filtered = users.filter(
+  const incoming = allUsers.filter((u) => u.contact_status === "pending_received");
+
+  const filtered = (mode === "find" ? allUsers.filter((u) => u.contact_status !== "pending_received") : contacts).filter(
     (u) =>
       u.username.toLowerCase().includes(search.toLowerCase()) ||
       u.email.toLowerCase().includes(search.toLowerCase()),
@@ -429,6 +480,14 @@ function NewChatModal({
     setCreating(false);
   }
 
+  const tabs = [
+    { id: "dm", label: "Direct" },
+    { id: "group", label: "Group" },
+    { id: "find", label: "Find People", badge: incoming.length },
+  ];
+
+  const headerTitle = mode === "dm" ? "New Message" : mode === "group" ? "New Group" : "Find People";
+
   return (
     <div className="fixed inset-0 z-500 flex items-center justify-center p-4">
       <div
@@ -439,7 +498,7 @@ function NewChatModal({
         {/* Header */}
         <div className={`flex items-center justify-between px-5 py-4 border-b shrink-0 ${isDark ? "border-white/8" : "border-black/6"}`}>
           <span className={`font-semibold ${isDark ? "text-white" : "text-slate-900"}`}>
-            {mode === "dm" ? "New Message" : "New Group"}
+            {headerTitle}
           </span>
           <button
             onClick={onClose}
@@ -451,20 +510,22 @@ function NewChatModal({
 
         {/* Mode tabs */}
         <div className="flex gap-1 p-3 pb-0 shrink-0">
-          {[
-            { id: "dm", label: "Direct Message" },
-            { id: "group", label: "Group Chat" },
-          ].map((m) => (
+          {tabs.map((m) => (
             <button
               key={m.id}
-              onClick={() => { setMode(m.id); setSelectedIds([]); }}
-              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${
+              onClick={() => { setMode(m.id); setSelectedIds([]); setSearch(""); setFindError(""); }}
+              className={`flex-1 relative py-2 rounded-xl text-xs font-medium transition-all ${
                 mode === m.id
                   ? isDark ? "bg-white text-black" : "bg-slate-900 text-white"
                   : isDark ? "text-white/45 hover:text-white hover:bg-white/8" : "text-slate-400 hover:text-slate-900 hover:bg-black/5"
               }`}
             >
               {m.label}
+              {m.badge > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1">
+                  {m.badge}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -485,7 +546,7 @@ function NewChatModal({
         {mode === "group" && selectedIds.length > 0 && (
           <div className="flex flex-wrap gap-1.5 px-4 pt-3 shrink-0">
             {selectedIds.map((id) => {
-              const u = users.find((x) => x.id === id);
+              const u = contacts.find((x) => x.id === id);
               return u ? (
                 <button
                   key={id}
@@ -505,7 +566,7 @@ function NewChatModal({
             <Search size={14} className={`shrink-0 ${isDark ? "text-white/35" : "text-slate-400"}`} />
             <input
               type="text"
-              placeholder={mode === "dm" ? "Search users…" : "Add members…"}
+              placeholder={mode === "dm" ? "Search contacts…" : mode === "group" ? "Add members…" : "Search people…"}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className={`flex-1 bg-transparent text-sm outline-none ${isDark ? "text-white placeholder:text-white/25" : "text-slate-900 placeholder:text-slate-400"}`}
@@ -514,42 +575,120 @@ function NewChatModal({
         </div>
 
         {/* User list */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2 mt-1 space-y-0.5">
-          {filtered.length === 0 && (
-            <p className={`text-center text-sm py-10 ${isDark ? "text-white/25" : "text-slate-400"}`}>
-              No users found
-            </p>
-          )}
-          {filtered.map((u) => {
-            const selected = selectedIds.includes(u.id);
-            return (
-              <button
-                key={u.id}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left ${
-                  selected
-                    ? isDark ? "bg-white/12" : "bg-black/8"
-                    : isDark ? "hover:bg-white/6" : "hover:bg-black/4"
-                }`}
-                onClick={() => mode === "dm" ? onSelectUser(u) : toggleSelect(u.id)}
-              >
-                <Avatar userId={u.id} username={u.username} size={40} online={onlineIds.has(u.id)} />
-                <div className="flex-1 min-w-0">
-                  <div className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-slate-900"}`}>
-                    {u.username}
-                  </div>
-                  <div className={`text-xs truncate ${isDark ? "text-white/35" : "text-slate-400"}`}>
-                    {u.email}
-                  </div>
+        <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2 mt-1">
+          {mode === "find" ? (
+            <div className="space-y-0.5">
+              {/* Incoming requests */}
+              {incoming.length > 0 && !search && (
+                <div className="mb-2">
+                  <p className={`text-[10px] uppercase tracking-widest px-3 py-1 ${isDark ? "text-white/30" : "text-slate-400"}`}>
+                    Requests
+                  </p>
+                  {incoming.map((u) => (
+                    <div
+                      key={u.id}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${isDark ? "bg-indigo-500/8" : "bg-indigo-50"}`}
+                    >
+                      <Avatar userId={u.id} username={u.username} size={40} online={onlineIds.has(u.id)} />
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-slate-900"}`}>{u.username}</div>
+                        <div className={`text-xs truncate ${isDark ? "text-white/35" : "text-slate-400"}`}>{u.email}</div>
+                      </div>
+                      <div className="flex gap-1.5 shrink-0">
+                        <button
+                          onClick={() => onAcceptContact(u.id)}
+                          className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-green-500/15 text-green-400 hover:bg-green-500/25 transition-all"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => onRemoveContact(u.id)}
+                          className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <div className={`mx-3 my-2 border-t ${isDark ? "border-white/8" : "border-black/6"}`} />
                 </div>
-                {mode === "dm" && onlineIds.has(u.id) && (
-                  <span className="text-[10px] text-green-400 font-semibold shrink-0">Online</span>
-                )}
-                {mode === "group" && selected && (
-                  <span className="text-purple-400 font-bold shrink-0">✓</span>
-                )}
-              </button>
-            );
-          })}
+              )}
+
+              {/* All other users */}
+              {filtered.length === 0 && (
+                <p className={`text-center text-sm py-8 ${isDark ? "text-white/25" : "text-slate-400"}`}>
+                  No users found
+                </p>
+              )}
+              {findError && (
+                <div className="mx-1 mb-2 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+                  {findError}
+                </div>
+              )}
+              {filtered.map((u) => (
+                <div key={u.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${isDark ? "hover:bg-white/4" : "hover:bg-black/3"}`}>
+                  <Avatar userId={u.id} username={u.username} size={40} online={onlineIds.has(u.id)} />
+                  <div className="flex-1 min-w-0">
+                    <div className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-slate-900"}`}>{u.username}</div>
+                    <div className={`text-xs truncate ${isDark ? "text-white/35" : "text-slate-400"}`}>{u.email}</div>
+                  </div>
+                  <ContactStatusButton
+                    status={u.contact_status}
+                    onAdd={async () => {
+                      setFindError("");
+                      try {
+                        await onSendRequest(u.id);
+                      } catch (err) {
+                        setFindError(err.message || "Failed to send request");
+                      }
+                    }}
+                    onRemove={() => onRemoveContact(u.id)}
+                    isDark={isDark}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-0.5">
+              {filtered.length === 0 && (
+                <p className={`text-center text-sm py-10 ${isDark ? "text-white/25" : "text-slate-400"}`}>
+                  {contacts.length === 0
+                    ? 'No contacts yet — use "Find People" to add some'
+                    : "No contacts match your search"}
+                </p>
+              )}
+              {filtered.map((u) => {
+                const selected = selectedIds.includes(u.id);
+                return (
+                  <button
+                    key={u.id}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left ${
+                      selected
+                        ? isDark ? "bg-white/12" : "bg-black/8"
+                        : isDark ? "hover:bg-white/6" : "hover:bg-black/4"
+                    }`}
+                    onClick={() => mode === "dm" ? onSelectUser(u) : toggleSelect(u.id)}
+                  >
+                    <Avatar userId={u.id} username={u.username} size={40} online={onlineIds.has(u.id)} />
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-slate-900"}`}>
+                        {u.username}
+                      </div>
+                      <div className={`text-xs truncate ${isDark ? "text-white/35" : "text-slate-400"}`}>
+                        {u.email}
+                      </div>
+                    </div>
+                    {mode === "dm" && onlineIds.has(u.id) && (
+                      <span className="text-[10px] text-green-400 font-semibold shrink-0">Online</span>
+                    )}
+                    {mode === "group" && selected && (
+                      <span className="text-purple-400 font-bold shrink-0">✓</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Create group CTA */}
@@ -758,6 +897,17 @@ function ChatApp({ token, currentUser, onLogout }) {
       }));
     });
 
+    s.on("contact:request", () => {
+      api.getUsers().then(setAllUsers).catch(console.error);
+    });
+
+    s.on("contact:accepted", () => {
+      api.getUsers().then((users) => {
+        setAllUsers(users);
+        setOnlineIds(new Set(users.filter((u) => u.online).map((u) => u.id)));
+      }).catch(console.error);
+    });
+
     return () => {
       s.off("message:new");
       s.off("message:ack");
@@ -766,6 +916,8 @@ function ChatApp({ token, currentUser, onLogout }) {
       s.off("user:status");
       s.off("room:new");
       s.off("message:deleted");
+      s.off("contact:request");
+      s.off("contact:accepted");
     };
   }, [token]);
 
@@ -930,6 +1082,41 @@ function ChatApp({ token, currentUser, onLogout }) {
     }
   }
 
+  async function handleSendRequest(contactId) {
+    setAllUsers((prev) =>
+      prev.map((u) => (u.id === contactId ? { ...u, contact_status: "pending_sent" } : u)),
+    );
+    try {
+      await api.sendContactRequest(contactId);
+      api.getUsers().then(setAllUsers).catch(console.error);
+    } catch (err) {
+      setAllUsers((prev) =>
+        prev.map((u) => (u.id === contactId ? { ...u, contact_status: null } : u)),
+      );
+      throw err;
+    }
+  }
+
+  async function handleAcceptContact(requesterId) {
+    try {
+      await api.acceptContact(requesterId);
+      const users = await api.getUsers();
+      setAllUsers(users);
+      setOnlineIds(new Set(users.filter((u) => u.online).map((u) => u.id)));
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function handleRemoveContact(contactId) {
+    try {
+      await api.removeContact(contactId);
+      api.getUsers().then(setAllUsers).catch(console.error);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   async function handleCreateGroup(userIds, name) {
     setShowNewChat(false);
     try {
@@ -960,6 +1147,9 @@ function ChatApp({ token, currentUser, onLogout }) {
   }
 
   // ── Derived ─────────────────────────────────────────────────────────────────
+
+  const contacts = allUsers.filter((u) => u.contact_status === "accepted");
+  const pendingRequestCount = allUsers.filter((u) => u.contact_status === "pending_received").length;
 
   const activeRoom = rooms.find((r) => r.id === displayRoomId) || null;
   const activeMessages = displayRoomId ? messages[displayRoomId] || [] : [];
@@ -1011,6 +1201,7 @@ function ChatApp({ token, currentUser, onLogout }) {
         unreadCounts={unreadCounts}
         isDark={isDark}
         onToggleTheme={toggleTheme}
+        pendingCount={pendingRequestCount}
       />
 
       {/* Chat Panel */}
@@ -1176,10 +1367,14 @@ function ChatApp({ token, currentUser, onLogout }) {
       {/* New Chat Modal */}
       {showNewChat && (
         <NewChatModal
-          users={allUsers}
+          contacts={contacts}
+          allUsers={allUsers}
           onlineIds={onlineIds}
           onSelectUser={handleSelectUser}
           onCreateGroup={handleCreateGroup}
+          onSendRequest={handleSendRequest}
+          onAcceptContact={handleAcceptContact}
+          onRemoveContact={handleRemoveContact}
           onClose={() => setShowNewChat(false)}
           isDark={isDark}
         />

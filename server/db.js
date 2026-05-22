@@ -43,8 +43,16 @@ export async function initDb() {
       reaction   TEXT,
       created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
     );
+    CREATE TABLE IF NOT EXISTS contacts (
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      contact_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      status     TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted')),
+      created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT,
+      PRIMARY KEY (user_id, contact_id)
+    );
     CREATE INDEX IF NOT EXISTS idx_messages_room ON messages(room_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_room_members_user ON room_members(user_id);
+    CREATE INDEX IF NOT EXISTS idx_contacts_contact ON contacts(contact_id);
   `);
 }
 
@@ -54,7 +62,42 @@ export const queries = {
   getUserByEmail:    { get: (email)    => q("SELECT * FROM users WHERE email = $1", [email]).then(r => r.rows[0] ?? null) },
   getUserByUsername: { get: (username) => q("SELECT * FROM users WHERE username = $1", [username]).then(r => r.rows[0] ?? null) },
   getUserById:       { get: (id)       => q("SELECT id, username, email, last_seen FROM users WHERE id = $1", [id]).then(r => r.rows[0] ?? null) },
-  getAllUsersExcept:  { all: (id)       => q("SELECT id, username, email, last_seen FROM users WHERE id != $1", [id]).then(r => r.rows) },
+  getUsersWithStatus: {
+    all: (currentUserId) =>
+      q(`SELECT u.id, u.username, u.email, u.last_seen,
+                CASE
+                  WHEN c_sent.status = 'accepted'  THEN 'accepted'
+                  WHEN c_recv.status = 'accepted'  THEN 'accepted'
+                  WHEN c_sent.status = 'pending'   THEN 'pending_sent'
+                  WHEN c_recv.status = 'pending'   THEN 'pending_received'
+                  ELSE NULL
+                END AS contact_status
+         FROM users u
+         LEFT JOIN contacts c_sent ON c_sent.user_id    = $1 AND c_sent.contact_id = u.id
+         LEFT JOIN contacts c_recv ON c_recv.contact_id = $1 AND c_recv.user_id    = u.id
+         WHERE u.id != $1
+         ORDER BY u.username ASC`, [currentUserId]).then(r => r.rows),
+  },
+  getContactStatus: {
+    get: (uid1, uid2) =>
+      q(`SELECT status FROM contacts WHERE (user_id = $1 AND contact_id = $2) OR (user_id = $2 AND contact_id = $1) LIMIT 1`,
+        [uid1, uid2]).then(r => r.rows[0] ?? null),
+  },
+  sendContactRequest: {
+    run: (userId, contactId) =>
+      q(`INSERT INTO contacts (user_id, contact_id, status) VALUES ($1, $2, 'pending') ON CONFLICT (user_id, contact_id) DO NOTHING`,
+        [userId, contactId]),
+  },
+  acceptContactRequest: {
+    run: (userId, requesterId) =>
+      q(`UPDATE contacts SET status = 'accepted' WHERE user_id = $1 AND contact_id = $2 AND status = 'pending'`,
+        [requesterId, userId]),
+  },
+  removeContact: {
+    run: (uid1, uid2) =>
+      q(`DELETE FROM contacts WHERE (user_id = $1 AND contact_id = $2) OR (user_id = $2 AND contact_id = $1)`,
+        [uid1, uid2]),
+  },
 
   upsertPending: {
     run: (email, username, hash, code, expiresAt) =>

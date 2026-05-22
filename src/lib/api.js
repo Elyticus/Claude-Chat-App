@@ -51,4 +51,12 @@ export const api = {
   deleteMessage: (messageId) => request("DELETE", `/messages/${messageId}`),
 
   deleteRoom: (roomId) => request("DELETE", `/rooms/${roomId}`),
+
+  sendContactRequest: (contactId) =>
+    request("POST", "/contacts/request", { contactId }),
+
+  acceptContact: (requesterId) =>
+    request("POST", "/contacts/accept", { requesterId }),
+
+  removeContact: (contactId) => request("DELETE", `/contacts/${contactId}`),
 };

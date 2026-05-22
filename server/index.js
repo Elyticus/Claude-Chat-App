@@ -186,8 +186,47 @@ app.post("/api/auth/login", async (req, res) => {
 // ─── REST: Users ───────────────────────────────────────────────────────────────
 
 app.get("/api/users", requireAuth, async (req, res) => {
-  const rows = await queries.getAllUsersExcept.all(req.user.id);
+  const rows = await queries.getUsersWithStatus.all(req.user.id);
   res.json(rows.map((u) => ({ ...u, online: isOnline(u.id) })));
+});
+
+app.post("/api/contacts/request", requireAuth, async (req, res) => {
+  const { contactId } = req.body ?? {};
+  if (!contactId || Number(contactId) === req.user.id) {
+    return res.status(400).json({ error: "Invalid contactId" });
+  }
+  const target = await queries.getUserById.get(contactId);
+  if (!target) return res.status(404).json({ error: "User not found" });
+
+  await queries.sendContactRequest.run(req.user.id, contactId);
+
+  online.get(contactId)?.forEach((sid) => {
+    io.sockets.sockets.get(sid)?.emit("contact:request", {
+      from: { id: req.user.id, username: req.user.username },
+    });
+  });
+  res.json({ ok: true });
+});
+
+app.post("/api/contacts/accept", requireAuth, async (req, res) => {
+  const { requesterId } = req.body ?? {};
+  if (!requesterId) return res.status(400).json({ error: "requesterId required" });
+
+  await queries.acceptContactRequest.run(req.user.id, requesterId);
+
+  online.get(requesterId)?.forEach((sid) => {
+    io.sockets.sockets.get(sid)?.emit("contact:accepted", {
+      by: { id: req.user.id, username: req.user.username },
+    });
+  });
+  res.json({ ok: true });
+});
+
+app.delete("/api/contacts/:contactId", requireAuth, async (req, res) => {
+  const contactId = Number(req.params.contactId);
+  if (!contactId) return res.status(400).json({ error: "Invalid contactId" });
+  await queries.removeContact.run(req.user.id, contactId);
+  res.json({ ok: true });
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -225,6 +264,11 @@ app.post("/api/rooms/dm", requireAuth, async (req, res) => {
   const target = await queries.getUserById.get(targetUserId);
   if (!target) return res.status(404).json({ error: "User not found" });
 
+  const rel = await queries.getContactStatus.get(req.user.id, targetUserId);
+  if (!rel || rel.status !== "accepted") {
+    return res.status(403).json({ error: "You can only DM contacts" });
+  }
+
   const existing = await queries.findDmRoom.get(req.user.id, targetUserId);
   if (existing) return res.json({ roomId: existing.id });
 
@@ -243,6 +287,11 @@ app.post("/api/rooms/group", requireAuth, async (req, res) => {
   }
   if (!name?.trim()) {
     return res.status(400).json({ error: "Group name required" });
+  }
+
+  const rels = await Promise.all(userIds.map((uid) => queries.getContactStatus.get(req.user.id, uid)));
+  if (rels.some((r) => !r || r.status !== "accepted")) {
+    return res.status(403).json({ error: "All group members must be your contacts" });
   }
 
   const { lastInsertRowid: roomId } = await queries.createRoom.run(1, name.trim());
