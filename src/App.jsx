@@ -157,7 +157,7 @@ function OrbitalHub({
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-screen bg-black flex items-center justify-center overflow-hidden"
+      className="relative w-full h-[100dvh] bg-black flex items-center justify-center overflow-hidden"
     >
       {/* Top bar */}
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 z-30">
@@ -560,6 +560,7 @@ function ChatApp({ token, currentUser, onLogout }) {
   const [rooms, setRooms] = useState([]);
   const [activeRoomId, setActiveRoomId] = useState(null);
   const [displayRoomId, setDisplayRoomId] = useState(null);
+  const hasOpenedRoom = useRef(false);
   const [messages, setMessages] = useState({});
   const [typingMap, setTypingMap] = useState({});
   const [onlineIds, setOnlineIds] = useState(new Set());
@@ -580,7 +581,6 @@ function ChatApp({ token, currentUser, onLogout }) {
   const loadedRoomsRef = useRef(new Set());
   const activeRoomIdRef = useRef(null);
   const closeTimerRef = useRef(null);
-  const longPressTimerRef = useRef(null);
 
   useEffect(() => { activeRoomIdRef.current = activeRoomId; }, [activeRoomId]);
 
@@ -781,19 +781,6 @@ function ChatApp({ token, currentUser, onLogout }) {
     setContextMenu({ msg, x: e.clientX, y: e.clientY });
   }, []);
 
-  const handleTouchStart = useCallback((e, msg) => {
-    const touch = e.touches[0];
-    const x = touch.clientX;
-    const y = touch.clientY;
-    longPressTimerRef.current = setTimeout(() => {
-      setContextMenu({ msg, x, y });
-    }, 500);
-  }, []);
-
-  const handleTouchEnd = useCallback(() => {
-    clearTimeout(longPressTimerRef.current);
-  }, []);
-
   function handleReact(messageId, emoji) {
     socketRef.current?.emit("message:react", { messageId, emoji });
   }
@@ -832,11 +819,8 @@ function ChatApp({ token, currentUser, onLogout }) {
     setShowNewChat(false);
     try {
       const { roomId } = await api.createDM(user.id);
-      const updatedRooms = await api.getRooms();
-      setRooms(updatedRooms);
-      clearTimeout(closeTimerRef.current);
-      setDisplayRoomId(roomId);
-      setActiveRoomId(roomId);
+      selectRoom(roomId);
+      api.getRooms().then(setRooms).catch(console.error);
     } catch (err) {
       console.error(err);
     }
@@ -846,11 +830,8 @@ function ChatApp({ token, currentUser, onLogout }) {
     setShowNewChat(false);
     try {
       const { roomId } = await api.createGroup(userIds, name);
-      const updatedRooms = await api.getRooms();
-      setRooms(updatedRooms);
-      clearTimeout(closeTimerRef.current);
-      setDisplayRoomId(roomId);
-      setActiveRoomId(roomId);
+      selectRoom(roomId);
+      api.getRooms().then(setRooms).catch(console.error);
     } catch (err) {
       console.error(err);
     }
@@ -858,6 +839,7 @@ function ChatApp({ token, currentUser, onLogout }) {
 
   function selectRoom(roomId) {
     clearTimeout(closeTimerRef.current);
+    hasOpenedRoom.current = true;
     setDisplayRoomId(roomId);
     setActiveRoomId(roomId);
     setUnreadCounts((prev) => ({ ...prev, [roomId]: 0 }));
@@ -905,7 +887,7 @@ function ChatApp({ token, currentUser, onLogout }) {
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="relative w-full h-screen bg-black overflow-hidden">
+    <div className="relative w-full h-[100dvh] bg-black overflow-hidden">
       {/* Orbital Hub — always in background */}
       <OrbitalHub
         rooms={rooms}
@@ -917,10 +899,10 @@ function ChatApp({ token, currentUser, onLogout }) {
         unreadCounts={unreadCounts}
       />
 
-      {/* Chat Panel — fixed overflow shell clips the translated panel so it never creates horizontal scroll */}
+      {/* Chat Panel */}
       <div className="fixed inset-0 z-[200] overflow-hidden pointer-events-none">
       <div
-        className={`absolute inset-y-0 right-0 w-full bg-black border-l border-white/[0.08] flex flex-col transition-transform duration-300 ease-out pointer-events-auto ${activeRoomId ? "translate-x-0" : "translate-x-full"}`}
+        className={`absolute inset-0 bg-black flex flex-col pointer-events-auto ${activeRoomId ? "panel-open" : hasOpenedRoom.current ? "panel-closed" : "panel-hidden"}`}
       >
         {displayRoomId && activeRoom && (
           <>
@@ -1012,9 +994,6 @@ function ChatApp({ token, currentUser, onLogout }) {
                     key={msg.id}
                     className={`flex w-full items-end gap-2 ${isMine ? "flex-row-reverse" : "flex-row"}`}
                     onContextMenu={(e) => !isTemp && handleContextMenu(e, msg)}
-                    onTouchStart={(e) => !isTemp && handleTouchStart(e, msg)}
-                    onTouchEnd={handleTouchEnd}
-                    onTouchMove={handleTouchEnd}
                   >
                     {!isMine && (
                       <Avatar userId={msg.user_id} username={msg.username} size={28} />
