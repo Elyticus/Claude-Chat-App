@@ -257,7 +257,7 @@ function OrbitalHub({
             className="flex items-center gap-2 rounded-full focus:outline-none group cursor-pointer"
           >
             <div className="relative">
-              <Avatar userId={currentUser.id} username={currentUser.username} size={40} avatar={myAvatar} />
+              <Avatar userId={currentUser.id} username={currentUser.username} size={56} avatar={myAvatar} />
               <span className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
                 <span className="text-white text-[10px] opacity-0 group-hover:opacity-100 font-semibold leading-none">Edit</span>
               </span>
