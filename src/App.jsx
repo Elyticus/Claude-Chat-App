@@ -458,7 +458,7 @@ function OrbitalHub({
         >
           <div
             className={`absolute bottom-0 left-0 right-0 rounded-t-2xl border-t flex flex-col shadow-2xl overflow-hidden transition-colors duration-300 ${isDark ? "bg-[#0d0d0d] border-white/10" : "bg-white border-black/10"}`}
-            style={{ height: "65dvh" }}
+            style={{ height: "100dvh" }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Panel header */}
