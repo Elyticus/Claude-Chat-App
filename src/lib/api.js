@@ -36,6 +36,12 @@ export const api = {
   login: (email, password) =>
     request("POST", "/auth/login", { email, password }),
 
+  forgotPassword: (email) =>
+    request("POST", "/auth/forgot-password", { email }),
+
+  resetPassword: (email, code, password) =>
+    request("POST", "/auth/reset-password", { email, code, password }),
+
   getUsers: () => request("GET", "/users"),
 
   getRooms: () => request("GET", "/rooms"),

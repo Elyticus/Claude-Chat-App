@@ -51,6 +51,11 @@ export async function initDb() {
       created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT,
       PRIMARY KEY (user_id, contact_id)
     );
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      email      TEXT PRIMARY KEY,
+      code       TEXT NOT NULL,
+      expires_at BIGINT NOT NULL
+    );
     CREATE INDEX IF NOT EXISTS idx_messages_room ON messages(room_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_room_members_user ON room_members(user_id);
     CREATE INDEX IF NOT EXISTS idx_contacts_contact ON contacts(contact_id);
@@ -119,8 +124,18 @@ export const queries = {
       q("INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id", [username, email, hash])
         .then(r => ({ lastInsertRowid: r.rows[0].id })),
   },
-  touchUser:    { run: (id)           => q("UPDATE users SET last_seen = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $1", [id]) },
-  updateAvatar: { run: (id, avatar)   => q("UPDATE users SET avatar = $1 WHERE id = $2", [avatar, id]) },
+  touchUser:      { run: (id)           => q("UPDATE users SET last_seen = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $1", [id]) },
+  updateAvatar:   { run: (id, avatar)   => q("UPDATE users SET avatar = $1 WHERE id = $2", [avatar, id]) },
+  updatePassword: { run: (hash, email)  => q("UPDATE users SET password_hash = $1 WHERE email = $2", [hash, email]) },
+
+  upsertResetToken: {
+    run: (email, code, expiresAt) =>
+      q(`INSERT INTO password_reset_tokens (email, code, expires_at) VALUES ($1, $2, $3)
+         ON CONFLICT (email) DO UPDATE SET code = EXCLUDED.code, expires_at = EXCLUDED.expires_at`,
+        [email, code, expiresAt]),
+  },
+  getResetToken:    { get: (email) => q("SELECT * FROM password_reset_tokens WHERE email = $1", [email]).then(r => r.rows[0] ?? null) },
+  deleteResetToken: { run: (email) => q("DELETE FROM password_reset_tokens WHERE email = $1", [email]) },
 
   createRoom: {
     run: (is_group, name) =>

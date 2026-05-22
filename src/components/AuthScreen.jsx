@@ -4,11 +4,15 @@ import { api } from "../lib/api.js";
 
 export default function AuthScreen({ onAuth }) {
   const [mode, setMode] = useState("login");
-  const [step, setStep] = useState("form"); // "form" | "verify"
+  // "form" | "verify" | "forgot" | "forgot-code"
+  const [step, setStep] = useState("form");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const [codeDigits, setCodeDigits] = useState(["", "", "", "", "", ""]);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -76,6 +80,61 @@ export default function AuthScreen({ onAuth }) {
     }
   }
 
+  async function handleForgotRequest(e) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      await api.forgotPassword(email);
+      setStep("forgot-code");
+      setResendCooldown(60);
+      setCodeDigits(["", "", "", "", "", ""]);
+      setNewPassword("");
+      setConfirmPassword("");
+      setTimeout(() => inputRefs.current[0]?.focus(), 50);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResetPassword(e) {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      setError("Passwords don't match");
+      return;
+    }
+    const code = codeDigits.join("");
+    if (code.length !== 6) return;
+    setError("");
+    setLoading(true);
+    try {
+      await api.resetPassword(email, code, newPassword);
+      setSuccess("Password reset successfully! Please sign in.");
+      switchMode("login");
+    } catch (err) {
+      setError(err.message);
+      setCodeDigits(["", "", "", "", "", ""]);
+      setTimeout(() => inputRefs.current[0]?.focus(), 50);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleForgotResend() {
+    if (resendCooldown > 0) return;
+    setError("");
+    try {
+      await api.forgotPassword(email);
+      setResendCooldown(60);
+      setCodeDigits(["", "", "", "", "", ""]);
+      setTimeout(() => inputRefs.current[0]?.focus(), 50);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   function handleDigitChange(index, value) {
     const digit = value.replace(/\D/g, "").slice(-1);
     const next = [...codeDigits];
@@ -106,6 +165,8 @@ export default function AuthScreen({ onAuth }) {
     setStep("form");
     setError("");
     setCodeDigits(["", "", "", "", "", ""]);
+    setNewPassword("");
+    setConfirmPassword("");
   }
 
   function backToRegister() {
@@ -113,6 +174,32 @@ export default function AuthScreen({ onAuth }) {
     setError("");
     setCodeDigits(["", "", "", "", "", ""]);
   }
+
+  function goToForgot() {
+    setStep("forgot");
+    setEmail("");
+    setError("");
+    setSuccess("");
+  }
+
+  const digitInputs = (
+    <div className="flex gap-2 justify-center">
+      {codeDigits.map((d, i) => (
+        <input
+          key={i}
+          ref={(el) => (inputRefs.current[i] = el)}
+          type="text"
+          inputMode="numeric"
+          maxLength={1}
+          value={d}
+          onChange={(e) => handleDigitChange(i, e.target.value)}
+          onKeyDown={(e) => handleDigitKeyDown(i, e)}
+          onPaste={handleDigitPaste}
+          className="w-10 h-12 text-center text-white text-xl font-bold bg-white/5 border border-white/10 rounded-xl outline-none focus:border-indigo-400 focus:bg-indigo-500/10 transition-colors"
+        />
+      ))}
+    </div>
+  );
 
   return (
     <div className="h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
@@ -152,7 +239,7 @@ export default function AuthScreen({ onAuth }) {
           </div>
 
           {step === "verify" ? (
-            /* ── Verification step ── */
+            /* ── Email verification step ── */
             <form onSubmit={handleVerify} className="space-y-6">
               <div className="text-center space-y-1">
                 <p className="text-white font-semibold text-sm">Check your inbox</p>
@@ -162,23 +249,7 @@ export default function AuthScreen({ onAuth }) {
                 <p className="text-indigo-300 text-sm font-medium">{email}</p>
               </div>
 
-              {/* 6-digit boxes */}
-              <div className="flex gap-2 justify-center">
-                {codeDigits.map((d, i) => (
-                  <input
-                    key={i}
-                    ref={(el) => (inputRefs.current[i] = el)}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={d}
-                    onChange={(e) => handleDigitChange(i, e.target.value)}
-                    onKeyDown={(e) => handleDigitKeyDown(i, e)}
-                    onPaste={handleDigitPaste}
-                    className="w-10 h-12 text-center text-white text-xl font-bold bg-white/5 border border-white/10 rounded-xl outline-none focus:border-indigo-400 focus:bg-indigo-500/10 transition-colors"
-                  />
-                ))}
-              </div>
+              {digitInputs}
 
               {error && (
                 <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-xl">
@@ -215,6 +286,143 @@ export default function AuthScreen({ onAuth }) {
                 </button>
               </div>
             </form>
+
+          ) : step === "forgot" ? (
+            /* ── Forgot password — enter email ── */
+            <form onSubmit={handleForgotRequest} className="space-y-6">
+              <div className="text-center space-y-1">
+                <p className="text-white font-semibold text-sm">Forgot your password?</p>
+                <p className="text-white/40 text-xs leading-relaxed">
+                  Enter your email and we'll send a reset code.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-white/50 text-xs font-medium mb-1.5 uppercase tracking-wider">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  required
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none placeholder:text-white/20 focus:border-white/25 transition-colors"
+                />
+              </div>
+
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-xl">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-40 hover:opacity-90 transition-all"
+                style={{ background: "linear-gradient(135deg, #7c3aed, #2563eb)" }}
+              >
+                {loading ? "Sending…" : "Send Reset Code"}
+              </button>
+
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => switchMode("login")}
+                  className="text-white/30 text-xs hover:text-white/60 transition-colors"
+                >
+                  ← Back to Sign In
+                </button>
+              </div>
+            </form>
+
+          ) : step === "forgot-code" ? (
+            /* ── Forgot password — enter code + new password ── */
+            <form onSubmit={handleResetPassword} className="space-y-5">
+              <div className="text-center space-y-1">
+                <p className="text-white font-semibold text-sm">Set new password</p>
+                <p className="text-white/40 text-xs leading-relaxed">
+                  Enter the code sent to
+                </p>
+                <p className="text-indigo-300 text-sm font-medium">{email}</p>
+              </div>
+
+              {digitInputs}
+
+              <div>
+                <label className="block text-white/50 text-xs font-medium mb-1.5 uppercase tracking-wider">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                  required
+                  minLength={6}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none placeholder:text-white/20 focus:border-white/25 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-white/50 text-xs font-medium mb-1.5 uppercase tracking-wider">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                  required
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none placeholder:text-white/20 focus:border-white/25 transition-colors"
+                />
+              </div>
+
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-xl">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={
+                  loading ||
+                  codeDigits.join("").length !== 6 ||
+                  !newPassword ||
+                  !confirmPassword
+                }
+                className="w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-40 hover:opacity-90 transition-all"
+                style={{ background: "linear-gradient(135deg, #7c3aed, #2563eb)" }}
+              >
+                {loading ? "Resetting…" : "Reset Password"}
+              </button>
+
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setStep("forgot")}
+                  className="text-white/30 text-xs hover:text-white/60 transition-colors"
+                >
+                  ← Back
+                </button>
+                <button
+                  type="button"
+                  onClick={handleForgotResend}
+                  disabled={resendCooldown > 0}
+                  className="text-white/30 text-xs hover:text-white/60 transition-colors disabled:pointer-events-none"
+                >
+                  {resendCooldown > 0
+                    ? `Resend in ${resendCooldown}s`
+                    : "Resend code"}
+                </button>
+              </div>
+            </form>
+
           ) : (
             /* ── Login / Register form ── */
             <>
@@ -270,9 +478,20 @@ export default function AuthScreen({ onAuth }) {
                 </div>
 
                 <div>
-                  <label className="block text-white/50 text-xs font-medium mb-1.5 uppercase tracking-wider">
-                    Password
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-white/50 text-xs font-medium uppercase tracking-wider">
+                      Password
+                    </label>
+                    {mode === "login" && (
+                      <button
+                        type="button"
+                        onClick={goToForgot}
+                        className="text-white/30 text-xs hover:text-white/60 transition-colors"
+                      >
+                        Forgot password?
+                      </button>
+                    )}
+                  </div>
                   <input
                     type="password"
                     value={password}
@@ -290,6 +509,12 @@ export default function AuthScreen({ onAuth }) {
                 {error && (
                   <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-xl">
                     {error}
+                  </div>
+                )}
+
+                {success && (
+                  <div className="bg-green-500/10 border border-green-500/20 text-green-400 text-sm px-4 py-3 rounded-xl">
+                    {success}
                   </div>
                 )}
 
