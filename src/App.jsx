@@ -463,8 +463,7 @@ function NewChatModal({
 
   const filtered = (mode === "find" ? allUsers.filter((u) => u.contact_status !== "pending_received") : contacts).filter(
     (u) =>
-      u.username.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase()),
+      u.username.toLowerCase().includes(search.toLowerCase()),
   );
 
   function toggleSelect(id) {
@@ -592,7 +591,6 @@ function NewChatModal({
                       <Avatar userId={u.id} username={u.username} size={40} online={onlineIds.has(u.id)} />
                       <div className="flex-1 min-w-0">
                         <div className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-slate-900"}`}>{u.username}</div>
-                        <div className={`text-xs truncate ${isDark ? "text-white/35" : "text-slate-400"}`}>{u.email}</div>
                       </div>
                       <div className="flex gap-1.5 shrink-0">
                         <button
@@ -630,7 +628,6 @@ function NewChatModal({
                   <Avatar userId={u.id} username={u.username} size={40} online={onlineIds.has(u.id)} />
                   <div className="flex-1 min-w-0">
                     <div className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-slate-900"}`}>{u.username}</div>
-                    <div className={`text-xs truncate ${isDark ? "text-white/35" : "text-slate-400"}`}>{u.email}</div>
                   </div>
                   <ContactStatusButton
                     status={u.contact_status}
@@ -673,9 +670,6 @@ function NewChatModal({
                     <div className="flex-1 min-w-0">
                       <div className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-slate-900"}`}>
                         {u.username}
-                      </div>
-                      <div className={`text-xs truncate ${isDark ? "text-white/35" : "text-slate-400"}`}>
-                        {u.email}
                       </div>
                     </div>
                     {mode === "dm" && onlineIds.has(u.id) && (

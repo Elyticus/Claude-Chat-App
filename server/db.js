@@ -64,7 +64,7 @@ export const queries = {
   getUserById:       { get: (id)       => q("SELECT id, username, email, last_seen FROM users WHERE id = $1", [id]).then(r => r.rows[0] ?? null) },
   getUsersWithStatus: {
     all: (currentUserId) =>
-      q(`SELECT u.id, u.username, u.email, u.last_seen,
+      q(`SELECT u.id, u.username, u.last_seen,
                 CASE
                   WHEN c_sent.status = 'accepted'  THEN 'accepted'
                   WHEN c_recv.status = 'accepted'  THEN 'accepted'
