@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   MessageCircle,
   LogOut,
@@ -102,21 +102,30 @@ function ContactStatusButton({ status, onAdd, onRemove, isDark }) {
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
-function Avatar({ userId, username, size = 48, online = false }) {
+function Avatar({ userId, username, size = 48, online = false, avatar = null }) {
   const dotSize = Math.round(size * 0.28);
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
-      <div
-        className="rounded-full flex items-center justify-center text-white font-bold"
-        style={{
-          background: userBg(userId),
-          width: size,
-          height: size,
-          fontSize: Math.round(size * 0.34),
-        }}
-      >
-        {initials(username)}
-      </div>
+      {avatar ? (
+        <img
+          src={avatar}
+          alt={username}
+          className="rounded-full object-cover"
+          style={{ width: size, height: size }}
+        />
+      ) : (
+        <div
+          className="rounded-full flex items-center justify-center text-white font-bold"
+          style={{
+            background: userBg(userId),
+            width: size,
+            height: size,
+            fontSize: Math.round(size * 0.34),
+          }}
+        >
+          {initials(username)}
+        </div>
+      )}
       {online && (
         <span
           className="absolute rounded-full bg-green-400 border-2 border-black"
@@ -164,6 +173,8 @@ function OrbitalHub({
   isDark,
   onToggleTheme,
   pendingCount,
+  myAvatar,
+  onAvatarClick,
 }) {
   const [rotationAngle, setRotationAngle] = useState(0);
   const [hoveredId, setHoveredId] = useState(null);
@@ -240,12 +251,21 @@ function OrbitalHub({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2">
-            <Avatar userId={currentUser.id} username={currentUser.username} size={28} />
+          <button
+            onClick={onAvatarClick}
+            title="Change profile picture"
+            className="flex items-center gap-2 rounded-full focus:outline-none group"
+          >
+            <div className="relative">
+              <Avatar userId={currentUser.id} username={currentUser.username} size={28} avatar={myAvatar} />
+              <span className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
+                <span className="text-white text-[8px] opacity-0 group-hover:opacity-100 font-semibold leading-none">Edit</span>
+              </span>
+            </div>
             <span className={`text-sm hidden sm:block ${isDark ? "text-white/40" : "text-slate-400"}`}>
               {currentUser.username}
             </span>
-          </div>
+          </button>
           <button
             onClick={onToggleTheme}
             title={isDark ? "Light mode" : "Dark mode"}
@@ -453,6 +473,7 @@ function NewChatModal({
   onRemoveContact,
   onClose,
   isDark,
+  avatarMap,
 }) {
   const [mode, setMode] = useState("dm");
   const [search, setSearch] = useState("");
@@ -590,7 +611,7 @@ function NewChatModal({
                       key={u.id}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${isDark ? "bg-indigo-500/8" : "bg-indigo-50"}`}
                     >
-                      <Avatar userId={u.id} username={u.username} size={40} online={onlineIds.has(u.id)} />
+                      <Avatar userId={u.id} username={u.username} size={40} online={onlineIds.has(u.id)} avatar={avatarMap[u.id]} />
                       <div className="flex-1 min-w-0">
                         <div className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-slate-900"}`}>{u.username}</div>
                       </div>
@@ -627,7 +648,7 @@ function NewChatModal({
               )}
               {filtered.map((u) => (
                 <div key={u.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${isDark ? "hover:bg-white/4" : "hover:bg-black/3"}`}>
-                  <Avatar userId={u.id} username={u.username} size={40} online={onlineIds.has(u.id)} />
+                  <Avatar userId={u.id} username={u.username} size={40} online={onlineIds.has(u.id)} avatar={avatarMap[u.id]} />
                   <div className="flex-1 min-w-0">
                     <div className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-slate-900"}`}>{u.username}</div>
                   </div>
@@ -668,7 +689,7 @@ function NewChatModal({
                     }`}
                     onClick={() => mode === "dm" ? onSelectUser(u) : toggleSelect(u.id)}
                   >
-                    <Avatar userId={u.id} username={u.username} size={40} online={onlineIds.has(u.id)} />
+                    <Avatar userId={u.id} username={u.username} size={40} online={onlineIds.has(u.id)} avatar={avatarMap[u.id]} />
                     <div className="flex-1 min-w-0">
                       <div className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-slate-900"}`}>
                         {u.username}
@@ -764,6 +785,7 @@ function ChatApp({ token, currentUser, onLogout }) {
   const [isDark, setIsDark] = useState(
     () => localStorage.getItem("chatloop_theme") !== "light",
   );
+  const [myAvatar, setMyAvatar] = useState(() => currentUser.avatar || null);
 
   function toggleTheme() {
     setIsDark((prev) => {
@@ -778,6 +800,7 @@ function ChatApp({ token, currentUser, onLogout }) {
   const isTypingRef = useRef(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const avatarFileRef = useRef(null);
   const loadedRoomsRef = useRef(new Set());
   const activeRoomIdRef = useRef(null);
   const closeTimerRef = useRef(null);
@@ -904,6 +927,11 @@ function ChatApp({ token, currentUser, onLogout }) {
       }).catch(console.error);
     });
 
+    s.on("user:avatar", ({ userId, avatar }) => {
+      setAllUsers((prev) => prev.map((u) => u.id === userId ? { ...u, avatar } : u));
+      if (userId === currentUser.id) setMyAvatar(avatar);
+    });
+
     return () => {
       s.off("message:new");
       s.off("message:ack");
@@ -914,8 +942,9 @@ function ChatApp({ token, currentUser, onLogout }) {
       s.off("message:deleted");
       s.off("contact:request");
       s.off("contact:accepted");
+      s.off("user:avatar");
     };
-  }, [token]);
+  }, [token, currentUser.id]);
 
   // ── Load rooms + users ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -1045,6 +1074,34 @@ function ChatApp({ token, currentUser, onLogout }) {
     navigator.clipboard.writeText(text).catch(console.error);
   }
 
+  function resizeImage(file, maxPx) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.src = url;
+    });
+  }
+
+  async function handleAvatarFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    const dataUrl = await resizeImage(file, 256);
+    setMyAvatar(dataUrl);
+    const updated = { ...currentUser, avatar: dataUrl };
+    localStorage.setItem("chatloop_user", JSON.stringify(updated));
+    api.uploadAvatar(dataUrl).catch(console.error);
+  }
+
   function handleDeleteMessage(messageId) {
     if (!activeRoomId) return;
     setMessages((prev) => ({
@@ -1155,6 +1212,12 @@ function ChatApp({ token, currentUser, onLogout }) {
 
   const contacts = allUsers.filter((u) => u.contact_status === "accepted");
   const pendingRequestCount = allUsers.filter((u) => u.contact_status === "pending_received").length;
+  const avatarMap = useMemo(() => {
+    const map = {};
+    allUsers.forEach((u) => { if (u.avatar) map[u.id] = u.avatar; });
+    if (myAvatar) map[currentUser.id] = myAvatar;
+    return map;
+  }, [allUsers, myAvatar, currentUser.id]);
 
   const activeRoom = rooms.find((r) => r.id === displayRoomId) || null;
   const activeMessages = displayRoomId ? messages[displayRoomId] || [] : [];
@@ -1207,6 +1270,15 @@ function ChatApp({ token, currentUser, onLogout }) {
         isDark={isDark}
         onToggleTheme={toggleTheme}
         pendingCount={pendingRequestCount}
+        myAvatar={myAvatar}
+        onAvatarClick={() => avatarFileRef.current?.click()}
+      />
+      <input
+        ref={avatarFileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleAvatarFile}
       />
 
       {/* Chat Panel */}
@@ -1224,7 +1296,7 @@ function ChatApp({ token, currentUser, onLogout }) {
                 >
                   <ArrowLeft size={18} />
                 </button>
-                <Avatar userId={activeAvatarId} username={activeRoomName} size={40} online={activeRoomOnline} />
+                <Avatar userId={activeAvatarId} username={activeRoomName} size={40} online={activeRoomOnline} avatar={avatarMap[activeAvatarId]} />
                 <div className="flex-1 min-w-0">
                   <div className={`font-semibold text-sm truncate ${isDark ? "text-white" : "text-slate-900"}`}>
                     {activeRoomName}
@@ -1303,7 +1375,7 @@ function ChatApp({ token, currentUser, onLogout }) {
                         className={`flex w-full items-end gap-2 ${isMine ? "flex-row-reverse" : "flex-row"}`}
                         onContextMenu={(e) => !isTemp && handleContextMenu(e, msg)}
                       >
-                        {!isMine && <Avatar userId={msg.user_id} username={msg.username} size={28} />}
+                        {!isMine && <Avatar userId={msg.user_id} username={msg.username} size={28} avatar={avatarMap[msg.user_id]} />}
                         <div className={`flex flex-col ${isMine ? "items-end" : "items-start"} max-w-[72%]`}>
                           {!isMine && !!activeRoom.is_group && (
                             <span className={`text-[11px] mb-1 ml-1 ${isDark ? "text-white/35" : "text-slate-400"}`}>
@@ -1382,6 +1454,7 @@ function ChatApp({ token, currentUser, onLogout }) {
           onRemoveContact={handleRemoveContact}
           onClose={() => setShowNewChat(false)}
           isDark={isDark}
+          avatarMap={avatarMap}
         />
       )}
 

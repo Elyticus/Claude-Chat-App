@@ -59,4 +59,6 @@ export const api = {
     request("POST", "/contacts/accept", { requesterId }),
 
   removeContact: (contactId) => request("DELETE", `/contacts/${contactId}`),
+
+  uploadAvatar: (avatar) => request("POST", "/users/me/avatar", { avatar }),
 };

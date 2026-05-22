@@ -16,6 +16,7 @@ export async function initDb() {
       created_at    BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT,
       last_seen     BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
     );
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT;
     CREATE TABLE IF NOT EXISTS pending_verifications (
       email         TEXT PRIMARY KEY,
       username      TEXT NOT NULL,
@@ -61,10 +62,10 @@ const q = (sql, params) => pool.query(sql, params);
 export const queries = {
   getUserByEmail:    { get: (email)    => q("SELECT * FROM users WHERE email = $1", [email]).then(r => r.rows[0] ?? null) },
   getUserByUsername: { get: (username) => q("SELECT * FROM users WHERE username = $1", [username]).then(r => r.rows[0] ?? null) },
-  getUserById:       { get: (id)       => q("SELECT id, username, email, last_seen FROM users WHERE id = $1", [id]).then(r => r.rows[0] ?? null) },
+  getUserById:       { get: (id)       => q("SELECT id, username, email, last_seen, avatar FROM users WHERE id = $1", [id]).then(r => r.rows[0] ?? null) },
   getUsersWithStatus: {
     all: (currentUserId) =>
-      q(`SELECT u.id, u.username, u.last_seen,
+      q(`SELECT u.id, u.username, u.last_seen, u.avatar,
                 CASE
                   WHEN c_sent.status = 'accepted'  THEN 'accepted'
                   WHEN c_recv.status = 'accepted'  THEN 'accepted'
@@ -118,7 +119,8 @@ export const queries = {
       q("INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id", [username, email, hash])
         .then(r => ({ lastInsertRowid: r.rows[0].id })),
   },
-  touchUser: { run: (id) => q("UPDATE users SET last_seen = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $1", [id]) },
+  touchUser:    { run: (id)           => q("UPDATE users SET last_seen = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $1", [id]) },
+  updateAvatar: { run: (id, avatar)   => q("UPDATE users SET avatar = $1 WHERE id = $2", [avatar, id]) },
 
   createRoom: {
     run: (is_group, name) =>

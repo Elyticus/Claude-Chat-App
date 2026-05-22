@@ -149,7 +149,7 @@ app.post("/api/auth/verify", async (req, res) => {
   const { lastInsertRowid: id } = await queries.createUser.run(pending.username, pending.email, pending.password_hash);
   await queries.deletePending.run(email);
 
-  const user = { id, username: pending.username, email: pending.email };
+  const user = { id, username: pending.username, email: pending.email, avatar: null };
   res.status(201).json({ token: generateToken(user), user });
 });
 
@@ -179,7 +179,7 @@ app.post("/api/auth/login", async (req, res) => {
     return res.status(401).json({ error: "Invalid email or password" });
   }
 
-  const user = { id: row.id, username: row.username, email: row.email };
+  const user = { id: row.id, username: row.username, email: row.email, avatar: row.avatar || null };
   res.json({ token: generateToken(user), user });
 });
 
@@ -188,6 +188,19 @@ app.post("/api/auth/login", async (req, res) => {
 app.get("/api/users", requireAuth, async (req, res) => {
   const rows = await queries.getUsersWithStatus.all(req.user.id);
   res.json(rows.map((u) => ({ ...u, online: isOnline(u.id) })));
+});
+
+app.post("/api/users/me/avatar", requireAuth, async (req, res) => {
+  const { avatar } = req.body ?? {};
+  if (!avatar || !avatar.startsWith("data:image/")) {
+    return res.status(400).json({ error: "Invalid image" });
+  }
+  if (avatar.length > 500_000) {
+    return res.status(400).json({ error: "Image too large (max ~375 KB)" });
+  }
+  await queries.updateAvatar.run(req.user.id, avatar);
+  io.emit("user:avatar", { userId: req.user.id, avatar });
+  res.json({ ok: true });
 });
 
 app.post("/api/contacts/request", requireAuth, async (req, res) => {
