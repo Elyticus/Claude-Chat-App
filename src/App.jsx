@@ -184,6 +184,10 @@ function OrbitalHub({
   isDark,
   onToggleTheme,
   pendingCount,
+  pendingUsers,
+  onAcceptContact,
+  onRemoveContact,
+  avatarMap,
   myAvatar,
   onAvatarClick,
 }) {
@@ -454,7 +458,7 @@ function OrbitalHub({
         >
           <div
             className={`absolute bottom-0 left-0 right-0 rounded-t-2xl border-t flex flex-col shadow-2xl overflow-hidden transition-colors duration-300 ${isDark ? "bg-[#0d0d0d] border-white/10" : "bg-white border-black/10"}`}
-            style={{ maxHeight: "70dvh" }}
+            style={{ height: "65dvh" }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Panel header */}
@@ -484,6 +488,54 @@ function OrbitalHub({
                 </button>
               </div>
             </div>
+
+            {/* Pending requests */}
+            {pendingUsers.length > 0 && (
+              <div className={`border-b shrink-0 ${isDark ? "border-white/8" : "border-black/6"}`}>
+                <div className={`flex items-center gap-2 px-5 py-2 ${isDark ? "bg-amber-500/8" : "bg-amber-50"}`}>
+                  <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+                  <span className={`text-[11px] uppercase tracking-widest font-semibold ${isDark ? "text-amber-400/80" : "text-amber-600"}`}>
+                    Friend Requests ({pendingUsers.length})
+                  </span>
+                </div>
+                {pendingUsers.map((u) => (
+                  <div
+                    key={u.id}
+                    className={`flex items-center gap-3 px-4 py-3 ${isDark ? "bg-amber-500/5" : "bg-amber-50/70"}`}
+                  >
+                    <Avatar
+                      userId={u.id}
+                      username={u.username}
+                      size={40}
+                      online={onlineIds.has(u.id)}
+                      avatar={avatarMap[u.id]}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-black"}`}>
+                        {u.username}
+                      </div>
+                      <div className={`text-xs ${isDark ? "text-amber-400/70" : "text-amber-600/80"}`}>
+                        wants to connect
+                      </div>
+                    </div>
+                    <div className="flex gap-1.5 shrink-0">
+                      <button
+                        onClick={() => onAcceptContact(u.id)}
+                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-green-500/15 text-green-400 hover:bg-green-500/25 transition-all"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={() => onRemoveContact(u.id)}
+                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
+                      >
+                        Decline
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Room list */}
             <div className="flex-1 min-h-0 overflow-y-auto py-2">
@@ -1602,6 +1654,10 @@ function ChatApp({ token, currentUser, onLogout }) {
         isDark={isDark}
         onToggleTheme={toggleTheme}
         pendingCount={pendingRequestCount}
+        pendingUsers={allUsers.filter((u) => u.contact_status === "pending_received")}
+        onAcceptContact={handleAcceptContact}
+        onRemoveContact={handleRemoveContact}
+        avatarMap={avatarMap}
         myAvatar={myAvatar}
         onAvatarClick={() => avatarFileRef.current?.click()}
       />
