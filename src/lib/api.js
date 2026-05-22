@@ -67,4 +67,6 @@ export const api = {
   removeContact: (contactId) => request("DELETE", `/contacts/${contactId}`),
 
   uploadAvatar: (avatar) => request("POST", "/users/me/avatar", { avatar }),
+
+  getRoomMembers: (roomId) => request("GET", `/rooms/${roomId}/members`),
 };

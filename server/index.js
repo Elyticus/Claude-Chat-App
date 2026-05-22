@@ -323,7 +323,7 @@ app.delete("/api/contacts/:contactId", requireAuth, async (req, res) => {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function notifyNewRoom(roomId, memberIds) {
+function notifyNewRoom(roomId, memberIds, extra = {}) {
   memberIds.forEach((memberId) => {
     const socketIds = online.get(memberId);
     if (!socketIds) return;
@@ -331,7 +331,7 @@ function notifyNewRoom(roomId, memberIds) {
       const sock = io.sockets.sockets.get(sid);
       if (sock) {
         sock.join(`room:${roomId}`);
-        sock.emit("room:new", { roomId });
+        sock.emit("room:new", { roomId, ...extra });
       }
     });
   });
@@ -390,8 +390,20 @@ app.post("/api/rooms/group", requireAuth, async (req, res) => {
   const allMembers = [req.user.id, ...userIds];
   await Promise.all(allMembers.map((uid) => queries.addMember.run(roomId, uid)));
 
-  notifyNewRoom(roomId, allMembers);
+  notifyNewRoom(roomId, allMembers, {
+    isGroup: true,
+    groupName: name.trim(),
+    addedBy: req.user.username,
+  });
   res.status(201).json({ roomId });
+});
+
+app.get("/api/rooms/:roomId/members", requireAuth, async (req, res) => {
+  const roomId = Number(req.params.roomId);
+  if (!(await queries.isMember.get(roomId, req.user.id))) {
+    return res.status(403).json({ error: "Not a member" });
+  }
+  res.json(await queries.getRoomMembers.all(roomId));
 });
 
 app.get("/api/rooms/:roomId/messages", requireAuth, async (req, res) => {

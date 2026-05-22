@@ -10,6 +10,7 @@ import {
   X,
   Trash2,
   Plus,
+  Users,
 } from "lucide-react";
 import AuthScreen from "./components/AuthScreen.jsx";
 import StarField from "./components/ui/star-field.jsx";
@@ -491,10 +492,16 @@ function OrbitalHub({
 
             {/* Pending requests */}
             {pendingUsers.length > 0 && (
-              <div className={`border-b shrink-0 ${isDark ? "border-white/8" : "border-black/6"}`}>
-                <div className={`flex items-center gap-2 px-5 py-2 ${isDark ? "bg-amber-500/8" : "bg-amber-50"}`}>
+              <div
+                className={`border-b shrink-0 ${isDark ? "border-white/8" : "border-black/6"}`}
+              >
+                <div
+                  className={`flex items-center gap-2 px-5 py-2 ${isDark ? "bg-amber-500/8" : "bg-amber-50"}`}
+                >
                   <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
-                  <span className={`text-[11px] uppercase tracking-widest font-semibold ${isDark ? "text-amber-400/80" : "text-amber-600"}`}>
+                  <span
+                    className={`text-[11px] uppercase tracking-widest font-semibold ${isDark ? "text-amber-400/80" : "text-amber-600"}`}
+                  >
                     Friend Requests ({pendingUsers.length})
                   </span>
                 </div>
@@ -511,10 +518,14 @@ function OrbitalHub({
                       avatar={avatarMap[u.id]}
                     />
                     <div className="flex-1 min-w-0">
-                      <div className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-black"}`}>
+                      <div
+                        className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-black"}`}
+                      >
                         {u.username}
                       </div>
-                      <div className={`text-xs ${isDark ? "text-amber-400/70" : "text-amber-600/80"}`}>
+                      <div
+                        className={`text-xs ${isDark ? "text-amber-400/70" : "text-amber-600/80"}`}
+                      >
                         wants to connect
                       </div>
                     </div>
@@ -1100,6 +1111,69 @@ function NewChatModal({
   );
 }
 
+// ─── Group Members Panel ──────────────────────────────────────────────────────
+
+function GroupMembersPanel({ members, onClose, onlineIds, avatarMap, isDark }) {
+  return (
+    <div className="fixed inset-0 z-500 flex items-center justify-center p-4">
+      <div
+        className={`absolute inset-0 backdrop-blur-sm ${isDark ? "bg-black/90" : "bg-slate-900/30"}`}
+        onClick={onClose}
+      />
+      <div
+        className={`relative border rounded-2xl w-full sm:w-80 max-h-[75dvh] flex flex-col shadow-2xl overflow-hidden transition-colors duration-300 ${isDark ? "bg-[#0d0d0d] border-white/10" : "bg-white border-black/10"}`}
+      >
+        <div
+          className={`flex items-center justify-between px-5 py-4 border-b shrink-0 ${isDark ? "border-white/8" : "border-black/6"}`}
+        >
+          <span
+            className={`font-semibold ${isDark ? "text-white" : "text-black"}`}
+          >
+            Members ({members.length})
+          </span>
+          <button
+            onClick={onClose}
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isDark ? "text-white/40 hover:text-white hover:bg-white/10" : "text-black/50 hover:text-black hover:bg-black/6"}`}
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto py-2 px-3 space-y-0.5">
+          {members.map((m) => {
+            const isOnline = onlineIds.has(m.id);
+            return (
+              <div
+                key={m.id}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${isDark ? "hover:bg-white/4" : "hover:bg-black/3"}`}
+              >
+                <Avatar
+                  userId={m.id}
+                  username={m.username}
+                  size={40}
+                  online={isOnline}
+                  avatar={avatarMap[m.id]}
+                />
+                <div className="flex-1 min-w-0">
+                  <div
+                    className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-black"}`}
+                  >
+                    {m.username}
+                  </div>
+                  {isOnline && (
+                    <div className="text-xs text-green-400 font-medium">
+                      Online
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── App (auth gate) ──────────────────────────────────────────────────────────
 
 export default function App() {
@@ -1159,6 +1233,8 @@ function ChatApp({ token, currentUser, onLogout }) {
     () => localStorage.getItem("chatloop_theme") !== "light",
   );
   const [myAvatar, setMyAvatar] = useState(() => currentUser.avatar || null);
+  const [groupNotif, setGroupNotif] = useState(null);
+  const [groupMembersPanel, setGroupMembersPanel] = useState(null);
 
   function toggleTheme() {
     setIsDark((prev) => {
@@ -1278,8 +1354,23 @@ function ChatApp({ token, currentUser, onLogout }) {
       });
     });
 
-    s.on("room:new", () => {
+    s.on("room:new", (data) => {
       api.getRooms().then(setRooms).catch(console.error);
+      if (
+        data.isGroup &&
+        data.addedBy &&
+        data.addedBy !== currentUser.username
+      ) {
+        if (
+          typeof Notification !== "undefined" &&
+          Notification.permission === "granted"
+        ) {
+          new Notification(`Added to "${data.groupName}"`, {
+            body: `${data.addedBy} added you to this group`,
+          });
+        }
+        setGroupNotif({ groupName: data.groupName, addedBy: data.addedBy });
+      }
     });
 
     s.on("message:deleted", ({ roomId, messageId }) => {
@@ -1322,7 +1413,7 @@ function ChatApp({ token, currentUser, onLogout }) {
       s.off("contact:accepted");
       s.off("user:avatar");
     };
-  }, [token, currentUser.id]);
+  }, [token, currentUser.id, currentUser.username]);
 
   // ── Load rooms + users ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -1378,6 +1469,13 @@ function ChatApp({ token, currentUser, onLogout }) {
   useEffect(() => {
     document.title = totalUnread > 0 ? `(${totalUnread}) Chatloop` : "Chatloop";
   }, [totalUnread]);
+
+  // ── Group notification auto-dismiss ─────────────────────────────────────────
+  useEffect(() => {
+    if (!groupNotif) return;
+    const t = setTimeout(() => setGroupNotif(null), 5000);
+    return () => clearTimeout(t);
+  }, [groupNotif]);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
@@ -1564,6 +1662,16 @@ function ChatApp({ token, currentUser, onLogout }) {
     }
   }
 
+  async function openGroupMembers() {
+    if (!displayRoomId) return;
+    try {
+      const members = await api.getRoomMembers(displayRoomId);
+      setGroupMembersPanel({ roomId: displayRoomId, members });
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   async function handleCreateGroup(userIds, name) {
     setShowNewChat(false);
     try {
@@ -1661,7 +1769,9 @@ function ChatApp({ token, currentUser, onLogout }) {
         isDark={isDark}
         onToggleTheme={toggleTheme}
         pendingCount={pendingRequestCount}
-        pendingUsers={allUsers.filter((u) => u.contact_status === "pending_received")}
+        pendingUsers={allUsers.filter(
+          (u) => u.contact_status === "pending_received",
+        )}
         onAcceptContact={handleAcceptContact}
         onRemoveContact={handleRemoveContact}
         avatarMap={avatarMap}
@@ -1746,6 +1856,15 @@ function ChatApp({ token, currentUser, onLogout }) {
                 >
                   <Search size={16} />
                 </button>
+                {!!activeRoom.is_group && (
+                  <button
+                    onClick={openGroupMembers}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isDark ? "text-white/40 hover:text-white hover:bg-white/8" : "text-black/50 hover:text-black hover:bg-black/5"}`}
+                    title="View members"
+                  >
+                    <Users size={16} />
+                  </button>
+                )}
                 <button
                   onClick={() => handleDeleteRoom(activeRoomId)}
                   className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isDark ? "text-white/40 hover:text-red-400 hover:bg-red-500/10" : "text-black/50 hover:text-red-400 hover:bg-red-500/10"}`}
@@ -1931,6 +2050,17 @@ function ChatApp({ token, currentUser, onLogout }) {
         />
       )}
 
+      {/* Group Members Panel */}
+      {groupMembersPanel && (
+        <GroupMembersPanel
+          members={groupMembersPanel.members}
+          onClose={() => setGroupMembersPanel(null)}
+          onlineIds={onlineIds}
+          avatarMap={avatarMap}
+          isDark={isDark}
+        />
+      )}
+
       {/* Context Menu */}
       {contextMenu && (
         <ContextMenu
@@ -1943,6 +2073,29 @@ function ChatApp({ token, currentUser, onLogout }) {
           currentUserId={currentUser.id}
           isDark={isDark}
         />
+      )}
+
+      {/* Group added notification toast */}
+      {groupNotif && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-700 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl border w-[calc(100%-2rem)] max-w-sm bg-[#111] border-white/12">
+          <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center shrink-0">
+            <Users size={14} className="text-purple-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-white truncate">
+              {groupNotif.groupName}
+            </p>
+            <p className="text-xs text-white/50">
+              {groupNotif.addedBy} added you to this group
+            </p>
+          </div>
+          <button
+            onClick={() => setGroupNotif(null)}
+            className="text-white/30 hover:text-white/60 shrink-0 transition-colors"
+          >
+            <X size={14} />
+          </button>
+        </div>
       )}
     </div>
   );

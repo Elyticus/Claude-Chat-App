@@ -197,6 +197,12 @@ export const queries = {
   memberCount:    { get: (roomId)         => q("SELECT COUNT(*)::INT AS cnt FROM room_members WHERE room_id = $1", [roomId]).then(r => r.rows[0]) },
   deleteRoom:     { run: (roomId)         => q("DELETE FROM rooms WHERE id = $1", [roomId]) },
   getUserRoomIds: { all: (userId)         => q("SELECT room_id FROM room_members WHERE user_id = $1", [userId]).then(r => r.rows) },
+  getRoomMembers: {
+    all: (roomId) =>
+      q(`SELECT u.id, u.username, u.avatar FROM users u
+         JOIN room_members rm ON rm.user_id = u.id
+         WHERE rm.room_id = $1 ORDER BY u.username ASC`, [roomId]).then(r => r.rows),
+  },
 };
 
 export { pool as db };
