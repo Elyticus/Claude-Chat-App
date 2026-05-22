@@ -1369,7 +1369,7 @@ function ChatApp({ token, currentUser, onLogout }) {
             body: `${data.addedBy} added you to this group`,
           });
         }
-        setGroupNotif({ groupName: data.groupName, addedBy: data.addedBy });
+        setGroupNotif({ groupName: data.groupName, addedBy: data.addedBy, roomId: data.roomId });
       }
     });
 
@@ -1469,13 +1469,6 @@ function ChatApp({ token, currentUser, onLogout }) {
   useEffect(() => {
     document.title = totalUnread > 0 ? `(${totalUnread}) Chatloop` : "Chatloop";
   }, [totalUnread]);
-
-  // ── Group notification auto-dismiss ─────────────────────────────────────────
-  useEffect(() => {
-    if (!groupNotif) return;
-    const t = setTimeout(() => setGroupNotif(null), 5000);
-    return () => clearTimeout(t);
-  }, [groupNotif]);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
@@ -1688,6 +1681,7 @@ function ChatApp({ token, currentUser, onLogout }) {
     setDisplayRoomId(roomId);
     setActiveRoomId(roomId);
     setUnreadCounts((prev) => ({ ...prev, [roomId]: 0 }));
+    setGroupNotif((prev) => (prev?.roomId === roomId ? null : prev));
     setShowMsgSearch(false);
     setMsgSearch("");
     stopTyping();
