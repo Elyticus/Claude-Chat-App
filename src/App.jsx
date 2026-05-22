@@ -699,9 +699,14 @@ function ChatApp({ token, currentUser, onLogout }) {
   }, [activeRoomId]);
 
   // ── Auto-scroll ──────────────────────────────────────────────────────────────
+  // Instant when switching rooms — avoids competing with the panel slide-in animation
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, activeRoomId]);
+    if (activeRoomId) messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+  }, [activeRoomId]);
+  // Smooth when a new message arrives in the current room
+  useEffect(() => {
+    if (activeRoomId) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   // ── Tab title ────────────────────────────────────────────────────────────────
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
@@ -813,6 +818,8 @@ function ChatApp({ token, currentUser, onLogout }) {
       const { roomId } = await api.createDM(user.id);
       const updatedRooms = await api.getRooms();
       setRooms(updatedRooms);
+      clearTimeout(closeTimerRef.current);
+      setDisplayRoomId(roomId);
       setActiveRoomId(roomId);
     } catch (err) {
       console.error(err);
@@ -825,6 +832,8 @@ function ChatApp({ token, currentUser, onLogout }) {
       const { roomId } = await api.createGroup(userIds, name);
       const updatedRooms = await api.getRooms();
       setRooms(updatedRooms);
+      clearTimeout(closeTimerRef.current);
+      setDisplayRoomId(roomId);
       setActiveRoomId(roomId);
     } catch (err) {
       console.error(err);
@@ -895,7 +904,7 @@ function ChatApp({ token, currentUser, onLogout }) {
       {/* Chat Panel — fixed overflow shell clips the translated panel so it never creates horizontal scroll */}
       <div className="fixed inset-0 z-[200] overflow-hidden pointer-events-none">
       <div
-        className={`absolute inset-y-0 right-0 w-full bg-black border-l border-white/[0.08] flex flex-col transition-transform duration-500 ease-out pointer-events-auto ${activeRoomId ? "translate-x-0" : "translate-x-full"}`}
+        className={`absolute inset-y-0 right-0 w-full bg-black border-l border-white/[0.08] flex flex-col transition-transform duration-300 ease-out pointer-events-auto ${activeRoomId ? "translate-x-0" : "translate-x-full"}`}
       >
         {displayRoomId && activeRoom && (
           <>
