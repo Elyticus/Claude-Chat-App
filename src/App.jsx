@@ -337,6 +337,14 @@ function OrbitalHub({
         onClick={() => setShowContactsList((v) => !v)}
         title="See all chats"
       >
+        <div
+          className="absolute rounded-full border border-white/15"
+          style={{ width: 96, height: 96, animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite" }}
+        />
+        <div
+          className="absolute rounded-full border border-white/[0.07]"
+          style={{ width: 116, height: 116, animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite", animationDelay: "0.6s" }}
+        />
         <MessageCircle size={28} className="text-white relative z-10" />
         {pendingCount > 0 && (
           <span className="absolute -top-1 -right-1 min-w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-md z-20">
