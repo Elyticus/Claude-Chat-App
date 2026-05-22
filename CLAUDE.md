@@ -10,7 +10,7 @@ A fully functional real-time chat application. Users register/login with JWT aut
 /
 ├── server/
 │   ├── index.js     # Express app + Socket.io server (entry point)
-│   ├── db.js        # better-sqlite3 setup, schema creation, prepared statements
+│   ├── db.js        # pg Pool setup, schema creation, query helpers
 │   └── auth.js      # JWT sign / verify helpers
 ├── src/
 │   ├── App.jsx            # Auth gate → ChatApp (all UI: OrbitalHub, chat panel, modals)
@@ -42,7 +42,7 @@ A fully functional real-time chat application. Users register/login with JWT aut
 | UI        | shadcn-pattern components in `src/components/ui/` (JSX, not TSX) |
 | Real-time | Socket.io v4 (client + server)                       |
 | Backend   | Node.js + Express 5                                  |
-| Database  | SQLite via `better-sqlite3` (file-based, no setup)   |
+| Database  | PostgreSQL via `pg` (connection string in `DATABASE_URL`) |
 | Auth      | JWT (7-day token, stored in localStorage)            |
 
 ## Dev Commands
@@ -63,13 +63,16 @@ Copy `.env.example` → `.env` before running.
 PORT=4000
 JWT_SECRET=change-this-to-a-long-random-string-in-production
 CLIENT_ORIGIN=http://localhost:5173
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE
 ```
+
+`DATABASE_URL` is required — the server will fail to connect to the DB and return empty responses (causing `JSON.parse` errors on the client) if it is missing. Get your connection string from TablePlus: open your connection → Edit → copy Host, Port, User, Password, Database and compose the URL above.
 
 Never commit `.env`. Do not log JWT tokens.
 
 ## Database Schema
 
-Tables created automatically in `server/db.js` on first run:
+Tables created automatically in `server/db.js` on first run (`initDb()`):
 
 - **users** — `id, username, email, password_hash, created_at, last_seen`
 - **rooms** — `id, name, is_group, created_at`
@@ -77,7 +80,17 @@ Tables created automatically in `server/db.js` on first run:
 - **messages** — `id, room_id, user_id, text, reaction, created_at` (FK cascade delete)
 
 DM rooms have `is_group = 0` and exactly two members. Group rooms have `is_group = 1`.
-The SQLite file (`chatloop.db`) lives at the project root and is git-ignored.
+
+### Creating a user directly in the database
+
+Never insert a plain text password into `password_hash` — the login handler uses `bcrypt.compare` so the stored value must always be a bcrypt hash.
+
+1. Generate a hash: `node scripts/generate-hash.js <password>` — copies the hash to your terminal.
+2. In TablePlus, run:
+   ```sql
+   INSERT INTO users (username, email, password_hash)
+   VALUES ('username', 'email@example.com', '<paste-hash-here>');
+   ```
 
 ## REST API
 
@@ -155,7 +168,7 @@ Message deletion is also optimistic: message removed from state immediately, the
 
 - **ESLint unused import errors** — ESLint is strict. Never import a Lucide icon (or anything) you don't use in JSX. Remove imports immediately when removing the element that uses them.
 - **Ref access during render** — never read `someRef.current` inline in JSX. Use state (e.g., `containerSize`) updated via `ResizeObserver` in a `useEffect`.
-- **SQLite booleans in JSX** — SQLite returns `0`/`1` for booleans. Using `!!value` is required before using them in JSX `&&` conditions to avoid rendering literal `0`.
+- **PostgreSQL booleans in JSX** — PostgreSQL `SMALLINT` columns (`is_group`) return `0`/`1`. Using `!!value` is required before using them in JSX `&&` conditions to avoid rendering literal `0`.
 - **Tailwind v4 syntax** — this project uses `@import "tailwindcss"` + `@theme {}` blocks in `globals.css`. There is no `tailwind.config.js`. Do not add one.
 - **`@` path alias** — configured in `vite.config.js` via `resolve.alias`. Import as `@/lib/utils`, `@/components/ui/button`, etc.
 - **Socket listeners accumulate on reconnect** — all `.on()` in the socket `useEffect` must have matching `.off()` in the cleanup return.
