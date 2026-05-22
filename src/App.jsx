@@ -460,7 +460,6 @@ function NewChatModal({ users, onlineIds, onSelectUser, onCreateGroup, onClose }
               placeholder={mode === "dm" ? "Search users…" : "Add members…"}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              autoFocus
               className="flex-1 bg-transparent text-white text-sm outline-none placeholder:text-white/25"
             />
           </div>
