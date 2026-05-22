@@ -389,6 +389,7 @@ app.post("/api/rooms/group", requireAuth, async (req, res) => {
   const { lastInsertRowid: roomId } = await queries.createRoom.run(1, name.trim());
   const allMembers = [req.user.id, ...userIds];
   await Promise.all(allMembers.map((uid) => queries.addMember.run(roomId, uid)));
+  await Promise.all(userIds.map((uid) => queries.setRoomNew.run(roomId, uid)));
 
   notifyNewRoom(roomId, allMembers, {
     isGroup: true,
@@ -411,6 +412,7 @@ app.get("/api/rooms/:roomId/messages", requireAuth, async (req, res) => {
   if (!(await queries.isMember.get(roomId, req.user.id))) {
     return res.status(403).json({ error: "Not a member of this room" });
   }
+  await queries.markRoomSeen.run(roomId, req.user.id);
   res.json(await queries.getRoomMessages.all(roomId));
 });
 

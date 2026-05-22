@@ -34,8 +34,10 @@ export async function initDb() {
       room_id   INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
       user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       joined_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT,
+      is_new    SMALLINT DEFAULT 0,
       PRIMARY KEY (room_id, user_id)
     );
+    ALTER TABLE room_members ADD COLUMN IF NOT EXISTS is_new SMALLINT DEFAULT 0;
     CREATE TABLE IF NOT EXISTS messages (
       id         SERIAL PRIMARY KEY,
       room_id    INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
@@ -157,7 +159,7 @@ export const queries = {
 
   getUserRooms: {
     all: (uid) =>
-      q(`SELECT r.id, r.name, r.is_group,
+      q(`SELECT r.id, r.name, r.is_group, rm.is_new,
                 m.text AS last_message, m.created_at AS last_message_at,
                 mu.id AS other_user_id, mu.username AS other_username
          FROM rooms r
@@ -197,6 +199,9 @@ export const queries = {
   memberCount:    { get: (roomId)         => q("SELECT COUNT(*)::INT AS cnt FROM room_members WHERE room_id = $1", [roomId]).then(r => r.rows[0]) },
   deleteRoom:     { run: (roomId)         => q("DELETE FROM rooms WHERE id = $1", [roomId]) },
   getUserRoomIds: { all: (userId)         => q("SELECT room_id FROM room_members WHERE user_id = $1", [userId]).then(r => r.rows) },
+  setRoomNew:   { run: (roomId, userId) => q("UPDATE room_members SET is_new = 1 WHERE room_id = $1 AND user_id = $2", [roomId, userId]) },
+  markRoomSeen: { run: (roomId, userId) => q("UPDATE room_members SET is_new = 0 WHERE room_id = $1 AND user_id = $2", [roomId, userId]) },
+
   getRoomMembers: {
     all: (roomId) =>
       q(`SELECT u.id, u.username, u.avatar FROM users u

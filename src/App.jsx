@@ -191,8 +191,8 @@ function OrbitalHub({
   avatarMap,
   myAvatar,
   onAvatarClick,
-  hasGroupNotif,
 }) {
+  const hasGroupNotif = rooms.some((r) => !!r.is_group && !!r.is_new);
   const [rotationAngle, setRotationAngle] = useState(0);
   const [hoveredId, setHoveredId] = useState(null);
   const [containerSize, setContainerSize] = useState(() => ({
@@ -363,7 +363,7 @@ function OrbitalHub({
           </span>
         )}
         {hasGroupNotif && (
-          <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-purple-500 rounded-full border-2 border-black shadow-md z-20 animate-pulse" />
+          <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full border-2 border-black shadow-md z-20 animate-pulse" />
         )}
       </div>
 
@@ -637,8 +637,10 @@ function OrbitalHub({
                               {formatTime(room.last_message_at)}
                             </span>
                           )}
-                          {isRecent && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                          {!!room.is_group && !!room.is_new ? (
+                            <span className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.9)]" />
+                          ) : (
+                            isRecent && <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
                           )}
                         </div>
                       </button>
@@ -1237,7 +1239,6 @@ function ChatApp({ token, currentUser, onLogout }) {
     () => localStorage.getItem("chatloop_theme") !== "light",
   );
   const [myAvatar, setMyAvatar] = useState(() => currentUser.avatar || null);
-  const [groupNotif, setGroupNotif] = useState(null);
   const [groupMembersPanel, setGroupMembersPanel] = useState(null);
 
   function toggleTheme() {
@@ -1373,7 +1374,6 @@ function ChatApp({ token, currentUser, onLogout }) {
             body: `${data.addedBy} added you to this group`,
           });
         }
-        setGroupNotif({ groupName: data.groupName, addedBy: data.addedBy, roomId: data.roomId });
       }
     });
 
@@ -1714,7 +1714,7 @@ function ChatApp({ token, currentUser, onLogout }) {
     setDisplayRoomId(roomId);
     setActiveRoomId(roomId);
     setUnreadCounts((prev) => ({ ...prev, [roomId]: 0 }));
-    setGroupNotif((prev) => (prev?.roomId === roomId ? null : prev));
+    setRooms((prev) => prev.map((r) => (r.id === roomId && r.is_new ? { ...r, is_new: 0 } : r)));
     setShowMsgSearch(false);
     setMsgSearch("");
     stopTyping();
@@ -1804,7 +1804,6 @@ function ChatApp({ token, currentUser, onLogout }) {
         avatarMap={avatarMap}
         myAvatar={myAvatar}
         onAvatarClick={() => avatarFileRef.current?.click()}
-        hasGroupNotif={groupNotif !== null}
       />
       <input
         ref={avatarFileRef}
@@ -2112,28 +2111,6 @@ function ChatApp({ token, currentUser, onLogout }) {
         />
       )}
 
-      {/* Group added notification toast */}
-      {groupNotif && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-700 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl border w-[calc(100%-2rem)] max-w-sm bg-[#111] border-white/12">
-          <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center shrink-0">
-            <Users size={14} className="text-purple-400" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-white truncate">
-              {groupNotif.groupName}
-            </p>
-            <p className="text-xs text-white/50">
-              {groupNotif.addedBy} added you to this group
-            </p>
-          </div>
-          <button
-            onClick={() => setGroupNotif(null)}
-            className="text-white/30 hover:text-white/60 shrink-0 transition-colors"
-          >
-            <X size={14} />
-          </button>
-        </div>
-      )}
     </div>
   );
 }
