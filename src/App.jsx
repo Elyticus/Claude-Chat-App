@@ -1,7 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  MessageCircle, LogOut, ArrowLeft, Send, Smile,
-  Search, X, Trash2,
+  MessageCircle,
+  LogOut,
+  ArrowLeft,
+  Send,
+  Smile,
+  Search,
+  X,
+  Trash2,
 } from "lucide-react";
 import AuthScreen from "./components/AuthScreen.jsx";
 import { api } from "./lib/api.js";
@@ -25,7 +31,12 @@ function userBg(id) {
 }
 
 function initials(name = "?") {
-  return name.split(/\s+/).map((w) => w[0]).join("").toUpperCase().slice(0, 2);
+  return name
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 }
 
 function formatTime(ts) {
@@ -33,22 +44,54 @@ function formatTime(ts) {
   const date = new Date(ts * 1000);
   const now = new Date();
   const diff = now - date;
-  if (diff < 86_400_000) return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  if (diff < 86_400_000)
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   if (diff < 172_800_000) return "Yesterday";
   return date.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
 function formatFullTime(ts) {
   if (!ts) return "";
-  return new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return new Date(ts * 1000).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 const REACTIONS = ["🔥", "🙌", "❤️", "😀", "😝", "👍"];
 
 const EMOJI_PICKER_ITEMS = [
-  "😀","😂","😍","🥰","😎","🤔","😅","😢","😭","😡",
-  "🤯","🙏","👍","👎","❤️","🔥","🎉","💯","🤣","🥺",
-  "🚀","⭐","💪","🤝","🙌","👋","😝","🎊","✨","💀","🥶",
+  "😀",
+  "😂",
+  "😍",
+  "🥰",
+  "😎",
+  "🤔",
+  "😅",
+  "😢",
+  "😭",
+  "😡",
+  "🤯",
+  "🙏",
+  "👍",
+  "👎",
+  "❤️",
+  "🔥",
+  "🎉",
+  "💯",
+  "🤣",
+  "🥺",
+  "🚀",
+  "⭐",
+  "💪",
+  "🤝",
+  "🙌",
+  "👋",
+  "😝",
+  "🎊",
+  "✨",
+  "💀",
+  "🥶",
 ];
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
@@ -83,7 +126,9 @@ function Avatar({ userId, username, size = 48, online = false }) {
 function TypingIndicator({ names }) {
   if (!names.length) return null;
   const label =
-    names.length === 1 ? `${names[0]} is typing` : `${names.join(", ")} are typing`;
+    names.length === 1
+      ? `${names[0]} is typing`
+      : `${names.join(", ")} are typing`;
   return (
     <span className="flex items-center gap-1 text-white/50 text-xs">
       {label}
@@ -103,7 +148,13 @@ function TypingIndicator({ names }) {
 // ─── Orbital Hub ──────────────────────────────────────────────────────────────
 
 function OrbitalHub({
-  rooms, onSelectRoom, onNewChat, onLogout, currentUser, onlineIds, unreadCounts,
+  rooms,
+  onSelectRoom,
+  onNewChat,
+  onLogout,
+  currentUser,
+  onlineIds,
+  unreadCounts,
 }) {
   const [rotationAngle, setRotationAngle] = useState(0);
   const [hoveredId, setHoveredId] = useState(null);
@@ -146,7 +197,10 @@ function OrbitalHub({
         x: radius * Math.cos(radian),
         y: radius * Math.sin(radian),
         zIndex: Math.round(100 + 50 * Math.cos(radian)),
-        opacity: Math.max(0.35, Math.min(1, 0.35 + 0.65 * ((1 + Math.sin(radian)) / 2))),
+        opacity: Math.max(
+          0.35,
+          Math.min(1, 0.35 + 0.65 * ((1 + Math.sin(radian)) / 2)),
+        ),
       };
     },
     [rotationAngle, containerSize],
@@ -157,7 +211,7 @@ function OrbitalHub({
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-[100dvh] bg-black flex items-center justify-center overflow-hidden"
+      className="relative w-full h-dvh bg-black flex items-center justify-center overflow-hidden"
     >
       {/* Top bar */}
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 z-30">
@@ -173,8 +227,14 @@ function OrbitalHub({
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <Avatar userId={currentUser.id} username={currentUser.username} size={28} />
-            <span className="text-white/40 text-sm hidden sm:block">{currentUser.username}</span>
+            <Avatar
+              userId={currentUser.id}
+              username={currentUser.username}
+              size={28}
+            />
+            <span className="text-white/40 text-sm hidden sm:block">
+              {currentUser.username}
+            </span>
           </div>
           <button
             onClick={onLogout}
@@ -192,7 +252,7 @@ function OrbitalHub({
         style={{ width: "min(64vmin, 500px)", height: "min(64vmin, 500px)" }}
       />
       <div
-        className="absolute rounded-full border border-white/[0.04] pointer-events-none"
+        className="absolute rounded-full border border-white/4 pointer-events-none"
         style={{ width: "min(44vmin, 340px)", height: "min(44vmin, 340px)" }}
       />
 
@@ -201,7 +261,8 @@ function OrbitalHub({
         className="absolute w-20 h-20 rounded-full flex items-center justify-center cursor-pointer z-20 select-none"
         style={{
           background: "linear-gradient(135deg, #6366f1, #3b82f6, #14b8a6)",
-          boxShadow: "0 0 50px rgba(99, 102, 241, 0.35), 0 0 100px rgba(99, 102, 241, 0.15)",
+          boxShadow:
+            "0 0 50px rgba(99, 102, 241, 0.35), 0 0 100px rgba(99, 102, 241, 0.15)",
           animation: "pulse 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         }}
         onClick={onNewChat}
@@ -209,18 +270,30 @@ function OrbitalHub({
       >
         <div
           className="absolute rounded-full border border-white/15"
-          style={{ width: 96, height: 96, animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite" }}
+          style={{
+            width: 96,
+            height: 96,
+            animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite",
+          }}
         />
         <div
           className="absolute rounded-full border border-white/[0.07]"
-          style={{ width: 116, height: 116, animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite", animationDelay: "0.6s" }}
+          style={{
+            width: 116,
+            height: 116,
+            animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite",
+            animationDelay: "0.6s",
+          }}
         />
         <MessageCircle size={28} className="text-white relative z-10" />
       </div>
 
       {/* Empty state */}
       {rooms.length === 0 && (
-        <p className="absolute text-white/20 text-sm tracking-wide pointer-events-none" style={{ marginTop: "220px" }}>
+        <p
+          className="absolute text-white/20 text-sm tracking-wide pointer-events-none"
+          style={{ marginTop: "220px" }}
+        >
           Tap the orb to start a conversation
         </p>
       )}
@@ -238,7 +311,7 @@ function OrbitalHub({
         return (
           <div
             key={room.id}
-            className={`absolute cursor-pointer flex flex-col items-center select-none active:scale-95 ${hoveredId === null ? "transition-transform duration-[50ms]" : "transition-none"}`}
+            className={`absolute cursor-pointer flex flex-col items-center select-none active:scale-95 ${hoveredId === null ? "transition-transform duration-50" : "transition-none"}`}
             style={{
               transform: `translate(${pos.x}px, ${pos.y}px)`,
               zIndex: pos.zIndex,
@@ -257,7 +330,8 @@ function OrbitalHub({
                 left: "50%",
                 top: "50%",
                 transform: "translate(-50%, -50%)",
-                background: "radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%)",
+                background:
+                  "radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%)",
               }}
             />
 
@@ -271,14 +345,14 @@ function OrbitalHub({
                 <span className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-black" />
               )}
               {unread > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-md">
+                <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-md">
                   {unread > 99 ? "99+" : unread}
                 </span>
               )}
             </div>
 
             {/* Name label */}
-            <span className="mt-2 text-[11px] text-white/55 font-medium max-w-[76px] truncate text-center leading-tight">
+            <span className="mt-2 text-[11px] text-white/55 font-medium max-w-19 truncate text-center leading-tight">
               {displayName}
             </span>
             {room.last_message_at && (
@@ -305,28 +379,35 @@ function ContextMenu({ msg, position, onClose, onReact, onCopy, onDelete }) {
 
   return (
     <>
-      <div className="fixed inset-0 z-[300]" onClick={onClose} />
+      <div className="fixed inset-0 z-300" onClick={onClose} />
       <div
-        className="fixed z-[300] bg-[#111] border border-white/[0.12] rounded-2xl shadow-2xl shadow-black/70 overflow-hidden w-60"
+        className="fixed z-300 bg-[#111] border border-white/12 rounded-2xl shadow-2xl shadow-black/70 overflow-hidden w-60"
         style={style}
       >
         {/* Preview */}
-        <div className="px-4 py-3 border-b border-white/[0.08]">
-          {msg.reaction && (
-            <span className="text-lg mr-1">{msg.reaction}</span>
-          )}
-          <p className="text-white/65 text-sm leading-relaxed line-clamp-2">{msg.text}</p>
-          <span className="text-white/25 text-[10px] mt-1 block">{formatFullTime(msg.created_at)}</span>
+        <div className="px-4 py-3 border-b border-white/8">
+          {msg.reaction && <span className="text-lg mr-1">{msg.reaction}</span>}
+          <p className="text-white/65 text-sm leading-relaxed line-clamp-2">
+            {msg.text}
+          </p>
+          <span className="text-white/25 text-[10px] mt-1 block">
+            {formatFullTime(msg.created_at)}
+          </span>
         </div>
 
         {/* Reactions */}
-        <div className="px-3 py-2.5 border-b border-white/[0.08]">
-          <p className="text-white/35 text-[10px] uppercase tracking-widest mb-2">React</p>
+        <div className="px-3 py-2.5 border-b border-white/8">
+          <p className="text-white/35 text-[10px] uppercase tracking-widest mb-2">
+            React
+          </p>
           <div className="flex gap-1">
             {REACTIONS.map((emoji) => (
               <button
                 key={emoji}
-                onClick={() => { onReact(msg.id, emoji); onClose(); }}
+                onClick={() => {
+                  onReact(msg.id, emoji);
+                  onClose();
+                }}
                 className={`w-8 h-8 flex items-center justify-center rounded-lg text-base transition-all hover:bg-white/10 ${msg.reaction === emoji ? "bg-white/20 ring-1 ring-white/30" : ""}`}
               >
                 {emoji}
@@ -338,14 +419,20 @@ function ContextMenu({ msg, position, onClose, onReact, onCopy, onDelete }) {
         {/* Actions */}
         <div className="p-1.5">
           <button
-            onClick={() => { onCopy(msg.text); onClose(); }}
+            onClick={() => {
+              onCopy(msg.text);
+              onClose();
+            }}
             className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-white/65 hover:text-white hover:bg-white/[0.07] text-sm transition-all"
           >
             Copy text
             <kbd className="text-white/25 text-[10px]">⌘C</kbd>
           </button>
           <button
-            onClick={() => { onDelete(msg.id); onClose(); }}
+            onClick={() => {
+              onDelete(msg.id);
+              onClose();
+            }}
             className="w-full flex items-center px-3 py-2 rounded-xl text-red-400/80 hover:text-red-400 hover:bg-red-500/10 text-sm transition-all"
           >
             Delete
@@ -358,7 +445,13 @@ function ContextMenu({ msg, position, onClose, onReact, onCopy, onDelete }) {
 
 // ─── New Chat Modal ───────────────────────────────────────────────────────────
 
-function NewChatModal({ users, onlineIds, onSelectUser, onCreateGroup, onClose }) {
+function NewChatModal({
+  users,
+  onlineIds,
+  onSelectUser,
+  onCreateGroup,
+  onClose,
+}) {
   const [mode, setMode] = useState("dm");
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
@@ -385,15 +478,14 @@ function NewChatModal({ users, onlineIds, onSelectUser, onCreateGroup, onClose }
   }
 
   return (
-    <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-500 flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/90 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative bg-[#0d0d0d] border border-white/[0.1] rounded-2xl w-full sm:w-[400px] max-h-[85dvh] flex flex-col shadow-2xl overflow-hidden">
-
+      <div className="relative bg-[#0d0d0d] border border-white/10 rounded-2xl w-full sm:w-100 max-h-[85dvh] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08] shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/8 shrink-0">
           <span className="text-white font-semibold">
             {mode === "dm" ? "New Message" : "New Group"}
           </span>
@@ -413,8 +505,11 @@ function NewChatModal({ users, onlineIds, onSelectUser, onCreateGroup, onClose }
           ].map((m) => (
             <button
               key={m.id}
-              onClick={() => { setMode(m.id); setSelectedIds([]); }}
-              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${mode === m.id ? "bg-white text-black" : "text-white/45 hover:text-white hover:bg-white/[0.08]"}`}
+              onClick={() => {
+                setMode(m.id);
+                setSelectedIds([]);
+              }}
+              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${mode === m.id ? "bg-white text-black" : "text-white/45 hover:text-white hover:bg-white/8"}`}
             >
               {m.label}
             </button>
@@ -425,7 +520,7 @@ function NewChatModal({ users, onlineIds, onSelectUser, onCreateGroup, onClose }
         {mode === "group" && (
           <div className="px-4 pt-3 shrink-0">
             <input
-              className="w-full bg-white/[0.05] border border-white/[0.1] rounded-xl px-4 py-2.5 text-white text-sm outline-none placeholder:text-white/25 focus:border-white/25 transition-colors"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none placeholder:text-white/25 focus:border-white/25 transition-colors"
               placeholder="Group name…"
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
@@ -453,7 +548,7 @@ function NewChatModal({ users, onlineIds, onSelectUser, onCreateGroup, onClose }
 
         {/* Search */}
         <div className="px-4 pt-3 shrink-0">
-          <div className="flex items-center gap-2 bg-white/[0.05] border border-white/[0.08] rounded-xl px-3 py-2.5">
+          <div className="flex items-center gap-2 bg-white/5 border border-white/8 rounded-xl px-3 py-2.5">
             <Search size={14} className="text-white/35 shrink-0" />
             <input
               type="text"
@@ -468,25 +563,38 @@ function NewChatModal({ users, onlineIds, onSelectUser, onCreateGroup, onClose }
         {/* User list */}
         <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2 mt-1 space-y-0.5">
           {filtered.length === 0 && (
-            <p className="text-center text-white/25 text-sm py-10">No users found</p>
+            <p className="text-center text-white/25 text-sm py-10">
+              No users found
+            </p>
           )}
           {filtered.map((u) => {
             const selected = selectedIds.includes(u.id);
             return (
               <button
                 key={u.id}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left ${selected ? "bg-white/[0.12]" : "hover:bg-white/[0.06]"}`}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left ${selected ? "bg-white/12" : "hover:bg-white/6"}`}
                 onClick={() =>
                   mode === "dm" ? onSelectUser(u) : toggleSelect(u.id)
                 }
               >
-                <Avatar userId={u.id} username={u.username} size={40} online={onlineIds.has(u.id)} />
+                <Avatar
+                  userId={u.id}
+                  username={u.username}
+                  size={40}
+                  online={onlineIds.has(u.id)}
+                />
                 <div className="flex-1 min-w-0">
-                  <div className="text-white text-sm font-medium truncate">{u.username}</div>
-                  <div className="text-white/35 text-xs truncate">{u.email}</div>
+                  <div className="text-white text-sm font-medium truncate">
+                    {u.username}
+                  </div>
+                  <div className="text-white/35 text-xs truncate">
+                    {u.email}
+                  </div>
                 </div>
                 {mode === "dm" && onlineIds.has(u.id) && (
-                  <span className="text-[10px] text-green-400 font-semibold shrink-0">Online</span>
+                  <span className="text-[10px] text-green-400 font-semibold shrink-0">
+                    Online
+                  </span>
                 )}
                 {mode === "group" && selected && (
                   <span className="text-purple-400 font-bold shrink-0">✓</span>
@@ -498,11 +606,11 @@ function NewChatModal({ users, onlineIds, onSelectUser, onCreateGroup, onClose }
 
         {/* Create group CTA */}
         {mode === "group" && (
-          <div className="px-4 pb-5 pt-2 border-t border-white/[0.08] shrink-0">
+          <div className="px-4 pb-5 pt-2 border-t border-white/8 shrink-0">
             <button
               onClick={submitGroup}
               disabled={selectedIds.length < 1 || !groupName.trim() || creating}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white text-sm font-semibold disabled:opacity-35 disabled:cursor-not-allowed hover:opacity-90 transition-all"
+              className="w-full py-3 rounded-xl bg-linear-to-r from-purple-600 to-blue-600 text-white text-sm font-semibold disabled:opacity-35 disabled:cursor-not-allowed hover:opacity-90 transition-all"
             >
               {creating
                 ? "Creating…"
@@ -581,10 +689,15 @@ function ChatApp({ token, currentUser, onLogout }) {
   const activeRoomIdRef = useRef(null);
   const closeTimerRef = useRef(null);
 
-  useEffect(() => { activeRoomIdRef.current = activeRoomId; }, [activeRoomId]);
+  useEffect(() => {
+    activeRoomIdRef.current = activeRoomId;
+  }, [activeRoomId]);
 
   useEffect(() => {
-    if (typeof Notification !== "undefined" && Notification.permission === "default") {
+    if (
+      typeof Notification !== "undefined" &&
+      Notification.permission === "default"
+    ) {
       Notification.requestPermission();
     }
   }, []);
@@ -603,13 +716,20 @@ function ChatApp({ token, currentUser, onLogout }) {
         prev
           .map((r) =>
             r.id === roomId
-              ? { ...r, last_message: message.text, last_message_at: message.created_at }
+              ? {
+                  ...r,
+                  last_message: message.text,
+                  last_message_at: message.created_at,
+                }
               : r,
           )
           .sort((a, b) => (b.last_message_at || 0) - (a.last_message_at || 0)),
       );
       if (roomId !== activeRoomIdRef.current) {
-        setUnreadCounts((prev) => ({ ...prev, [roomId]: (prev[roomId] || 0) + 1 }));
+        setUnreadCounts((prev) => ({
+          ...prev,
+          [roomId]: (prev[roomId] || 0) + 1,
+        }));
         if (
           typeof Notification !== "undefined" &&
           Notification.permission === "granted" &&
@@ -623,13 +743,19 @@ function ChatApp({ token, currentUser, onLogout }) {
     s.on("message:ack", ({ tempId, message, roomId }) => {
       setMessages((prev) => ({
         ...prev,
-        [roomId]: (prev[roomId] || []).map((m) => (m.id === tempId ? message : m)),
+        [roomId]: (prev[roomId] || []).map((m) =>
+          m.id === tempId ? message : m,
+        ),
       }));
       setRooms((prev) =>
         prev
           .map((r) =>
             r.id === roomId
-              ? { ...r, last_message: message.text, last_message_at: message.created_at }
+              ? {
+                  ...r,
+                  last_message: message.text,
+                  last_message_at: message.created_at,
+                }
               : r,
           )
           .sort((a, b) => (b.last_message_at || 0) - (a.last_message_at || 0)),
@@ -648,7 +774,10 @@ function ChatApp({ token, currentUser, onLogout }) {
     s.on("typing:update", ({ roomId, userId, username, typing }) => {
       setTypingMap((prev) => {
         const current = (prev[roomId] || []).filter((u) => u.userId !== userId);
-        return { ...prev, [roomId]: typing ? [...current, { userId, username }] : current };
+        return {
+          ...prev,
+          [roomId]: typing ? [...current, { userId, username }] : current,
+        };
       });
     });
 
@@ -685,30 +814,41 @@ function ChatApp({ token, currentUser, onLogout }) {
   // ── Load rooms + users ──────────────────────────────────────────────────────
   useEffect(() => {
     api.getRooms().then(setRooms).catch(console.error);
-    api.getUsers().then((users) => {
-      setAllUsers(users);
-      setOnlineIds(new Set(users.filter((u) => u.online).map((u) => u.id)));
-    }).catch(console.error);
+    api
+      .getUsers()
+      .then((users) => {
+        setAllUsers(users);
+        setOnlineIds(new Set(users.filter((u) => u.online).map((u) => u.id)));
+      })
+      .catch(console.error);
   }, []);
 
   // ── Load messages on room change ─────────────────────────────────────────────
   useEffect(() => {
     if (!activeRoomId || loadedRoomsRef.current.has(activeRoomId)) return;
     loadedRoomsRef.current.add(activeRoomId);
-    api.getMessages(activeRoomId)
-      .then((msgs) => setMessages((prev) => ({ ...prev, [activeRoomId]: msgs })))
-      .catch((err) => { loadedRoomsRef.current.delete(activeRoomId); console.error(err); });
+    api
+      .getMessages(activeRoomId)
+      .then((msgs) =>
+        setMessages((prev) => ({ ...prev, [activeRoomId]: msgs })),
+      )
+      .catch((err) => {
+        loadedRoomsRef.current.delete(activeRoomId);
+        console.error(err);
+      });
   }, [activeRoomId]);
 
   // ── Auto-scroll ──────────────────────────────────────────────────────────────
   // Instant when switching rooms — avoids competing with the panel slide-in animation
   useEffect(() => {
-    if (activeRoomId) messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+    if (activeRoomId)
+      messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
   }, [activeRoomId]);
   // Smooth when a new message arrives in the current room
   useEffect(() => {
-    if (activeRoomId) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (activeRoomId)
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [activeRoomId, messages]);
 
   // ── Tab title ────────────────────────────────────────────────────────────────
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
@@ -743,7 +883,11 @@ function ChatApp({ token, currentUser, onLogout }) {
       ...prev,
       [activeRoomId]: [...(prev[activeRoomId] || []), tempMsg],
     }));
-    socketRef.current.emit("message:send", { roomId: activeRoomId, text, tempId });
+    socketRef.current.emit("message:send", {
+      roomId: activeRoomId,
+      text,
+      tempId,
+    });
     setInputText("");
     stopTyping();
     inputRef.current?.focus();
@@ -798,7 +942,9 @@ function ChatApp({ token, currentUser, onLogout }) {
     if (!activeRoomId) return;
     setMessages((prev) => ({
       ...prev,
-      [activeRoomId]: (prev[activeRoomId] || []).filter((m) => m.id !== messageId),
+      [activeRoomId]: (prev[activeRoomId] || []).filter(
+        (m) => m.id !== messageId,
+      ),
     }));
     api.deleteMessage(messageId).catch(console.error);
   }
@@ -816,6 +962,13 @@ function ChatApp({ token, currentUser, onLogout }) {
 
   async function handleSelectUser(user) {
     setShowNewChat(false);
+    const existing = rooms.find(
+      (r) => !r.is_group && r.other_user_id === user.id,
+    );
+    if (existing) {
+      selectRoom(existing.id);
+      return;
+    }
     try {
       const { roomId } = await api.createDM(user.id);
       selectRoom(roomId);
@@ -862,7 +1015,9 @@ function ChatApp({ token, currentUser, onLogout }) {
   const activeMessages = displayRoomId ? messages[displayRoomId] || [] : [];
   const displayedMessages =
     showMsgSearch && msgSearch.trim()
-      ? activeMessages.filter((m) => m.text.toLowerCase().includes(msgSearch.toLowerCase()))
+      ? activeMessages.filter((m) =>
+          m.text.toLowerCase().includes(msgSearch.toLowerCase()),
+        )
       : activeMessages;
 
   const typingNames = displayRoomId
@@ -872,20 +1027,26 @@ function ChatApp({ token, currentUser, onLogout }) {
     : [];
 
   const activeRoomName = activeRoom
-    ? activeRoom.is_group ? activeRoom.name || "Group Chat" : activeRoom.other_username || "Unknown"
+    ? activeRoom.is_group
+      ? activeRoom.name || "Group Chat"
+      : activeRoom.other_username || "Unknown"
     : "";
 
   const activeRoomOnline =
-    activeRoom && !activeRoom.is_group ? onlineIds.has(activeRoom.other_user_id) : false;
+    activeRoom && !activeRoom.is_group
+      ? onlineIds.has(activeRoom.other_user_id)
+      : false;
 
   const activeAvatarId = activeRoom
-    ? activeRoom.is_group ? activeRoom.id : activeRoom.other_user_id
+    ? activeRoom.is_group
+      ? activeRoom.id
+      : activeRoom.other_user_id
     : null;
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="relative w-full h-[100dvh] bg-black overflow-hidden">
+    <div className="relative w-full h-dvh bg-black overflow-hidden">
       {/* Orbital Hub — always in background */}
       <OrbitalHub
         rooms={rooms}
@@ -898,189 +1059,220 @@ function ChatApp({ token, currentUser, onLogout }) {
       />
 
       {/* Chat Panel */}
-      <div className="fixed inset-0 z-[200] pointer-events-none">
-      <div
-        className={`absolute inset-0 bg-black flex flex-col transition-opacity duration-200 ${activeRoomId ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
-      >
-        {displayRoomId && activeRoom && (
-          <>
-            {/* Chat header */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.08] shrink-0">
-              <button
-                onClick={closeRoom}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all"
-              >
-                <ArrowLeft size={18} />
-              </button>
-              <Avatar
-                userId={activeAvatarId}
-                username={activeRoomName}
-                size={40}
-                online={activeRoomOnline}
-              />
-              <div className="flex-1 min-w-0">
-                <div className="text-white font-semibold text-sm truncate">{activeRoomName}</div>
-                <div className="text-xs mt-0.5">
-                  {typingNames.length > 0 ? (
-                    <TypingIndicator names={typingNames} />
-                  ) : (
-                    <span className={activeRoomOnline ? "text-green-400" : "text-white/35"}>
-                      {activeRoom.is_group ? "Group chat" : activeRoomOnline ? "Online" : "Offline"}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <button
-                onClick={() => { setShowMsgSearch((v) => !v); setMsgSearch(""); }}
-                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${showMsgSearch ? "text-white bg-white/10" : "text-white/40 hover:text-white hover:bg-white/[0.08]"}`}
-                title="Search messages"
-              >
-                <Search size={16} />
-              </button>
-              <button
-                onClick={() => handleDeleteRoom(activeRoomId)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all"
-                title="Delete chat"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-
-            {/* Message search bar */}
-            {showMsgSearch && (
-              <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/[0.08] bg-white/[0.03] shrink-0">
-                <Search size={13} className="text-white/35 shrink-0" />
-                <input
-                  type="text"
-                  placeholder="Search messages…"
-                  value={msgSearch}
-                  onChange={(e) => setMsgSearch(e.target.value)}
-                  className="flex-1 bg-transparent text-white text-sm outline-none placeholder:text-white/25"
-                />
+      <div className="fixed inset-0 z-200 pointer-events-none">
+        <div
+          className={`absolute inset-0 bg-black flex flex-col transition-opacity duration-200 ${activeRoomId ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+        >
+          {displayRoomId && activeRoom && (
+            <>
+              {/* Chat header */}
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-white/8 shrink-0">
                 <button
-                  onClick={() => { setShowMsgSearch(false); setMsgSearch(""); }}
-                  className="text-white/35 hover:text-white transition-colors"
+                  onClick={closeRoom}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all"
                 >
-                  <X size={14} />
+                  <ArrowLeft size={18} />
+                </button>
+                <Avatar
+                  userId={activeAvatarId}
+                  username={activeRoomName}
+                  size={40}
+                  online={activeRoomOnline}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="text-white font-semibold text-sm truncate">
+                    {activeRoomName}
+                  </div>
+                  <div className="text-xs mt-0.5">
+                    {typingNames.length > 0 ? (
+                      <TypingIndicator names={typingNames} />
+                    ) : (
+                      <span
+                        className={
+                          activeRoomOnline ? "text-green-400" : "text-white/35"
+                        }
+                      >
+                        {activeRoom.is_group
+                          ? "Group chat"
+                          : activeRoomOnline
+                            ? "Online"
+                            : "Offline"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowMsgSearch((v) => !v);
+                    setMsgSearch("");
+                  }}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${showMsgSearch ? "text-white bg-white/10" : "text-white/40 hover:text-white hover:bg-white/8"}`}
+                  title="Search messages"
+                >
+                  <Search size={16} />
+                </button>
+                <button
+                  onClick={() => handleDeleteRoom(activeRoomId)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                  title="Delete chat"
+                >
+                  <Trash2 size={16} />
                 </button>
               </div>
-            )}
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-4 py-4">
-              <div className="flex flex-col justify-end min-h-full gap-3">
-              {displayedMessages.length === 0 && messages[activeRoomId] !== undefined && (
-                <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
-                  <div
-                    className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-                    style={{ background: userBg(activeAvatarId) }}
+              {/* Message search bar */}
+              {showMsgSearch && (
+                <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/8 bg-white/3 shrink-0">
+                  <Search size={13} className="text-white/35 shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="Search messages…"
+                    value={msgSearch}
+                    onChange={(e) => setMsgSearch(e.target.value)}
+                    className="flex-1 bg-transparent text-white text-sm outline-none placeholder:text-white/25"
+                  />
+                  <button
+                    onClick={() => {
+                      setShowMsgSearch(false);
+                      setMsgSearch("");
+                    }}
+                    className="text-white/35 hover:text-white transition-colors"
                   >
-                    <span className="text-white text-xl font-bold">{initials(activeRoomName)}</span>
-                  </div>
-                  <p className="text-white/50 text-sm font-medium">{activeRoomName}</p>
-                  <p className="text-white/25 text-xs mt-1">
-                    {msgSearch ? "No matching messages" : "No messages yet — say hello! 👋"}
-                  </p>
+                    <X size={14} />
+                  </button>
                 </div>
               )}
 
-              {displayedMessages.map((msg) => {
-                const isMine = msg.user_id === currentUser.id;
-                const isTemp = !!msg.temp;
-                return (
-                  <div
-                    key={msg.id}
-                    className={`flex w-full items-end gap-2 ${isMine ? "flex-row-reverse" : "flex-row"}`}
-                    onContextMenu={(e) => !isTemp && handleContextMenu(e, msg)}
-                  >
-                    {!isMine && (
-                      <Avatar userId={msg.user_id} username={msg.username} size={28} />
-                    )}
-                    <div
-                      className={`flex flex-col ${isMine ? "items-end" : "items-start"} max-w-[72%]`}
-                    >
-                      {!isMine && !!activeRoom.is_group && (
-                        <span className="text-[11px] text-white/35 mb-1 ml-1">{msg.username}</span>
-                      )}
-                      <div className="relative">
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto px-4 py-4">
+                <div className="flex flex-col justify-end min-h-full gap-3">
+                  {displayedMessages.length === 0 &&
+                    messages[activeRoomId] !== undefined && (
+                      <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
                         <div
-                          className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words ${
-                            isMine
-                              ? "bg-gradient-to-br from-purple-600 to-blue-600 text-white rounded-br-sm"
-                              : "bg-white/[0.1] text-white rounded-bl-sm"
-                          } ${isTemp ? "opacity-50" : ""}`}
+                          className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+                          style={{ background: userBg(activeAvatarId) }}
                         >
-                          {msg.text}
-                          <span className="ml-2 text-[10px] opacity-40 whitespace-nowrap">
-                            {formatFullTime(msg.created_at)}
+                          <span className="text-white text-xl font-bold">
+                            {initials(activeRoomName)}
                           </span>
                         </div>
-                        {msg.reaction && (
-                          <span className="absolute -bottom-3.5 right-1 text-base bg-black/80 rounded-full px-1.5 py-0.5 border border-white/10 leading-none">
-                            {msg.reaction}
-                          </span>
-                        )}
+                        <p className="text-white/50 text-sm font-medium">
+                          {activeRoomName}
+                        </p>
+                        <p className="text-white/25 text-xs mt-1">
+                          {msgSearch
+                            ? "No matching messages"
+                            : "No messages yet — say hello! 👋"}
+                        </p>
                       </div>
-                    </div>
-                  </div>
-                );
-              })}
-              <div ref={messagesEndRef} />
-              </div>
-            </div>
+                    )}
 
-            {/* Emoji picker */}
-            {showEmojiPicker && (
-              <div className="px-4 pb-2 shrink-0">
-                <div className="bg-white/[0.05] border border-white/[0.08] rounded-2xl p-3 flex flex-wrap gap-1">
-                  {EMOJI_PICKER_ITEMS.map((em) => (
-                    <button
-                      key={em}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-base transition-colors"
-                      onClick={() => handleEmojiPick(em)}
-                    >
-                      {em}
-                    </button>
-                  ))}
+                  {displayedMessages.map((msg) => {
+                    const isMine = msg.user_id === currentUser.id;
+                    const isTemp = !!msg.temp;
+                    return (
+                      <div
+                        key={msg.id}
+                        className={`flex w-full items-end gap-2 ${isMine ? "flex-row-reverse" : "flex-row"}`}
+                        onContextMenu={(e) =>
+                          !isTemp && handleContextMenu(e, msg)
+                        }
+                      >
+                        {!isMine && (
+                          <Avatar
+                            userId={msg.user_id}
+                            username={msg.username}
+                            size={28}
+                          />
+                        )}
+                        <div
+                          className={`flex flex-col ${isMine ? "items-end" : "items-start"} max-w-[72%]`}
+                        >
+                          {!isMine && !!activeRoom.is_group && (
+                            <span className="text-[11px] text-white/35 mb-1 ml-1">
+                              {msg.username}
+                            </span>
+                          )}
+                          <div className="relative">
+                            <div
+                              className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed wrap-break-word ${
+                                isMine
+                                  ? "bg-linear-to-br from-purple-600 to-blue-600 text-white rounded-br-sm"
+                                  : "bg-white/10 text-white rounded-bl-sm"
+                              } ${isTemp ? "opacity-50" : ""}`}
+                            >
+                              {msg.text}
+                              <span className="ml-2 text-[10px] opacity-40 whitespace-nowrap">
+                                {formatFullTime(msg.created_at)}
+                              </span>
+                            </div>
+                            {msg.reaction && (
+                              <span className="absolute -bottom-3.5 right-1 text-base bg-black/80 rounded-full px-1.5 py-0.5 border border-white/10 leading-none">
+                                {msg.reaction}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div ref={messagesEndRef} />
                 </div>
               </div>
-            )}
 
-            {/* Message input */}
-            <div className="px-4 py-3 border-t border-white/[0.08] flex items-center gap-2.5 shrink-0">
-              <button
-                onClick={() => setShowEmojiPicker((v) => !v)}
-                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all shrink-0 ${showEmojiPicker ? "text-white bg-white/10" : "text-white/35 hover:text-white hover:bg-white/[0.08]"}`}
-                title="Emoji"
-              >
-                <Smile size={18} />
-              </button>
-              <input
-                ref={inputRef}
-                type="text"
-                value={inputText}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                onBlur={stopTyping}
-                placeholder="Type a message…"
-                className="flex-1 bg-white/[0.05] border border-white/[0.1] rounded-full px-4 py-2.5 text-white text-sm outline-none placeholder:text-white/25 focus:border-white/20 transition-colors"
-              />
-              <button
-                onClick={sendMessage}
-                disabled={!inputText.trim()}
-                className="w-9 h-9 rounded-full flex items-center justify-center transition-all disabled:opacity-25 disabled:cursor-not-allowed shrink-0"
-                style={{
-                  background: inputText.trim()
-                    ? "linear-gradient(135deg, #7c3aed, #2563eb)"
-                    : "rgba(255,255,255,0.05)",
-                }}
-              >
-                <Send size={16} className="text-white" />
-              </button>
-            </div>
-          </>
-        )}
-      </div>
+              {/* Emoji picker */}
+              {showEmojiPicker && (
+                <div className="px-4 pb-2 shrink-0">
+                  <div className="bg-white/5 border border-white/8 rounded-2xl p-3 flex flex-wrap gap-1">
+                    {EMOJI_PICKER_ITEMS.map((em) => (
+                      <button
+                        key={em}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-base transition-colors"
+                        onClick={() => handleEmojiPick(em)}
+                      >
+                        {em}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Message input */}
+              <div className="px-4 py-3 border-t border-white/8 flex items-center gap-2.5 shrink-0">
+                <button
+                  onClick={() => setShowEmojiPicker((v) => !v)}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all shrink-0 ${showEmojiPicker ? "text-white bg-white/10" : "text-white/35 hover:text-white hover:bg-white/8"}`}
+                  title="Emoji"
+                >
+                  <Smile size={18} />
+                </button>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={inputText}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  onBlur={stopTyping}
+                  placeholder="Type a message…"
+                  className="flex-1 bg-white/5 border border-white/10 rounded-full px-4 py-2.5 text-white text-sm outline-none placeholder:text-white/25 focus:border-white/20 transition-colors"
+                />
+                <button
+                  onClick={sendMessage}
+                  disabled={!inputText.trim()}
+                  className="w-9 h-9 rounded-full flex items-center justify-center transition-all disabled:opacity-25 disabled:cursor-not-allowed shrink-0"
+                  style={{
+                    background: inputText.trim()
+                      ? "linear-gradient(135deg, #7c3aed, #2563eb)"
+                      : "rgba(255,255,255,0.05)",
+                  }}
+                >
+                  <Send size={16} className="text-white" />
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* New Chat Modal */}
