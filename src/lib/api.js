@@ -27,6 +27,12 @@ export const api = {
   register: (username, email, password) =>
     request("POST", "/auth/register", { username, email, password }),
 
+  verifyEmail: (email, code) =>
+    request("POST", "/auth/verify", { email, code }),
+
+  resendCode: (email) =>
+    request("POST", "/auth/resend", { email }),
+
   login: (email, password) =>
     request("POST", "/auth/login", { email, password }),
 

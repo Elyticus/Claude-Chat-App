@@ -16,6 +16,13 @@ export async function initDb() {
       created_at    BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT,
       last_seen     BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
     );
+    CREATE TABLE IF NOT EXISTS pending_verifications (
+      email         TEXT PRIMARY KEY,
+      username      TEXT NOT NULL,
+      password_hash TEXT NOT NULL,
+      code          TEXT NOT NULL,
+      expires_at    BIGINT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS rooms (
       id         SERIAL PRIMARY KEY,
       name       TEXT,
@@ -48,6 +55,20 @@ export const queries = {
   getUserByUsername: { get: (username) => q("SELECT * FROM users WHERE username = $1", [username]).then(r => r.rows[0] ?? null) },
   getUserById:       { get: (id)       => q("SELECT id, username, email, last_seen FROM users WHERE id = $1", [id]).then(r => r.rows[0] ?? null) },
   getAllUsersExcept:  { all: (id)       => q("SELECT id, username, email, last_seen FROM users WHERE id != $1", [id]).then(r => r.rows) },
+
+  upsertPending: {
+    run: (email, username, hash, code, expiresAt) =>
+      q(`INSERT INTO pending_verifications (email, username, password_hash, code, expires_at)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (email) DO UPDATE SET
+           username = EXCLUDED.username,
+           password_hash = EXCLUDED.password_hash,
+           code = EXCLUDED.code,
+           expires_at = EXCLUDED.expires_at`,
+        [email, username, hash, code, expiresAt]),
+  },
+  getPending:    { get: (email) => q("SELECT * FROM pending_verifications WHERE email = $1", [email]).then(r => r.rows[0] ?? null) },
+  deletePending: { run: (email) => q("DELETE FROM pending_verifications WHERE email = $1", [email]) },
 
   createUser: {
     run: (username, email, hash) =>

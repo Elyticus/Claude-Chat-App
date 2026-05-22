@@ -3,6 +3,7 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
 import bcrypt from "bcryptjs";
+import nodemailer from "nodemailer";
 import "dotenv/config";
 
 import { queries, initDb } from "./db.js";
@@ -13,6 +14,67 @@ const httpServer = createServer(app);
 
 const CLIENT_ORIGIN = (process.env.CLIENT_ORIGIN || "http://localhost:5173").replace(/\/$/, "");
 const PORT = Number(process.env.PORT) || 4000;
+
+// ─── Email ─────────────────────────────────────────────────────────────────────
+
+const smtpReady = !!(process.env.SMTP_USER && process.env.SMTP_PASS);
+
+if (!smtpReady) {
+  console.warn("[email] SMTP not configured — verification codes will be printed to the console");
+}
+
+const transporter = smtpReady
+  ? nodemailer.createTransport({
+      host: process.env.SMTP_HOST || "smtp.gmail.com",
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: Number(process.env.SMTP_PORT) === 465,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    })
+  : null;
+
+async function sendVerificationEmail(email, username, code) {
+  if (!smtpReady) {
+    console.log(`\n[email] Verification code for ${email}: ${code}\n`);
+    return;
+  }
+  const from = process.env.SMTP_FROM || `Chatloop <${process.env.SMTP_USER}>`;
+  await transporter.sendMail({
+    from,
+    to: email,
+    subject: "Your Chatloop verification code",
+    text: `Hi ${username},\n\nYour verification code is: ${code}\n\nIt expires in 15 minutes.\n\nIf you did not request this, ignore this email.`,
+    html: `<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;padding:0;background:#000;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#000;min-height:100vh;">
+<tr><td align="center" style="padding:48px 16px;">
+<table width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;">
+<tr><td align="center" style="padding-bottom:32px;">
+<div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#3b82f6,#14b8a6);display:inline-flex;align-items:center;justify-content:center;font-size:22px;">💬</div>
+<h1 style="color:#fff;font-size:24px;font-weight:700;margin:14px 0 0;letter-spacing:-0.5px;">Chatloop<span style="color:#a78bfa;">.</span></h1>
+</td></tr>
+<tr><td style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:40px 32px;">
+<h2 style="color:#fff;font-size:20px;font-weight:600;margin:0 0 8px;">Verify your email</h2>
+<p style="color:rgba(255,255,255,0.5);font-size:14px;line-height:1.6;margin:0 0 32px;">Hi ${username}, enter this code to complete your Chatloop registration:</p>
+<div style="text-align:center;margin-bottom:32px;">
+<div style="display:inline-block;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.4);border-radius:12px;padding:20px 40px;">
+<span style="font-size:40px;font-weight:700;color:#a78bfa;letter-spacing:14px;">${code}</span>
+</div>
+</div>
+<p style="color:rgba(255,255,255,0.3);font-size:12px;text-align:center;margin:0;">Expires in 15 minutes &nbsp;·&nbsp; Ignore if you didn't request this</p>
+</td></tr>
+<tr><td align="center" style="padding-top:24px;">
+<p style="color:rgba(255,255,255,0.15);font-size:12px;margin:0;">© 2025 Chatloop</p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>`,
+  });
+}
+
+function generateCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 const io = new Server(httpServer, {
   cors: { origin: CLIENT_ORIGIN, credentials: true },
@@ -56,15 +118,54 @@ app.post("/api/auth/register", async (req, res) => {
   if (!username?.trim() || !email?.trim() || !password) {
     return res.status(400).json({ error: "username, email, and password are required" });
   }
+  if (password.length < 6) {
+    return res.status(400).json({ error: "Password must be at least 6 characters" });
+  }
 
   const taken = (await queries.getUserByEmail.get(email)) || (await queries.getUserByUsername.get(username));
   if (taken) return res.status(409).json({ error: "Username or email already in use" });
 
   const hash = await bcrypt.hash(password, 10);
-  const { lastInsertRowid: id } = await queries.createUser.run(username.trim(), email.trim(), hash);
+  const code = generateCode();
+  const expiresAt = Date.now() + 15 * 60 * 1000;
+  await queries.upsertPending.run(email.trim(), username.trim(), hash, code, expiresAt);
+  await sendVerificationEmail(email.trim(), username.trim(), code);
 
-  const user = { id, username: username.trim(), email: email.trim() };
+  res.status(200).json({ pending: true, email: email.trim() });
+});
+
+app.post("/api/auth/verify", async (req, res) => {
+  const { email, code } = req.body ?? {};
+  if (!email || !code) return res.status(400).json({ error: "email and code are required" });
+
+  const pending = await queries.getPending.get(email);
+  if (!pending) return res.status(400).json({ error: "No pending verification for this email" });
+  if (Date.now() > Number(pending.expires_at)) {
+    await queries.deletePending.run(email);
+    return res.status(400).json({ error: "Code expired — please register again" });
+  }
+  if (pending.code !== code) return res.status(400).json({ error: "Invalid verification code" });
+
+  const { lastInsertRowid: id } = await queries.createUser.run(pending.username, pending.email, pending.password_hash);
+  await queries.deletePending.run(email);
+
+  const user = { id, username: pending.username, email: pending.email };
   res.status(201).json({ token: generateToken(user), user });
+});
+
+app.post("/api/auth/resend", async (req, res) => {
+  const { email } = req.body ?? {};
+  if (!email) return res.status(400).json({ error: "email is required" });
+
+  const pending = await queries.getPending.get(email);
+  if (!pending) return res.status(400).json({ error: "No pending verification for this email" });
+
+  const code = generateCode();
+  const expiresAt = Date.now() + 15 * 60 * 1000;
+  await queries.upsertPending.run(pending.email, pending.username, pending.password_hash, code, expiresAt);
+  await sendVerificationEmail(pending.email, pending.username, code);
+
+  res.json({ ok: true });
 });
 
 app.post("/api/auth/login", async (req, res) => {
