@@ -172,6 +172,7 @@ Message deletion is also optimistic: message removed from state immediately, the
 - **Tailwind v4 syntax** — this project uses `@import "tailwindcss"` + `@theme {}` blocks in `globals.css`. There is no `tailwind.config.js`. Do not add one.
 - **`@` path alias** — configured in `vite.config.js` via `resolve.alias`. Import as `@/lib/utils`, `@/components/ui/button`, etc.
 - **Socket listeners accumulate on reconnect** — all `.on()` in the socket `useEffect` must have matching `.off()` in the cleanup return.
+- **Context menu on mobile** — mobile browsers do not reliably fire `contextmenu` on long press, and when they do `clientX`/`clientY` may be 0. Use `onTouchStart` with a 500 ms timer to capture real touch coordinates, and always clamp the menu position with both a min (`8px`) and max (`window.innerWidth - menuWidth - 8`) bound on `left`.
 - **Rotation transition drift on hover** — orbital nodes use `transition-none` when any node is hovered (`hoveredId !== null`) and `transition-transform duration-[50ms]` otherwise. Never use long durations (e.g., `duration-700`) on the transform — it causes the node to drift after hover starts.
 - **JWT stored in `localStorage`** — acceptable for a learning project. For production, use httpOnly cookies + refresh token rotation.
 - **Vite proxy** — `/api` and `/socket.io` are proxied to `localhost:4000` in dev only. In production, serve the Vite build from Express directly.

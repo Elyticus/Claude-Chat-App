@@ -296,9 +296,11 @@ function OrbitalHub({
 // ─── Context Menu ─────────────────────────────────────────────────────────────
 
 function ContextMenu({ msg, position, onClose, onReact, onCopy, onDelete }) {
+  const menuW = 240;
+  const menuH = 420;
   const style = {
-    top: Math.min(position.y, window.innerHeight - 420),
-    left: Math.min(position.x, window.innerWidth - 248),
+    top: Math.max(8, Math.min(position.y, window.innerHeight - menuH - 8)),
+    left: Math.max(8, Math.min(position.x, window.innerWidth - menuW - 8)),
   };
 
   return (
@@ -578,6 +580,7 @@ function ChatApp({ token, currentUser, onLogout }) {
   const loadedRoomsRef = useRef(new Set());
   const activeRoomIdRef = useRef(null);
   const closeTimerRef = useRef(null);
+  const longPressTimerRef = useRef(null);
 
   useEffect(() => { activeRoomIdRef.current = activeRoomId; }, [activeRoomId]);
 
@@ -776,6 +779,19 @@ function ChatApp({ token, currentUser, onLogout }) {
   const handleContextMenu = useCallback((e, msg) => {
     e.preventDefault();
     setContextMenu({ msg, x: e.clientX, y: e.clientY });
+  }, []);
+
+  const handleTouchStart = useCallback((e, msg) => {
+    const touch = e.touches[0];
+    const x = touch.clientX;
+    const y = touch.clientY;
+    longPressTimerRef.current = setTimeout(() => {
+      setContextMenu({ msg, x, y });
+    }, 500);
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    clearTimeout(longPressTimerRef.current);
   }, []);
 
   function handleReact(messageId, emoji) {
@@ -996,6 +1012,9 @@ function ChatApp({ token, currentUser, onLogout }) {
                     key={msg.id}
                     className={`flex w-full items-end gap-2 ${isMine ? "flex-row-reverse" : "flex-row"}`}
                     onContextMenu={(e) => !isTemp && handleContextMenu(e, msg)}
+                    onTouchStart={(e) => !isTemp && handleTouchStart(e, msg)}
+                    onTouchEnd={handleTouchEnd}
+                    onTouchMove={handleTouchEnd}
                   >
                     {!isMine && (
                       <Avatar userId={msg.user_id} username={msg.username} size={28} />
