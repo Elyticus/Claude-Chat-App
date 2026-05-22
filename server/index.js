@@ -325,6 +325,7 @@ app.delete("/api/messages/:messageId", requireAuth, async (req, res) => {
   const messageId = Number(req.params.messageId);
   const msg = await queries.getMessageById.get(messageId);
   if (!msg) return res.status(404).json({ error: "Not found" });
+  if (msg.user_id !== req.user.id) return res.status(403).json({ error: "You can only delete your own messages" });
   if (!(await queries.isMember.get(msg.room_id, req.user.id))) {
     return res.status(403).json({ error: "Forbidden" });
   }

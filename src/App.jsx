@@ -369,7 +369,7 @@ function OrbitalHub({
 
 // ─── Context Menu ─────────────────────────────────────────────────────────────
 
-function ContextMenu({ msg, position, onClose, onReact, onCopy, onDelete, isDark }) {
+function ContextMenu({ msg, position, onClose, onReact, onCopy, onDelete, currentUserId, isDark }) {
   const menuW = 240;
   const menuH = 420;
   const style = {
@@ -426,12 +426,14 @@ function ContextMenu({ msg, position, onClose, onReact, onCopy, onDelete, isDark
             Copy text
             <kbd className={`text-[10px] ${isDark ? "text-white/25" : "text-slate-400"}`}>⌘C</kbd>
           </button>
-          <button
-            onClick={() => { onDelete(msg.id); onClose(); }}
-            className="w-full flex items-center px-3 py-2 rounded-xl text-red-400/80 hover:text-red-400 hover:bg-red-500/10 text-sm transition-all"
-          >
-            Delete
-          </button>
+          {Number(msg.user_id) === Number(currentUserId) && (
+            <button
+              onClick={() => { onDelete(msg.id); onClose(); }}
+              className="w-full flex items-center px-3 py-2 rounded-xl text-red-400/80 hover:text-red-400 hover:bg-red-500/10 text-sm transition-all"
+            >
+              Delete
+            </button>
+          )}
         </div>
       </div>
     </>
@@ -917,7 +919,14 @@ function ChatApp({ token, currentUser, onLogout }) {
 
   // ── Load rooms + users ──────────────────────────────────────────────────────
   useEffect(() => {
-    api.getRooms().then(setRooms).catch(console.error);
+    api.getRooms().then((loadedRooms) => {
+      setRooms(loadedRooms);
+      const savedId = Number(localStorage.getItem("chatloop_active_room"));
+      if (savedId && loadedRooms.some((r) => r.id === savedId)) {
+        setActiveRoomId(savedId);
+        setDisplayRoomId(savedId);
+      }
+    }).catch(console.error);
     api
       .getUsers()
       .then((users) => {
@@ -1130,6 +1139,7 @@ function ChatApp({ token, currentUser, onLogout }) {
     setShowMsgSearch(false);
     setMsgSearch("");
     stopTyping();
+    localStorage.setItem("chatloop_active_room", String(roomId));
   }
 
   function closeRoom() {
@@ -1138,6 +1148,7 @@ function ChatApp({ token, currentUser, onLogout }) {
     closeTimerRef.current = setTimeout(() => setDisplayRoomId(null), 200);
     setShowMsgSearch(false);
     setMsgSearch("");
+    localStorage.removeItem("chatloop_active_room");
   }
 
   // ── Derived ─────────────────────────────────────────────────────────────────
@@ -1383,6 +1394,7 @@ function ChatApp({ token, currentUser, onLogout }) {
           onReact={handleReact}
           onCopy={handleCopy}
           onDelete={handleDeleteMessage}
+          currentUserId={currentUser.id}
           isDark={isDark}
         />
       )}
