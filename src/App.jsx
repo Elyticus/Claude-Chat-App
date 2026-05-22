@@ -383,14 +383,12 @@ function NewChatModal({ users, onlineIds, onSelectUser, onCreateGroup, onClose }
   }
 
   return (
-    <div className="fixed inset-0 z-[500] flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/90 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative bg-[#0d0d0d] border border-white/[0.1] rounded-t-3xl sm:rounded-2xl w-full sm:w-[400px] max-h-[80dvh] sm:max-h-[88vh] flex flex-col shadow-2xl overflow-hidden">
-        {/* Mobile drag handle */}
-        <div className="w-10 h-1 bg-white/15 rounded-full mx-auto mt-3 mb-1 sm:hidden" />
+      <div className="relative bg-[#0d0d0d] border border-white/[0.1] rounded-2xl w-full sm:w-[400px] max-h-[85dvh] flex flex-col shadow-2xl overflow-hidden">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08] shrink-0">
@@ -460,7 +458,6 @@ function NewChatModal({ users, onlineIds, onSelectUser, onCreateGroup, onClose }
               placeholder={mode === "dm" ? "Search users…" : "Add members…"}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              autoFocus
               className="flex-1 bg-transparent text-white text-sm outline-none placeholder:text-white/25"
             />
           </div>
@@ -560,6 +557,7 @@ export default function App() {
 function ChatApp({ token, currentUser, onLogout }) {
   const [rooms, setRooms] = useState([]);
   const [activeRoomId, setActiveRoomId] = useState(null);
+  const [displayRoomId, setDisplayRoomId] = useState(null);
   const [messages, setMessages] = useState({});
   const [typingMap, setTypingMap] = useState({});
   const [onlineIds, setOnlineIds] = useState(new Set());
@@ -579,6 +577,7 @@ function ChatApp({ token, currentUser, onLogout }) {
   const inputRef = useRef(null);
   const loadedRoomsRef = useRef(new Set());
   const activeRoomIdRef = useRef(null);
+  const closeTimerRef = useRef(null);
 
   useEffect(() => { activeRoomIdRef.current = activeRoomId; }, [activeRoomId]);
 
@@ -700,9 +699,14 @@ function ChatApp({ token, currentUser, onLogout }) {
   }, [activeRoomId]);
 
   // ── Auto-scroll ──────────────────────────────────────────────────────────────
+  // Instant when switching rooms — avoids competing with the panel slide-in animation
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, activeRoomId]);
+    if (activeRoomId) messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+  }, [activeRoomId]);
+  // Smooth when a new message arrives in the current room
+  useEffect(() => {
+    if (activeRoomId) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   // ── Tab title ────────────────────────────────────────────────────────────────
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
@@ -814,6 +818,8 @@ function ChatApp({ token, currentUser, onLogout }) {
       const { roomId } = await api.createDM(user.id);
       const updatedRooms = await api.getRooms();
       setRooms(updatedRooms);
+      clearTimeout(closeTimerRef.current);
+      setDisplayRoomId(roomId);
       setActiveRoomId(roomId);
     } catch (err) {
       console.error(err);
@@ -826,6 +832,8 @@ function ChatApp({ token, currentUser, onLogout }) {
       const { roomId } = await api.createGroup(userIds, name);
       const updatedRooms = await api.getRooms();
       setRooms(updatedRooms);
+      clearTimeout(closeTimerRef.current);
+      setDisplayRoomId(roomId);
       setActiveRoomId(roomId);
     } catch (err) {
       console.error(err);
@@ -833,6 +841,8 @@ function ChatApp({ token, currentUser, onLogout }) {
   }
 
   function selectRoom(roomId) {
+    clearTimeout(closeTimerRef.current);
+    setDisplayRoomId(roomId);
     setActiveRoomId(roomId);
     setUnreadCounts((prev) => ({ ...prev, [roomId]: 0 }));
     setShowEmojiPicker(false);
@@ -844,6 +854,7 @@ function ChatApp({ token, currentUser, onLogout }) {
   function closeRoom() {
     stopTyping();
     setActiveRoomId(null);
+    closeTimerRef.current = setTimeout(() => setDisplayRoomId(null), 500);
     setShowEmojiPicker(false);
     setShowMsgSearch(false);
     setMsgSearch("");
@@ -851,15 +862,15 @@ function ChatApp({ token, currentUser, onLogout }) {
 
   // ── Derived ─────────────────────────────────────────────────────────────────
 
-  const activeRoom = rooms.find((r) => r.id === activeRoomId) || null;
-  const activeMessages = activeRoomId ? messages[activeRoomId] || [] : [];
+  const activeRoom = rooms.find((r) => r.id === displayRoomId) || null;
+  const activeMessages = displayRoomId ? messages[displayRoomId] || [] : [];
   const displayedMessages =
     showMsgSearch && msgSearch.trim()
       ? activeMessages.filter((m) => m.text.toLowerCase().includes(msgSearch.toLowerCase()))
       : activeMessages;
 
-  const typingNames = activeRoomId
-    ? (typingMap[activeRoomId] || [])
+  const typingNames = displayRoomId
+    ? (typingMap[displayRoomId] || [])
         .filter((u) => u.userId !== currentUser.id)
         .map((u) => u.username)
     : [];
@@ -893,10 +904,9 @@ function ChatApp({ token, currentUser, onLogout }) {
       {/* Chat Panel — fixed overflow shell clips the translated panel so it never creates horizontal scroll */}
       <div className="fixed inset-0 z-[200] overflow-hidden pointer-events-none">
       <div
-        className={`absolute inset-y-0 right-0 w-full md:w-[480px] bg-black/[0.96] border-l border-white/[0.08] flex flex-col transition-transform duration-500 ease-out pointer-events-auto ${activeRoomId ? "translate-x-0" : "translate-x-full"}`}
-        style={{ backdropFilter: "blur(24px)" }}
+        className={`absolute inset-y-0 right-0 w-full bg-black border-l border-white/[0.08] flex flex-col transition-transform duration-300 ease-out pointer-events-auto ${activeRoomId ? "translate-x-0" : "translate-x-full"}`}
       >
-        {activeRoomId && activeRoom && (
+        {displayRoomId && activeRoom && (
           <>
             {/* Chat header */}
             <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.08] shrink-0">
@@ -945,7 +955,6 @@ function ChatApp({ token, currentUser, onLogout }) {
               <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/[0.08] bg-white/[0.03] shrink-0">
                 <Search size={13} className="text-white/35 shrink-0" />
                 <input
-                  autoFocus
                   type="text"
                   placeholder="Search messages…"
                   value={msgSearch}

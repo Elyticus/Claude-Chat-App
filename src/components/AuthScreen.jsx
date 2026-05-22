@@ -33,7 +33,7 @@ export default function AuthScreen({ onAuth }) {
   }
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background orbital rings */}
       <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
         <div className="absolute w-[700px] h-[700px] rounded-full border border-white/[0.04]" />
