@@ -594,10 +594,17 @@ function OrbitalHub({
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div
-                            className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-black"}`}
-                          >
-                            {displayName}
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span
+                              className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-black"}`}
+                            >
+                              {displayName}
+                            </span>
+                            {!!room.is_group && (
+                              <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-purple-500/15 text-purple-400">
+                                Group
+                              </span>
+                            )}
                           </div>
                           {room.last_message && (
                             <div
