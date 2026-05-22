@@ -11,6 +11,7 @@ import {
   Trash2,
 } from "lucide-react";
 import AuthScreen from "./components/AuthScreen.jsx";
+import StarField from "./components/ui/star-field.jsx";
 import { api } from "./lib/api.js";
 import { connectSocket, disconnectSocket } from "./lib/socket.js";
 
@@ -232,10 +233,9 @@ function OrbitalHub({
       ref={containerRef}
       className={`relative w-full h-dvh flex items-center justify-center overflow-hidden transition-colors duration-300 ${isDark ? "bg-black" : "bg-indigo-50"}`}
     >
-      {/* Futuristic background */}
+      {/* Star field background */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className={`absolute inset-0 futuristic-grid ${isDark ? "opacity-100" : "opacity-50"}`} />
-        <div className={`absolute inset-0 futuristic-aurora ${isDark ? "opacity-100" : "opacity-40"}`} />
+        <StarField isDark={isDark} />
       </div>
 
       {/* Top bar */}
@@ -372,11 +372,11 @@ function OrbitalHub({
               )}
             </div>
             {/* Name label */}
-            <span className={`mt-2 text-[11px] font-medium max-w-19 truncate text-center leading-tight ${isDark ? "text-white/55" : "text-slate-500"}`}>
+            <span className={`mt-2 text-[11px] font-semibold max-w-19 truncate text-center leading-tight drop-shadow-[0_1px_6px_rgba(0,0,0,1)] ${isDark ? "text-white" : "text-slate-700"}`}>
               {displayName}
             </span>
             {room.last_message_at && (
-              <span className={`text-[10px] mt-0.5 ${isDark ? "text-white/25" : "text-slate-400"}`}>
+              <span className={`text-[10px] mt-0.5 drop-shadow-[0_1px_4px_rgba(0,0,0,1)] ${isDark ? "text-white/70" : "text-slate-500"}`}>
                 {formatTime(room.last_message_at)}
               </span>
             )}
@@ -1385,12 +1385,12 @@ function ChatApp({ token, currentUser, onLogout }) {
                           )}
                           <div className="relative">
                             <div
-                              className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed wrap-break-word ${
+                              className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed wrap-break-word transition-shadow duration-200 ${
                                 isMine
-                                  ? "bg-linear-to-br from-purple-600 to-blue-600 text-white rounded-br-sm"
+                                  ? "bg-linear-to-br from-purple-600 to-blue-600 text-white rounded-br-sm hover:shadow-[0_0_22px_4px_rgba(124,58,237,0.55)]"
                                   : isDark
-                                    ? "bg-white/10 text-white rounded-bl-sm"
-                                    : "bg-slate-100 text-slate-900 rounded-bl-sm"
+                                    ? "bg-white/10 text-white rounded-bl-sm hover:shadow-[0_0_22px_4px_rgba(255,255,255,0.18)]"
+                                    : "bg-slate-100 text-slate-900 rounded-bl-sm hover:shadow-[0_0_22px_4px_rgba(99,102,241,0.25)]"
                               } ${isTemp ? "opacity-50" : ""}`}
                             >
                               {msg.text}
