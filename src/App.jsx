@@ -895,8 +895,7 @@ function ChatApp({ token, currentUser, onLogout }) {
       {/* Chat Panel — fixed overflow shell clips the translated panel so it never creates horizontal scroll */}
       <div className="fixed inset-0 z-[200] overflow-hidden pointer-events-none">
       <div
-        className={`absolute inset-y-0 right-0 w-full bg-black/[0.96] border-l border-white/[0.08] flex flex-col transition-transform duration-500 ease-out pointer-events-auto ${activeRoomId ? "translate-x-0" : "translate-x-full"}`}
-        style={{ backdropFilter: "blur(24px)" }}
+        className={`absolute inset-y-0 right-0 w-full bg-black border-l border-white/[0.08] flex flex-col transition-transform duration-500 ease-out pointer-events-auto ${activeRoomId ? "translate-x-0" : "translate-x-full"}`}
       >
         {displayRoomId && activeRoom && (
           <>
