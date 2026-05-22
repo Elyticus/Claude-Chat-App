@@ -254,12 +254,12 @@ function OrbitalHub({
           <button
             onClick={onAvatarClick}
             title="Change profile picture"
-            className="flex items-center gap-2 rounded-full focus:outline-none group"
+            className="flex items-center gap-2 rounded-full focus:outline-none group cursor-pointer"
           >
             <div className="relative">
-              <Avatar userId={currentUser.id} username={currentUser.username} size={28} avatar={myAvatar} />
+              <Avatar userId={currentUser.id} username={currentUser.username} size={40} avatar={myAvatar} />
               <span className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
-                <span className="text-white text-[8px] opacity-0 group-hover:opacity-100 font-semibold leading-none">Edit</span>
+                <span className="text-white text-[10px] opacity-0 group-hover:opacity-100 font-semibold leading-none">Edit</span>
               </span>
             </div>
             <span className={`text-sm hidden sm:block ${isDark ? "text-white/40" : "text-slate-400"}`}>
@@ -1376,6 +1376,7 @@ function ChatApp({ token, currentUser, onLogout }) {
                         onContextMenu={(e) => !isTemp && handleContextMenu(e, msg)}
                       >
                         {!isMine && <Avatar userId={msg.user_id} username={msg.username} size={28} avatar={avatarMap[msg.user_id]} />}
+                        {isMine && <Avatar userId={currentUser.id} username={currentUser.username} size={28} avatar={myAvatar} />}
                         <div className={`flex flex-col ${isMine ? "items-end" : "items-start"} max-w-[72%]`}>
                           {!isMine && !!activeRoom.is_group && (
                             <span className={`text-[11px] mb-1 ml-1 ${isDark ? "text-white/35" : "text-slate-400"}`}>
