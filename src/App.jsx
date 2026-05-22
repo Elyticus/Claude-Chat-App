@@ -383,14 +383,12 @@ function NewChatModal({ users, onlineIds, onSelectUser, onCreateGroup, onClose }
   }
 
   return (
-    <div className="fixed inset-0 z-[500] flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/90 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative bg-[#0d0d0d] border border-white/[0.1] rounded-t-3xl sm:rounded-2xl w-full sm:w-[400px] max-h-[80dvh] sm:max-h-[88vh] flex flex-col shadow-2xl overflow-hidden">
-        {/* Mobile drag handle */}
-        <div className="w-10 h-1 bg-white/15 rounded-full mx-auto mt-3 mb-1 sm:hidden" />
+      <div className="relative bg-[#0d0d0d] border border-white/[0.1] rounded-2xl w-full sm:w-[400px] max-h-[85dvh] flex flex-col shadow-2xl overflow-hidden">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08] shrink-0">
