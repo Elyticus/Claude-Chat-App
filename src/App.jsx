@@ -271,14 +271,14 @@ function OrbitalHub({
       {/* Star field + floating atmosphere */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <StarField isDark={isDark} />
-        {/* Slow-drifting colour blobs */}
+        {/* Slow-drifting colour blobs — 2-stop gradients only (no intermediate stops = no banding rings) */}
         <div
           className="absolute animate-float-1"
           style={{
             top: "-5%", left: "-5%", width: "68%", height: "68%",
             background: isDark
-              ? "radial-gradient(circle at 38% 38%, rgba(99,102,241,0.22) 0%, rgba(99,102,241,0.14) 22%, rgba(99,102,241,0.05) 48%, transparent 68%)"
-              : "radial-gradient(circle at 38% 38%, rgba(99,102,241,0.12) 0%, rgba(99,102,241,0.07) 22%, rgba(99,102,241,0.02) 48%, transparent 68%)",
+              ? "radial-gradient(circle at 38% 38%, rgba(99,102,241,0.26) 0%, transparent 100%)"
+              : "radial-gradient(circle at 38% 38%, rgba(99,102,241,0.14) 0%, transparent 100%)",
           }}
         />
         <div
@@ -286,8 +286,8 @@ function OrbitalHub({
           style={{
             bottom: "-8%", right: "-8%", width: "64%", height: "64%",
             background: isDark
-              ? "radial-gradient(circle at 62% 62%, rgba(139,92,246,0.18) 0%, rgba(139,92,246,0.11) 22%, rgba(139,92,246,0.04) 48%, transparent 68%)"
-              : "radial-gradient(circle at 62% 62%, rgba(139,92,246,0.10) 0%, rgba(139,92,246,0.05) 22%, transparent 68%)",
+              ? "radial-gradient(circle at 62% 62%, rgba(139,92,246,0.22) 0%, transparent 100%)"
+              : "radial-gradient(circle at 62% 62%, rgba(139,92,246,0.12) 0%, transparent 100%)",
           }}
         />
         <div
@@ -295,8 +295,8 @@ function OrbitalHub({
           style={{
             top: "28%", left: "52%", width: "54%", height: "54%",
             background: isDark
-              ? "radial-gradient(circle, rgba(6,182,212,0.12) 0%, rgba(6,182,212,0.07) 25%, rgba(6,182,212,0.03) 50%, transparent 68%)"
-              : "radial-gradient(circle, rgba(6,182,212,0.08) 0%, rgba(6,182,212,0.04) 25%, transparent 68%)",
+              ? "radial-gradient(circle, rgba(6,182,212,0.14) 0%, transparent 100%)"
+              : "radial-gradient(circle, rgba(6,182,212,0.09) 0%, transparent 100%)",
             animationDelay: "-14s",
           }}
         />
@@ -311,8 +311,8 @@ function OrbitalHub({
           width: 620, height: 620,
           borderRadius: "50%",
           background: isDark
-            ? "radial-gradient(circle, rgba(99,102,241,0.10) 0%, rgba(99,102,241,0.06) 30%, rgba(99,102,241,0.02) 55%, transparent 72%)"
-            : "radial-gradient(circle, rgba(99,102,241,0.07) 0%, rgba(99,102,241,0.04) 30%, transparent 65%)",
+            ? "radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 100%)"
+            : "radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 100%)",
         }}
       />
 
