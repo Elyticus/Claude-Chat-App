@@ -2398,7 +2398,7 @@ function ChatApp({ token, currentUser, onLogout }) {
                   style={{ background: `linear-gradient(to bottom, ${isDark ? darkBg0 : lightBg0}, transparent)` }}
                 />
                 {/* Scroll container */}
-                <div className="absolute inset-0 overflow-y-auto px-4 py-4">
+                <div className="absolute inset-0 overflow-y-auto px-4 py-4 no-scrollbar">
                 <div className="relative flex flex-col justify-end min-h-full gap-2.5">
                   {displayedMessages.length === 0 &&
                     messages[activeRoomId] !== undefined && (

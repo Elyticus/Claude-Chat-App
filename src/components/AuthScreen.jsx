@@ -182,7 +182,7 @@ export default function AuthScreen({ onAuth }) {
   }
 
   const inputCls =
-    "w-full rounded-xl px-4 py-3 text-sm outline-none transition-all bg-[#10192e] border border-indigo-500/15 text-[#eef2ff] placeholder:text-indigo-300/25 focus:border-indigo-500/55 focus:ring-2 focus:ring-indigo-500/10";
+    "w-full rounded-xl px-4 py-3 text-sm outline-none transition-all cursor-text bg-[#10192e] border border-indigo-500/15 text-[#eef2ff] placeholder:text-indigo-300/25 focus:border-indigo-500/55 focus:ring-2 focus:ring-indigo-500/10";
 
   const digitInputs = (
     <div className="flex gap-2 justify-center">
@@ -197,7 +197,7 @@ export default function AuthScreen({ onAuth }) {
           onChange={(e) => handleDigitChange(i, e.target.value)}
           onKeyDown={(e) => handleDigitKeyDown(i, e)}
           onPaste={handleDigitPaste}
-          className="w-11 h-13 text-center text-[#eef2ff] text-xl font-bold rounded-xl outline-none transition-all bg-[#10192e] border border-indigo-500/15 focus:border-indigo-500/55 focus:ring-2 focus:ring-indigo-500/10"
+          className="w-11 h-13 text-center text-[#eef2ff] text-xl font-bold rounded-xl outline-none transition-all cursor-text bg-[#10192e] border border-indigo-500/15 focus:border-indigo-500/55 focus:ring-2 focus:ring-indigo-500/10"
         />
       ))}
     </div>
@@ -272,6 +272,7 @@ export default function AuthScreen({ onAuth }) {
             background: "rgba(255,255,255,0.025)",
             border: "1px solid rgba(99,102,241,0.12)",
             backdropFilter: "blur(24px)",
+            willChange: "transform",
             boxShadow:
               "0 0 0 1px rgba(255,255,255,0.025), 0 24px 64px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)",
           }}
