@@ -1653,6 +1653,10 @@ function ChatApp({ token, currentUser, onLogout }) {
       const root = document.documentElement;
       root.style.setProperty("--vvt", `${vv.offsetTop}px`);
       root.style.setProperty("--vvh", `${vv.height}px`);
+      // After the panel resizes, snap scroll to the last message so it stays visible
+      requestAnimationFrame(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+      });
     };
     update();
     vv.addEventListener("resize", update);
@@ -2558,9 +2562,6 @@ function ChatApp({ token, currentUser, onLogout }) {
                       ? "1px solid rgba(99,102,241,0.45)"
                       : "1px solid rgba(99,102,241,0.4)";
                     e.target.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.10)";
-                    setTimeout(() => {
-                      messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
-                    }, 50);
                   }}
                   onBlurCapture={(e) => {
                     e.target.style.border = isDark
