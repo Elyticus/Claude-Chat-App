@@ -2185,6 +2185,16 @@ function ChatApp({ token, currentUser, onLogout }) {
         onChange={handleAvatarFile}
       />
 
+      {/* Solid backdrop — covers the orbital hub completely whenever a chat is
+          open, including during the fade-in transition and the iOS keyboard
+          accessory-bar gap that sits below --vvh */}
+      {displayRoomId && (
+        <div
+          className="fixed inset-0 z-[199] pointer-events-none"
+          style={{ background: isDark ? darkBg0 : lightBg0 }}
+        />
+      )}
+
       {/* Chat Panel
           Outer: top=--vvt so the panel tracks iOS visual viewport pan.
           Inner: height=--vvh (actual visible height above keyboard) so the
@@ -2557,7 +2567,7 @@ function ChatApp({ token, currentUser, onLogout }) {
                   onKeyDown={handleKeyDown}
                   onBlur={stopTyping}
                   placeholder="Type a message…"
-                  className="flex-1 rounded-2xl px-4 py-2.5 text-sm outline-none transition-all"
+                  className="flex-1 rounded-2xl px-4 py-2.5 text-sm outline-none transition-[border-color,box-shadow] duration-150"
                   style={{
                     background: isDark ? darkBg2 : "#f1f5f9",
                     border: `1px solid ${isDark ? "rgba(99,102,241,0.15)" : "rgba(226,232,240,1)"}`,

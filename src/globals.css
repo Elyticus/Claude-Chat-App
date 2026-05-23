@@ -66,6 +66,7 @@ a, button, [role="button"] {
 
 input, textarea {
   cursor: text;
+  caret-color: #a5b4fc;
 }
 
 /* Custom scrollbar */
