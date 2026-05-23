@@ -4,7 +4,6 @@ import { api } from "../lib/api.js";
 
 export default function AuthScreen({ onAuth }) {
   const [mode, setMode] = useState("login");
-  // "form" | "verify" | "forgot" | "forgot-code"
   const [step, setStep] = useState("form");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -182,6 +181,9 @@ export default function AuthScreen({ onAuth }) {
     setSuccess("");
   }
 
+  const inputCls =
+    "w-full rounded-xl px-4 py-3 text-sm outline-none transition-all bg-[#10192e] border border-indigo-500/15 text-[#eef2ff] placeholder:text-indigo-300/25 focus:border-indigo-500/55 focus:ring-2 focus:ring-indigo-500/10";
+
   const digitInputs = (
     <div className="flex gap-2 justify-center">
       {codeDigits.map((d, i) => (
@@ -195,64 +197,141 @@ export default function AuthScreen({ onAuth }) {
           onChange={(e) => handleDigitChange(i, e.target.value)}
           onKeyDown={(e) => handleDigitKeyDown(i, e)}
           onPaste={handleDigitPaste}
-          className="w-10 h-12 text-center text-white text-xl font-bold bg-white/5 border border-white/10 rounded-xl outline-none focus:border-indigo-400 focus:bg-indigo-500/10 transition-colors"
+          className="w-11 h-13 text-center text-[#eef2ff] text-xl font-bold rounded-xl outline-none transition-all bg-[#10192e] border border-indigo-500/15 focus:border-indigo-500/55 focus:ring-2 focus:ring-indigo-500/10"
         />
       ))}
     </div>
   );
 
   return (
-    <div className="h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background orbital rings */}
-      <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-        <div className="absolute w-175 h-175 rounded-full border border-white/4" />
-        <div className="absolute w-125 h-125 rounded-full border border-white/4" />
-        <div className="absolute w-80 h-80 rounded-full border border-white/4" />
+    <div
+      className="h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      style={{ background: "#070d1c" }}
+    >
+      {/* Ambient glow blobs */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div
-          className="absolute w-32 h-32 rounded-full"
           style={{
-            background:
-              "radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%)",
+            position: "absolute",
+            top: "-25%",
+            left: "-15%",
+            width: "65%",
+            height: "65%",
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(99,102,241,0.14) 0%, transparent 70%)",
+            filter: "blur(60px)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            bottom: "-25%",
+            right: "-15%",
+            width: "65%",
+            height: "65%",
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(124,58,237,0.11) 0%, transparent 70%)",
+            filter: "blur(60px)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: "45%",
+            left: "45%",
+            transform: "translate(-50%,-50%)",
+            width: "45%",
+            height: "45%",
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(6,182,212,0.06) 0%, transparent 70%)",
+            filter: "blur(80px)",
           }}
         />
       </div>
 
-      <div className="relative w-full max-w-sm">
+      {/* Background orbital rings */}
+      <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
         <div
-          className="bg-white/4 border border-white/10 rounded-2xl p-8 shadow-2xl"
-          style={{ backdropFilter: "blur(20px)" }}
+          style={{
+            position: "absolute",
+            width: 680,
+            height: 680,
+            borderRadius: "50%",
+            border: "1px solid rgba(99,102,241,0.07)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            width: 480,
+            height: 480,
+            borderRadius: "50%",
+            border: "1px solid rgba(99,102,241,0.09)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            width: 300,
+            height: 300,
+            borderRadius: "50%",
+            border: "1px solid rgba(99,102,241,0.12)",
+          }}
+        />
+      </div>
+
+      <div className="relative w-full max-w-sm animate-fade-in-up">
+        <div
+          className="rounded-3xl p-8"
+          style={{
+            background: "rgba(255,255,255,0.025)",
+            border: "1px solid rgba(99,102,241,0.12)",
+            backdropFilter: "blur(24px)",
+            boxShadow:
+              "0 0 0 1px rgba(255,255,255,0.025), 0 24px 64px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)",
+          }}
         >
           {/* Logo */}
           <div className="flex items-center justify-center gap-3 mb-8">
             <div
-              className="w-12 h-12 rounded-full flex items-center justify-center"
+              className="w-12 h-12 rounded-2xl flex items-center justify-center"
               style={{
-                background: "linear-gradient(135deg, #6366f1, #3b82f6, #14b8a6)",
-                boxShadow: "0 0 30px rgba(99,102,241,0.3)",
+                background: "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)",
+                boxShadow: "0 0 0 1px rgba(99,102,241,0.3), 0 8px 32px rgba(99,102,241,0.4)",
               }}
             >
-              <MessageCircle size={22} className="text-white" />
+              <MessageCircle size={22} className="text-white" strokeWidth={2} />
             </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">
-              Chatloop<span className="text-purple-400">.</span>
+            <h1 className="text-2xl font-bold tracking-tight" style={{ color: "#eef2ff" }}>
+              Chatloop<span style={{ color: "#818cf8" }}>.</span>
             </h1>
           </div>
 
           {step === "verify" ? (
-            /* ── Email verification step ── */
             <form onSubmit={handleVerify} className="space-y-6">
-              <div className="text-center space-y-1">
-                <p className="text-white font-semibold text-sm">Check your inbox</p>
-                <p className="text-white/40 text-xs leading-relaxed">
+              <div className="text-center space-y-1.5">
+                <p className="font-semibold text-sm" style={{ color: "#eef2ff" }}>
+                  Check your inbox
+                </p>
+                <p className="text-xs leading-relaxed" style={{ color: "rgba(238,242,255,0.45)" }}>
                   We sent a 6-digit code to
                 </p>
-                <p className="text-indigo-300 text-sm font-medium">{email}</p>
+                <p className="text-sm font-medium" style={{ color: "#a5b4fc" }}>
+                  {email}
+                </p>
               </div>
 
               {digitInputs}
 
               {error && (
-                <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-xl">
+                <div
+                  className="text-sm px-4 py-3 rounded-xl"
+                  style={{
+                    background: "rgba(239,68,68,0.08)",
+                    border: "1px solid rgba(239,68,68,0.2)",
+                    color: "#f87171",
+                  }}
+                >
                   {error}
                 </div>
               )}
@@ -260,8 +339,11 @@ export default function AuthScreen({ onAuth }) {
               <button
                 type="submit"
                 disabled={loading || codeDigits.join("").length !== 6}
-                className="w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-40 hover:opacity-90 transition-all"
-                style={{ background: "linear-gradient(135deg, #7c3aed, #2563eb)" }}
+                className="w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-40 transition-all hover:opacity-90 active:scale-[0.98]"
+                style={{
+                  background: "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)",
+                  boxShadow: "0 4px 20px rgba(99,102,241,0.4)",
+                }}
               >
                 {loading ? "Verifying…" : "Verify Email"}
               </button>
@@ -270,7 +352,8 @@ export default function AuthScreen({ onAuth }) {
                 <button
                   type="button"
                   onClick={backToRegister}
-                  className="text-white/30 text-xs hover:text-white/60 transition-colors"
+                  className="text-xs transition-colors hover:text-indigo-300"
+                  style={{ color: "rgba(238,242,255,0.35)" }}
                 >
                   ← Back
                 </button>
@@ -278,27 +361,29 @@ export default function AuthScreen({ onAuth }) {
                   type="button"
                   onClick={handleResend}
                   disabled={resendCooldown > 0}
-                  className="text-white/30 text-xs hover:text-white/60 transition-colors disabled:pointer-events-none"
+                  className="text-xs transition-colors hover:text-indigo-300 disabled:pointer-events-none"
+                  style={{ color: "rgba(238,242,255,0.35)" }}
                 >
-                  {resendCooldown > 0
-                    ? `Resend in ${resendCooldown}s`
-                    : "Resend code"}
+                  {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
                 </button>
               </div>
             </form>
-
           ) : step === "forgot" ? (
-            /* ── Forgot password — enter email ── */
             <form onSubmit={handleForgotRequest} className="space-y-6">
-              <div className="text-center space-y-1">
-                <p className="text-white font-semibold text-sm">Forgot your password?</p>
-                <p className="text-white/40 text-xs leading-relaxed">
+              <div className="text-center space-y-1.5">
+                <p className="font-semibold text-sm" style={{ color: "#eef2ff" }}>
+                  Forgot your password?
+                </p>
+                <p className="text-xs leading-relaxed" style={{ color: "rgba(238,242,255,0.45)" }}>
                   Enter your email and we'll send a reset code.
                 </p>
               </div>
 
               <div>
-                <label className="block text-white/50 text-xs font-medium mb-1.5 uppercase tracking-wider">
+                <label
+                  className="block text-xs font-medium mb-2 uppercase tracking-wider"
+                  style={{ color: "rgba(165,180,252,0.6)" }}
+                >
                   Email
                 </label>
                 <input
@@ -308,12 +393,19 @@ export default function AuthScreen({ onAuth }) {
                   placeholder="you@example.com"
                   autoComplete="email"
                   required
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none placeholder:text-white/20 focus:border-white/25 transition-colors"
+                  className={inputCls}
                 />
               </div>
 
               {error && (
-                <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-xl">
+                <div
+                  className="text-sm px-4 py-3 rounded-xl"
+                  style={{
+                    background: "rgba(239,68,68,0.08)",
+                    border: "1px solid rgba(239,68,68,0.2)",
+                    color: "#f87171",
+                  }}
+                >
                   {error}
                 </div>
               )}
@@ -321,8 +413,11 @@ export default function AuthScreen({ onAuth }) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-40 hover:opacity-90 transition-all"
-                style={{ background: "linear-gradient(135deg, #7c3aed, #2563eb)" }}
+                className="w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-40 transition-all hover:opacity-90 active:scale-[0.98]"
+                style={{
+                  background: "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)",
+                  boxShadow: "0 4px 20px rgba(99,102,241,0.4)",
+                }}
               >
                 {loading ? "Sending…" : "Send Reset Code"}
               </button>
@@ -331,28 +426,34 @@ export default function AuthScreen({ onAuth }) {
                 <button
                   type="button"
                   onClick={() => switchMode("login")}
-                  className="text-white/30 text-xs hover:text-white/60 transition-colors"
+                  className="text-xs transition-colors hover:text-indigo-300"
+                  style={{ color: "rgba(238,242,255,0.35)" }}
                 >
                   ← Back to Sign In
                 </button>
               </div>
             </form>
-
           ) : step === "forgot-code" ? (
-            /* ── Forgot password — enter code + new password ── */
             <form onSubmit={handleResetPassword} className="space-y-5">
-              <div className="text-center space-y-1">
-                <p className="text-white font-semibold text-sm">Set new password</p>
-                <p className="text-white/40 text-xs leading-relaxed">
+              <div className="text-center space-y-1.5">
+                <p className="font-semibold text-sm" style={{ color: "#eef2ff" }}>
+                  Set new password
+                </p>
+                <p className="text-xs leading-relaxed" style={{ color: "rgba(238,242,255,0.45)" }}>
                   Enter the code sent to
                 </p>
-                <p className="text-indigo-300 text-sm font-medium">{email}</p>
+                <p className="text-sm font-medium" style={{ color: "#a5b4fc" }}>
+                  {email}
+                </p>
               </div>
 
               {digitInputs}
 
               <div>
-                <label className="block text-white/50 text-xs font-medium mb-1.5 uppercase tracking-wider">
+                <label
+                  className="block text-xs font-medium mb-2 uppercase tracking-wider"
+                  style={{ color: "rgba(165,180,252,0.6)" }}
+                >
                   New Password
                 </label>
                 <input
@@ -363,12 +464,15 @@ export default function AuthScreen({ onAuth }) {
                   autoComplete="new-password"
                   required
                   minLength={6}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none placeholder:text-white/20 focus:border-white/25 transition-colors"
+                  className={inputCls}
                 />
               </div>
 
               <div>
-                <label className="block text-white/50 text-xs font-medium mb-1.5 uppercase tracking-wider">
+                <label
+                  className="block text-xs font-medium mb-2 uppercase tracking-wider"
+                  style={{ color: "rgba(165,180,252,0.6)" }}
+                >
                   Confirm Password
                 </label>
                 <input
@@ -378,12 +482,19 @@ export default function AuthScreen({ onAuth }) {
                   placeholder="••••••••"
                   autoComplete="new-password"
                   required
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none placeholder:text-white/20 focus:border-white/25 transition-colors"
+                  className={inputCls}
                 />
               </div>
 
               {error && (
-                <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-xl">
+                <div
+                  className="text-sm px-4 py-3 rounded-xl"
+                  style={{
+                    background: "rgba(239,68,68,0.08)",
+                    border: "1px solid rgba(239,68,68,0.2)",
+                    color: "#f87171",
+                  }}
+                >
                   {error}
                 </div>
               )}
@@ -396,8 +507,11 @@ export default function AuthScreen({ onAuth }) {
                   !newPassword ||
                   !confirmPassword
                 }
-                className="w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-40 hover:opacity-90 transition-all"
-                style={{ background: "linear-gradient(135deg, #7c3aed, #2563eb)" }}
+                className="w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-40 transition-all hover:opacity-90 active:scale-[0.98]"
+                style={{
+                  background: "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)",
+                  boxShadow: "0 4px 20px rgba(99,102,241,0.4)",
+                }}
               >
                 {loading ? "Resetting…" : "Reset Password"}
               </button>
@@ -406,7 +520,8 @@ export default function AuthScreen({ onAuth }) {
                 <button
                   type="button"
                   onClick={() => setStep("forgot")}
-                  className="text-white/30 text-xs hover:text-white/60 transition-colors"
+                  className="text-xs transition-colors hover:text-indigo-300"
+                  style={{ color: "rgba(238,242,255,0.35)" }}
                 >
                   ← Back
                 </button>
@@ -414,30 +529,35 @@ export default function AuthScreen({ onAuth }) {
                   type="button"
                   onClick={handleForgotResend}
                   disabled={resendCooldown > 0}
-                  className="text-white/30 text-xs hover:text-white/60 transition-colors disabled:pointer-events-none"
+                  className="text-xs transition-colors hover:text-indigo-300 disabled:pointer-events-none"
+                  style={{ color: "rgba(238,242,255,0.35)" }}
                 >
-                  {resendCooldown > 0
-                    ? `Resend in ${resendCooldown}s`
-                    : "Resend code"}
+                  {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
                 </button>
               </div>
             </form>
-
           ) : (
-            /* ── Login / Register form ── */
             <>
               {/* Mode tabs */}
-              <div className="flex bg-white/5 rounded-xl p-1 mb-6">
+              <div
+                className="flex rounded-xl p-1 mb-7"
+                style={{ background: "rgba(99,102,241,0.08)" }}
+              >
                 {["login", "register"].map((m) => (
                   <button
                     key={m}
                     type="button"
                     onClick={() => switchMode(m)}
-                    className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
+                    className="flex-1 py-2 text-sm font-medium rounded-lg transition-all"
+                    style={
                       mode === m
-                        ? "bg-white text-black"
-                        : "text-white/45 hover:text-white"
-                    }`}
+                        ? {
+                            background: "#6366f1",
+                            color: "#ffffff",
+                            boxShadow: "0 2px 12px rgba(99,102,241,0.4)",
+                          }
+                        : { color: "rgba(238,242,255,0.45)" }
+                    }
                   >
                     {m === "login" ? "Sign In" : "Register"}
                   </button>
@@ -447,7 +567,10 @@ export default function AuthScreen({ onAuth }) {
               <form onSubmit={handleSubmit} className="space-y-4">
                 {mode === "register" && (
                   <div>
-                    <label className="block text-white/50 text-xs font-medium mb-1.5 uppercase tracking-wider">
+                    <label
+                      className="block text-xs font-medium mb-2 uppercase tracking-wider"
+                      style={{ color: "rgba(165,180,252,0.6)" }}
+                    >
                       Username
                     </label>
                     <input
@@ -457,13 +580,16 @@ export default function AuthScreen({ onAuth }) {
                       placeholder="your_username"
                       autoComplete="username"
                       required
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none placeholder:text-white/20 focus:border-white/25 transition-colors"
+                      className={inputCls}
                     />
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-white/50 text-xs font-medium mb-1.5 uppercase tracking-wider">
+                  <label
+                    className="block text-xs font-medium mb-2 uppercase tracking-wider"
+                    style={{ color: "rgba(165,180,252,0.6)" }}
+                  >
                     Email
                   </label>
                   <input
@@ -473,20 +599,24 @@ export default function AuthScreen({ onAuth }) {
                     placeholder="you@example.com"
                     autoComplete="email"
                     required
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none placeholder:text-white/20 focus:border-white/25 transition-colors"
+                    className={inputCls}
                   />
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-white/50 text-xs font-medium uppercase tracking-wider">
+                  <div className="flex items-center justify-between mb-2">
+                    <label
+                      className="block text-xs font-medium uppercase tracking-wider"
+                      style={{ color: "rgba(165,180,252,0.6)" }}
+                    >
                       Password
                     </label>
                     {mode === "login" && (
                       <button
                         type="button"
                         onClick={goToForgot}
-                        className="text-white/30 text-xs hover:text-white/60 transition-colors"
+                        className="text-xs transition-colors hover:text-indigo-300"
+                        style={{ color: "rgba(238,242,255,0.35)" }}
                       >
                         Forgot password?
                       </button>
@@ -497,23 +627,35 @@ export default function AuthScreen({ onAuth }) {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    autoComplete={
-                      mode === "login" ? "current-password" : "new-password"
-                    }
+                    autoComplete={mode === "login" ? "current-password" : "new-password"}
                     required
                     minLength={6}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none placeholder:text-white/20 focus:border-white/25 transition-colors"
+                    className={inputCls}
                   />
                 </div>
 
                 {error && (
-                  <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-xl">
+                  <div
+                    className="text-sm px-4 py-3 rounded-xl"
+                    style={{
+                      background: "rgba(239,68,68,0.08)",
+                      border: "1px solid rgba(239,68,68,0.2)",
+                      color: "#f87171",
+                    }}
+                  >
                     {error}
                   </div>
                 )}
 
                 {success && (
-                  <div className="bg-green-500/10 border border-green-500/20 text-green-400 text-sm px-4 py-3 rounded-xl">
+                  <div
+                    className="text-sm px-4 py-3 rounded-xl"
+                    style={{
+                      background: "rgba(34,197,94,0.08)",
+                      border: "1px solid rgba(34,197,94,0.2)",
+                      color: "#4ade80",
+                    }}
+                  >
                     {success}
                   </div>
                 )}
@@ -521,9 +663,10 @@ export default function AuthScreen({ onAuth }) {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-40 hover:opacity-90 transition-all mt-1"
+                  className="w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-40 transition-all hover:opacity-90 active:scale-[0.98] mt-1"
                   style={{
-                    background: "linear-gradient(135deg, #7c3aed, #2563eb)",
+                    background: "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)",
+                    boxShadow: "0 4px 24px rgba(99,102,241,0.45)",
                   }}
                 >
                   {loading
@@ -534,10 +677,13 @@ export default function AuthScreen({ onAuth }) {
                 </button>
               </form>
 
-              <p className="text-white/20 text-xs text-center mt-6 leading-relaxed">
+              <p
+                className="text-xs text-center mt-6 leading-relaxed"
+                style={{ color: "rgba(238,242,255,0.22)" }}
+              >
                 {mode === "register"
                   ? "We'll send a verification code to your email."
-                  : "Let's get to know each other!"}
+                  : "Welcome back — let's chat."}
               </p>
             </>
           )}

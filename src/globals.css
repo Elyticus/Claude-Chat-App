@@ -1,26 +1,26 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #000000;
-  --color-foreground: #ffffff;
-  --color-card: #0a0a0a;
-  --color-card-foreground: #ffffff;
-  --color-popover: #111111;
-  --color-popover-foreground: #ffffff;
-  --color-primary: #6366f1;
-  --color-primary-foreground: #ffffff;
-  --color-secondary: #1a1a1a;
-  --color-secondary-foreground: #ffffff;
-  --color-muted: #262626;
-  --color-muted-foreground: rgba(255, 255, 255, 0.5);
-  --color-accent: #1a1a1a;
-  --color-accent-foreground: #ffffff;
-  --color-destructive: #ef4444;
+  --color-background:            #070d1c;
+  --color-foreground:            #eef2ff;
+  --color-card:                  #0b1426;
+  --color-card-foreground:       #eef2ff;
+  --color-popover:               #10192e;
+  --color-popover-foreground:    #eef2ff;
+  --color-primary:               #6366f1;
+  --color-primary-foreground:    #ffffff;
+  --color-secondary:             #141e33;
+  --color-secondary-foreground:  #eef2ff;
+  --color-muted:                 #141e33;
+  --color-muted-foreground:      rgba(238,242,255,0.45);
+  --color-accent:                #1c2a44;
+  --color-accent-foreground:     #eef2ff;
+  --color-destructive:           #ef4444;
   --color-destructive-foreground: #ffffff;
-  --color-border: rgba(255, 255, 255, 0.1);
-  --color-input: rgba(255, 255, 255, 0.05);
-  --color-ring: #6366f1;
-  --radius: 0.5rem;
+  --color-border:                rgba(99,102,241,0.14);
+  --color-input:                 rgba(99,102,241,0.07);
+  --color-ring:                  #6366f1;
+  --radius:                      0.75rem;
 }
 
 :root {
@@ -43,12 +43,11 @@ body {
   margin: 0;
   height: 100%;
   overflow: hidden;
-  background-color: #000;
-  color: #fff;
+  background-color: #070d1c;
+  color: #eef2ff;
   font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Prevent elastic overscroll on iOS from causing layout jumps */
   overscroll-behavior: none;
 }
 
@@ -57,12 +56,10 @@ body {
   height: 100dvh;
 }
 
-/* Eliminate 300ms tap delay on all interactive elements */
 a, button, [role="button"] {
   touch-action: manipulation;
 }
 
-/* Prevent iOS Safari from zooming in on input focus (triggered when font-size < 16px) */
 @media (max-width: 767px) {
   input, textarea, select {
     font-size: 16px;
@@ -71,27 +68,23 @@ a, button, [role="button"] {
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 4px;
+  width: 3px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(99,102,241,0.22);
   border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(99,102,241,0.42);
 }
 
 /* Keyframes */
 @keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 
 @keyframes ping {
@@ -112,6 +105,39 @@ a, button, [role="button"] {
   }
 }
 
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.93);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Animation utilities */
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
@@ -125,12 +151,22 @@ a, button, [role="button"] {
   animation: bounce 1s infinite;
 }
 
+.animate-fade-in-up {
+  animation: fadeInUp 0.2s ease-out both;
+}
 
+.animate-scale-in {
+  animation: scaleIn 0.15s ease-out both;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
 
 /* Light mode scrollbar */
 [data-theme="light"] ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.12);
+  background: rgba(99,102,241,0.15);
 }
 [data-theme="light"] ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.22);
+  background: rgba(99,102,241,0.32);
 }
