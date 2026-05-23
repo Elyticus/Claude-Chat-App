@@ -272,7 +272,6 @@ export default function AuthScreen({ onAuth }) {
             background: "rgba(255,255,255,0.025)",
             border: "1px solid rgba(99,102,241,0.12)",
             backdropFilter: "blur(24px)",
-            willChange: "transform",
             boxShadow:
               "0 0 0 1px rgba(255,255,255,0.025), 0 24px 64px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)",
           }}

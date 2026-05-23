@@ -64,6 +64,10 @@ a, button, [role="button"] {
   }
 }
 
+input, textarea {
+  cursor: text;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 3px;
@@ -110,7 +114,7 @@ a, button, [role="button"] {
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
