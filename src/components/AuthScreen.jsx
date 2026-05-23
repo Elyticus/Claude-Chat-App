@@ -208,37 +208,30 @@ export default function AuthScreen({ onAuth }) {
       className="h-screen flex items-center justify-center p-4 relative overflow-hidden"
       style={{ background: "#070d1c" }}
     >
-      {/* Animated ambient glow blobs — 2-stop gradients only, no banding */}
+      {/* Ambient glow blobs — static (no animation) so filter:blur is composited once */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div
-          className="absolute animate-float-1"
-          style={{
-            top: "-25%", left: "-15%",
-            width: "72%", height: "72%",
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(99,102,241,0.26) 0%, transparent 100%)",
-          }}
-        />
-        <div
-          className="absolute animate-float-2"
-          style={{
-            bottom: "-25%", right: "-15%",
-            width: "72%", height: "72%",
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(124,58,237,0.22) 0%, transparent 100%)",
-          }}
-        />
-        <div
-          className="absolute animate-float-3"
-          style={{
-            top: "45%", left: "45%",
-            transform: "translate(-50%,-50%)",
-            width: "56%", height: "56%",
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(6,182,212,0.14) 0%, transparent 100%)",
-            animationDelay: "-9s",
-          }}
-        />
+        <div className="absolute" style={{
+          top: "-25%", left: "-15%",
+          width: "72%", height: "72%",
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(99,102,241,0.22) 0%, transparent 70%)",
+          filter: "blur(60px)",
+        }} />
+        <div className="absolute" style={{
+          bottom: "-25%", right: "-15%",
+          width: "72%", height: "72%",
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%)",
+          filter: "blur(60px)",
+        }} />
+        <div className="absolute" style={{
+          top: "45%", left: "45%",
+          transform: "translate(-50%,-50%)",
+          width: "56%", height: "56%",
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%)",
+          filter: "blur(70px)",
+        }} />
       </div>
 
       {/* Background orbital rings */}
