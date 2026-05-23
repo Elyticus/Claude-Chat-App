@@ -163,19 +163,22 @@ export default function StarField({ isDark = true }) {
           const alpha   = star.baseOpacity * twinkle;
 
           if (star.size > 1.4) {
-            const glow = ctx.createRadialGradient(star.x, star.y, 0, star.x, star.y, star.size * 4);
-            glow.addColorStop(0, `rgba(${star.hue}, ${alpha * 0.6})`);
-            glow.addColorStop(1, `rgba(${star.hue}, 0)`);
+            // shadowBlur is GPU-accelerated and allocates nothing on the JS heap,
+            // replacing the createRadialGradient + extra arc that ran every frame.
+            ctx.save();
+            ctx.shadowBlur  = star.size * 14;
+            ctx.shadowColor = `rgba(${star.hue}, ${alpha * 0.55})`;
             ctx.beginPath();
-            ctx.arc(star.x, star.y, star.size * 4, 0, Math.PI * 2);
-            ctx.fillStyle = glow;
+            ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${star.hue}, ${alpha})`;
+            ctx.fill();
+            ctx.restore();
+          } else {
+            ctx.beginPath();
+            ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${star.hue}, ${alpha})`;
             ctx.fill();
           }
-
-          ctx.beginPath();
-          ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(${star.hue}, ${alpha})`;
-          ctx.fill();
         });
 
         // ── Spawn comets ─────────────────────────────────────────────────────────

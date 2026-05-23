@@ -265,7 +265,7 @@ function OrbitalHub({
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-dvh flex items-center justify-center overflow-hidden transition-colors duration-500"
+      className="relative w-full h-dvh flex items-center justify-center overflow-hidden"
       style={{ background: isDark ? darkBg0 : lightBg0 }}
     >
       {/* Star field + atmosphere */}
@@ -2159,7 +2159,7 @@ function ChatApp({ token, currentUser, onLogout }) {
   return (
     <div
       data-theme={isDark ? "dark" : "light"}
-      className="relative w-full h-dvh overflow-hidden transition-colors duration-500"
+      className="relative w-full h-dvh overflow-hidden"
       style={{ background: isDark ? darkBg0 : lightBg0 }}
     >
       {/* Orbital Hub — always in background */}
