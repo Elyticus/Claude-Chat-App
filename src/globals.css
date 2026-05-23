@@ -163,6 +163,61 @@ a, button, [role="button"] {
   animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Floating blob animations */
+@keyframes floatBlob1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25%  { transform: translate(45px, -60px) scale(1.07); }
+  50%  { transform: translate(-30px, 40px) scale(0.95); }
+  75%  { transform: translate(-50px, -18px) scale(1.04); }
+}
+@keyframes floatBlob2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(-55px, 50px) scale(1.06); }
+  66%  { transform: translate(30px, -30px) scale(0.94); }
+}
+@keyframes floatBlob3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  40%  { transform: translate(28px, 48px) scale(1.04); }
+  70%  { transform: translate(-18px, -48px) scale(0.96); }
+}
+
+/* Hub breathing glow */
+@keyframes hubBreathe {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba(99,102,241,0.4),
+      0 0 40px rgba(99,102,241,0.5),
+      0 0 80px rgba(99,102,241,0.22),
+      inset 0 1px 0 rgba(255,255,255,0.15);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(99,102,241,0.6),
+      0 0 65px rgba(99,102,241,0.75),
+      0 0 130px rgba(99,102,241,0.38),
+      inset 0 1px 0 rgba(255,255,255,0.15);
+  }
+}
+
+/* Orbit indicator rotation */
+@keyframes rotateSlow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Animated gradient for interactive elements */
+@keyframes gradientFlow {
+  0%, 100% { background-position: 0% 50%; }
+  50%       { background-position: 100% 50%; }
+}
+
+.animate-float-1 { animation: floatBlob1 22s ease-in-out infinite; }
+.animate-float-2 { animation: floatBlob2 28s ease-in-out infinite; }
+.animate-float-3 { animation: floatBlob3 34s ease-in-out infinite; }
+.hub-breathe     { animation: hubBreathe 3.5s ease-in-out infinite; }
+.rotate-slow     { animation: rotateSlow 12s linear infinite; }
+.rotate-slow-rev { animation: rotateSlow 20s linear infinite reverse; }
+
 /* Light mode scrollbar */
 [data-theme="light"] ::-webkit-scrollbar-thumb {
   background: rgba(99,102,241,0.15);

@@ -268,25 +268,55 @@ function OrbitalHub({
       className="relative w-full h-dvh flex items-center justify-center overflow-hidden transition-colors duration-500"
       style={{ background: isDark ? darkBg0 : lightBg0 }}
     >
-      {/* Star field background */}
+      {/* Star field + floating atmosphere */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <StarField isDark={isDark} />
+        {/* Slow-drifting colour blobs */}
+        <div
+          className="absolute animate-float-1"
+          style={{
+            top: "-5%", left: "-5%", width: "62%", height: "62%",
+            background: isDark
+              ? "radial-gradient(circle at 38% 38%, rgba(99,102,241,0.18) 0%, transparent 65%)"
+              : "radial-gradient(circle at 38% 38%, rgba(99,102,241,0.10) 0%, transparent 65%)",
+            filter: "blur(48px)",
+          }}
+        />
+        <div
+          className="absolute animate-float-2"
+          style={{
+            bottom: "-8%", right: "-8%", width: "58%", height: "58%",
+            background: isDark
+              ? "radial-gradient(circle at 62% 62%, rgba(139,92,246,0.15) 0%, transparent 65%)"
+              : "radial-gradient(circle at 62% 62%, rgba(139,92,246,0.08) 0%, transparent 65%)",
+            filter: "blur(55px)",
+          }}
+        />
+        <div
+          className="absolute animate-float-3"
+          style={{
+            top: "28%", left: "52%", width: "48%", height: "48%",
+            background: isDark
+              ? "radial-gradient(circle, rgba(6,182,212,0.10) 0%, transparent 62%)"
+              : "radial-gradient(circle, rgba(6,182,212,0.06) 0%, transparent 62%)",
+            filter: "blur(65px)",
+            animationDelay: "-14s",
+          }}
+        />
       </div>
 
-      {/* Ambient center glow */}
+      {/* Ambient centre glow */}
       <div
         className="absolute pointer-events-none"
         style={{
-          top: "50%",
-          left: "50%",
+          top: "50%", left: "50%",
           transform: "translate(-50%, -50%)",
-          width: 500,
-          height: 500,
+          width: 560, height: 560,
           borderRadius: "50%",
           background: isDark
-            ? "radial-gradient(circle, rgba(99,102,241,0.07) 0%, transparent 65%)"
-            : "radial-gradient(circle, rgba(99,102,241,0.05) 0%, transparent 65%)",
-          filter: "blur(20px)",
+            ? "radial-gradient(circle, rgba(99,102,241,0.09) 0%, transparent 65%)"
+            : "radial-gradient(circle, rgba(99,102,241,0.06) 0%, transparent 65%)",
+          filter: "blur(24px)",
         }}
       />
 
@@ -368,57 +398,81 @@ function OrbitalHub({
         </div>
       </div>
 
-      {/* Orbit rings */}
+      {/* Outer orbit ring — with rotating glowing indicator */}
       <div
         className="absolute rounded-full pointer-events-none"
         style={{
-          width: "min(64vmin, 500px)",
-          height: "min(64vmin, 500px)",
-          border: isDark ? "1px solid rgba(99,102,241,0.18)" : "1px solid rgba(99,102,241,0.15)",
-        }}
-      />
-      <div
-        className="absolute rounded-full pointer-events-none"
-        style={{
-          width: "min(44vmin, 340px)",
-          height: "min(44vmin, 340px)",
-          border: isDark ? "1px solid rgba(99,102,241,0.12)" : "1px solid rgba(99,102,241,0.10)",
-        }}
-      />
-
-      {/* Center hub */}
-      <div
-        className="absolute w-20 h-20 rounded-full flex items-center justify-center cursor-pointer z-20 select-none"
-        style={{
-          background: "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)",
+          width: "min(64vmin, 500px)", height: "min(64vmin, 500px)",
           boxShadow: isDark
-            ? "0 0 0 1px rgba(99,102,241,0.35), 0 0 40px rgba(99,102,241,0.45), 0 0 80px rgba(99,102,241,0.2)"
-            : "0 0 0 1px rgba(99,102,241,0.25), 0 0 32px rgba(99,102,241,0.35), 0 8px 32px rgba(99,102,241,0.25)",
+            ? "0 0 0 1px rgba(99,102,241,0.2), 0 0 40px rgba(99,102,241,0.05), inset 0 0 40px rgba(99,102,241,0.03)"
+            : "0 0 0 1px rgba(99,102,241,0.16)",
+        }}
+      >
+        <div className="absolute inset-0 rounded-full rotate-slow">
+          <div style={{
+            position: "absolute", top: -4, left: "50%", transform: "translateX(-50%)",
+            width: 8, height: 8, borderRadius: "50%",
+            background: isDark ? "#818cf8" : "#6366f1",
+            boxShadow: isDark
+              ? "0 0 10px rgba(129,140,248,1), 0 0 22px rgba(99,102,241,0.8)"
+              : "0 0 8px rgba(99,102,241,0.9), 0 0 16px rgba(99,102,241,0.5)",
+          }} />
+        </div>
+      </div>
+
+      {/* Inner orbit ring — counter-rotating */}
+      <div
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          width: "min(44vmin, 340px)", height: "min(44vmin, 340px)",
+          boxShadow: isDark
+            ? "0 0 0 1px rgba(99,102,241,0.13), inset 0 0 20px rgba(99,102,241,0.02)"
+            : "0 0 0 1px rgba(99,102,241,0.11)",
+        }}
+      >
+        <div className="absolute inset-0 rounded-full rotate-slow-rev">
+          <div style={{
+            position: "absolute", top: -3, left: "50%", transform: "translateX(-50%)",
+            width: 5, height: 5, borderRadius: "50%",
+            background: isDark ? "#a78bfa" : "#7c3aed",
+            boxShadow: isDark
+              ? "0 0 7px rgba(167,139,250,1), 0 0 16px rgba(139,92,246,0.7)"
+              : "0 0 7px rgba(124,58,237,0.8)",
+          }} />
+        </div>
+      </div>
+
+      {/* Center hub — breathing glow */}
+      <div
+        className="absolute w-20 h-20 rounded-full flex items-center justify-center cursor-pointer z-20 select-none hub-breathe"
+        style={{
+          background: "linear-gradient(145deg, #9f7aea, #6366f1, #3b82f6)",
         }}
         onClick={() => setShowContactsList((v) => !v)}
         title="See all chats"
       >
+        {/* Specular highlight — makes it look 3-D */}
         <div
-          className="absolute rounded-full"
+          className="absolute inset-0 rounded-full pointer-events-none"
           style={{
-            width: 94,
-            height: 94,
-            animation: "ping 2s cubic-bezier(0,0,0.2,1) infinite",
-            border: isDark
-              ? "1.5px solid rgba(99,102,241,0.55)"
-              : "1.5px solid rgba(99,102,241,0.6)",
+            background: "linear-gradient(135deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.06) 45%, transparent 100%)",
           }}
         />
         <div
           className="absolute rounded-full"
           style={{
-            width: 114,
-            height: 114,
+            width: 94, height: 94,
             animation: "ping 2s cubic-bezier(0,0,0.2,1) infinite",
-            animationDelay: "0.7s",
-            border: isDark
-              ? "1px solid rgba(99,102,241,0.3)"
-              : "1px solid rgba(99,102,241,0.35)",
+            border: isDark ? "1.5px solid rgba(99,102,241,0.6)" : "1.5px solid rgba(99,102,241,0.65)",
+          }}
+        />
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: 116, height: 116,
+            animation: "ping 2s cubic-bezier(0,0,0.2,1) infinite",
+            animationDelay: "0.75s",
+            border: isDark ? "1px solid rgba(99,102,241,0.32)" : "1px solid rgba(99,102,241,0.38)",
           }}
         />
         <MessageCircle size={26} className="text-white relative z-10" strokeWidth={1.8} />
@@ -491,14 +545,30 @@ function OrbitalHub({
             onMouseLeave={() => setHoveredId(null)}
             onClick={() => onSelectRoom(room.id)}
           >
+            {/* Hover glow aura */}
+            <div
+              className="absolute rounded-full pointer-events-none transition-all duration-300"
+              style={{
+                width: 86, height: 86,
+                left: "50%", top: "50%",
+                transform: "translate(-50%, -50%)",
+                background: "radial-gradient(circle, rgba(99,102,241,0.4) 0%, transparent 68%)",
+                filter: "blur(10px)",
+                opacity: hoveredId === room.id ? 1 : 0,
+              }}
+            />
             {/* Node circle */}
             <div
               className={`relative w-12 h-12 rounded-full flex items-center justify-center text-white text-sm font-semibold transition-all duration-200 ${hoveredId === room.id ? "scale-110" : ""}`}
               style={{
                 background: userBg(avatarId),
-                boxShadow: isDark
-                  ? "0 0 0 2px rgba(99,102,241,0.25), 0 4px 16px rgba(0,0,0,0.5)"
-                  : "0 0 0 2px rgba(99,102,241,0.2), 0 4px 16px rgba(99,102,241,0.15)",
+                boxShadow: hoveredId === room.id
+                  ? isDark
+                    ? "0 0 0 2px rgba(99,102,241,0.5), 0 0 20px rgba(99,102,241,0.4), 0 4px 16px rgba(0,0,0,0.5)"
+                    : "0 0 0 2px rgba(99,102,241,0.45), 0 0 20px rgba(99,102,241,0.3), 0 4px 16px rgba(99,102,241,0.2)"
+                  : isDark
+                    ? "0 0 0 2px rgba(99,102,241,0.22), 0 4px 16px rgba(0,0,0,0.5)"
+                    : "0 0 0 2px rgba(99,102,241,0.18), 0 4px 16px rgba(99,102,241,0.12)",
               }}
             >
               {initials(displayName)}
@@ -2307,12 +2377,27 @@ function ChatApp({ token, currentUser, onLogout }) {
                 </div>
               )}
 
-              {/* Messages */}
+              {/* Messages — layered: dot-grid texture + fade edges + scroll area */}
               <div
-                className="flex-1 overflow-y-auto px-4 py-4"
+                className="flex-1 relative overflow-hidden"
                 style={{ background: isDark ? darkBg0 : lightBg0 }}
               >
-                <div className="flex flex-col justify-end min-h-full gap-2.5">
+                {/* Dot grid texture */}
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    backgroundImage: `radial-gradient(circle, ${isDark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.055)"} 1px, transparent 1px)`,
+                    backgroundSize: "28px 28px",
+                  }}
+                />
+                {/* Top fade */}
+                <div
+                  className="absolute top-0 left-0 right-0 h-10 z-10 pointer-events-none"
+                  style={{ background: `linear-gradient(to bottom, ${isDark ? darkBg0 : lightBg0}, transparent)` }}
+                />
+                {/* Scroll container */}
+                <div className="absolute inset-0 overflow-y-auto px-4 py-4">
+                <div className="relative flex flex-col justify-end min-h-full gap-2.5">
                   {displayedMessages.length === 0 &&
                     messages[activeRoomId] !== undefined && (
                       <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
@@ -2456,6 +2541,12 @@ function ChatApp({ token, currentUser, onLogout }) {
                   })}
                   <div ref={messagesEndRef} />
                 </div>
+                </div>{/* end scroll container */}
+                {/* Bottom fade */}
+                <div
+                  className="absolute bottom-0 left-0 right-0 h-10 z-10 pointer-events-none"
+                  style={{ background: `linear-gradient(to top, ${isDark ? darkBg0 : lightBg0}, transparent)` }}
+                />
               </div>
 
               {/* Message input */}

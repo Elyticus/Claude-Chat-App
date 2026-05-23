@@ -208,43 +208,38 @@ export default function AuthScreen({ onAuth }) {
       className="h-screen flex items-center justify-center p-4 relative overflow-hidden"
       style={{ background: "#070d1c" }}
     >
-      {/* Ambient glow blobs */}
+      {/* Animated ambient glow blobs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div
+          className="absolute animate-float-1"
           style={{
-            position: "absolute",
-            top: "-25%",
-            left: "-15%",
-            width: "65%",
-            height: "65%",
+            top: "-25%", left: "-15%",
+            width: "65%", height: "65%",
             borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(99,102,241,0.14) 0%, transparent 70%)",
-            filter: "blur(60px)",
+            background: "radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 68%)",
+            filter: "blur(55px)",
           }}
         />
         <div
+          className="absolute animate-float-2"
           style={{
-            position: "absolute",
-            bottom: "-25%",
-            right: "-15%",
-            width: "65%",
-            height: "65%",
+            bottom: "-25%", right: "-15%",
+            width: "65%", height: "65%",
             borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(124,58,237,0.11) 0%, transparent 70%)",
-            filter: "blur(60px)",
+            background: "radial-gradient(circle, rgba(124,58,237,0.14) 0%, transparent 68%)",
+            filter: "blur(55px)",
           }}
         />
         <div
+          className="absolute animate-float-3"
           style={{
-            position: "absolute",
-            top: "45%",
-            left: "45%",
+            top: "45%", left: "45%",
             transform: "translate(-50%,-50%)",
-            width: "45%",
-            height: "45%",
+            width: "50%", height: "50%",
             borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(6,182,212,0.06) 0%, transparent 70%)",
-            filter: "blur(80px)",
+            background: "radial-gradient(circle, rgba(6,182,212,0.09) 0%, transparent 68%)",
+            filter: "blur(70px)",
+            animationDelay: "-9s",
           }}
         />
       </div>
@@ -294,13 +289,19 @@ export default function AuthScreen({ onAuth }) {
           {/* Logo */}
           <div className="flex items-center justify-center gap-3 mb-8">
             <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
+              className="relative w-14 h-14 rounded-2xl flex items-center justify-center hub-breathe"
               style={{
-                background: "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)",
-                boxShadow: "0 0 0 1px rgba(99,102,241,0.3), 0 8px 32px rgba(99,102,241,0.4)",
+                background: "linear-gradient(145deg, #9f7aea, #6366f1, #3b82f6)",
               }}
             >
-              <MessageCircle size={22} className="text-white" strokeWidth={2} />
+              {/* Specular highlight */}
+              <div
+                className="absolute inset-0 rounded-2xl pointer-events-none"
+                style={{
+                  background: "linear-gradient(135deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.06) 50%, transparent 100%)",
+                }}
+              />
+              <MessageCircle size={24} className="text-white relative z-10" strokeWidth={1.8} />
             </div>
             <h1 className="text-2xl font-bold tracking-tight" style={{ color: "#eef2ff" }}>
               Chatloop<span style={{ color: "#818cf8" }}>.</span>
