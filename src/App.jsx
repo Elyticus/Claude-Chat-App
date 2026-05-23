@@ -9,7 +9,6 @@ import {
   Search,
   X,
   Trash2,
-  Plus,
   Users,
 } from "lucide-react";
 import AuthScreen from "./components/AuthScreen.jsx";
@@ -592,13 +591,13 @@ function OrbitalHub({
                     setShowContactsList(false);
                     onNewChat();
                   }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90"
+                  className="flex items-center px-4 py-2 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90"
                   style={{
                     background: "linear-gradient(135deg, #7c3aed, #6366f1)",
                     boxShadow: "0 2px 12px rgba(99,102,241,0.4)",
                   }}
                 >
-                  <Plus size={15} /> New Chat
+                  New Chat
                 </button>
                 <button
                   onClick={() => setShowContactsList(false)}
