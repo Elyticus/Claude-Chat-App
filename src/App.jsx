@@ -1641,16 +1641,18 @@ function ChatApp({ token, currentUser, onLogout }) {
     }
   }, []);
 
-  // On iOS Safari the keyboard pans the visual viewport upward, pushing the
-  // layout-anchored fixed panel above the visible area. We track only --vvt
-  // (offsetTop = how far the visual viewport has panned) and apply it as the
-  // panel's top offset so the panel stays locked to the visual viewport.
-  // Height is left to CSS (100dvh) — no JS height tracking, no squish slide.
+  // Track the visual viewport so the chat panel stays locked to the visible
+  // screen area when the software keyboard opens.
+  // --vvt = offsetTop: how far iOS panned the visual viewport upward (panel top)
+  // --vvh = height:    actual visible height above keyboard (inner content height)
+  // Both update in the same handler so they're always in sync.
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
     const update = () => {
-      document.documentElement.style.setProperty("--vvt", `${vv.offsetTop}px`);
+      const root = document.documentElement;
+      root.style.setProperty("--vvt", `${vv.offsetTop}px`);
+      root.style.setProperty("--vvh", `${vv.height}px`);
     };
     update();
     vv.addEventListener("resize", update);
@@ -2179,16 +2181,18 @@ function ChatApp({ token, currentUser, onLogout }) {
         onChange={handleAvatarFile}
       />
 
-      {/* Chat Panel — top tracks --vvt (visual viewport offsetTop) so the panel
-          stays locked to the visual viewport when iOS keyboard pans it up.
-          Height is 100dvh (CSS only, no JS) so there is no squish animation. */}
+      {/* Chat Panel
+          Outer: top=--vvt so the panel tracks iOS visual viewport pan.
+          Inner: height=--vvh (actual visible height above keyboard) so the
+          flex column is sized to exactly what the user can see. Without this,
+          justify-end pushes messages below the keyboard fold. */}
       <div
         className="fixed left-0 right-0 z-[200] pointer-events-none"
         style={{ top: "var(--vvt, 0px)", height: "100dvh" }}
       >
         <div
-          className={`absolute inset-0 flex flex-col transition-opacity duration-200 ${activeRoomId ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
-          style={{ background: isDark ? darkBg0 : lightBg0 }}
+          className={`absolute top-0 left-0 right-0 flex flex-col transition-opacity duration-200 ${activeRoomId ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+          style={{ height: "var(--vvh, 100dvh)", background: isDark ? darkBg0 : lightBg0 }}
         >
           {displayRoomId && activeRoom && (
             <>
