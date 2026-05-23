@@ -329,24 +329,28 @@ function OrbitalHub({
           <button
             onClick={onToggleTheme}
             title={isDark ? "Light mode" : "Dark mode"}
-            className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
             style={{
-              border: `1px solid ${isDark ? darkBorderMid : lightBorderMid}`,
-              color: isDark ? "rgba(238,242,255,0.45)" : "#64748b",
+              background: isDark ? "rgba(129,140,248,0.14)" : "rgba(99,102,241,0.10)",
+              border: `1px solid ${isDark ? "rgba(129,140,248,0.35)" : "rgba(99,102,241,0.28)"}`,
+              color: isDark ? "#a5b4fc" : "#4f46e5",
+              boxShadow: isDark ? "0 0 12px rgba(129,140,248,0.2)" : "0 2px 8px rgba(99,102,241,0.12)",
             }}
           >
-            {isDark ? <Sun size={14} /> : <Moon size={14} />}
+            {isDark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
           <button
             onClick={onLogout}
             title="Sign out"
-            className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
             style={{
-              border: `1px solid ${isDark ? darkBorderMid : lightBorderMid}`,
-              color: isDark ? "rgba(238,242,255,0.45)" : "#64748b",
+              background: isDark ? "rgba(239,68,68,0.10)" : "rgba(239,68,68,0.07)",
+              border: `1px solid ${isDark ? "rgba(239,68,68,0.28)" : "rgba(239,68,68,0.22)"}`,
+              color: isDark ? "#fca5a5" : "#ef4444",
+              boxShadow: isDark ? "0 0 10px rgba(239,68,68,0.14)" : "0 2px 8px rgba(239,68,68,0.08)",
             }}
           >
-            <LogOut size={14} />
+            <LogOut size={16} />
           </button>
         </div>
       </div>
