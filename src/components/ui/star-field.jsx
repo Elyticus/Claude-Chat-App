@@ -127,6 +127,7 @@ export default function StarField({ isDark = true }) {
   const lastTimeRef  = useRef(null);
   const nextCometRef = useRef(2500);
   const isDarkRef    = useRef(isDark);
+  const darkGradsRef = useRef(null);
 
   // Sync the ref without restarting the canvas loop
   useEffect(() => {
@@ -141,9 +142,29 @@ export default function StarField({ isDark = true }) {
     function resize() {
       canvas.width  = canvas.offsetWidth;
       canvas.height = canvas.offsetHeight;
-      starsRef.current  = makeStars(canvas.width, canvas.height);
-      cloudsRef.current = makeClouds(canvas.width, canvas.height);
-      birdsRef.current  = makeBirds(canvas.width, canvas.height);
+      const w = canvas.width, h = canvas.height;
+      starsRef.current  = makeStars(w, h);
+      cloudsRef.current = makeClouds(w, h);
+      birdsRef.current  = makeBirds(w, h);
+
+      // Pre-bake dark-mode atmospheric gradients once per resize
+      const g1 = ctx.createRadialGradient(w * -0.05 + w * 0.34, h * -0.05 + h * 0.34, 0, w * -0.05 + w * 0.34, h * -0.05 + h * 0.34, w * 0.48);
+      g1.addColorStop(0,   "rgba(99,102,241,0.22)");
+      g1.addColorStop(1,   "rgba(99,102,241,0)");
+
+      const g2 = ctx.createRadialGradient(w * 1.08 - w * 0.32, h * 1.08 - h * 0.32, 0, w * 1.08 - w * 0.32, h * 1.08 - h * 0.32, w * 0.45);
+      g2.addColorStop(0,   "rgba(139,92,246,0.18)");
+      g2.addColorStop(1,   "rgba(139,92,246,0)");
+
+      const g3 = ctx.createRadialGradient(w * 0.52 + w * 0.27, h * 0.28 + h * 0.27, 0, w * 0.52 + w * 0.27, h * 0.28 + h * 0.27, w * 0.38);
+      g3.addColorStop(0,   "rgba(6,182,212,0.12)");
+      g3.addColorStop(1,   "rgba(6,182,212,0)");
+
+      const g4 = ctx.createRadialGradient(w * 0.5, h * 0.5, 0, w * 0.5, h * 0.5, 310);
+      g4.addColorStop(0,   "rgba(99,102,241,0.12)");
+      g4.addColorStop(1,   "rgba(99,102,241,0)");
+
+      darkGradsRef.current = [g1, g2, g3, g4];
     }
 
     function draw(timestamp) {
@@ -157,6 +178,14 @@ export default function StarField({ isDark = true }) {
       ctx.clearRect(0, 0, w, h);
 
       if (isDarkRef.current) {
+        // ── Atmospheric glows (pre-baked gradients, zero per-frame allocation) ──
+        if (darkGradsRef.current) {
+          darkGradsRef.current.forEach((g) => {
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, w, h);
+          });
+        }
+
         // ── Stars ───────────────────────────────────────────────────────────────
         starsRef.current.forEach((star) => {
           const twinkle = Math.sin(t * star.twinkleSpeed + star.twinkleOffset) * 0.35 + 0.65;
