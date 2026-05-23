@@ -1641,6 +1641,30 @@ function ChatApp({ token, currentUser, onLogout }) {
     }
   }, []);
 
+  // Anchor chat panel to the visual viewport so the header stays visible when
+  // the software keyboard opens. Only listens to "resize" (fires when keyboard
+  // fully opens/closes), NOT "scroll" (fires on every pan frame — that was the
+  // source of the previous slide effect). RAF-batched so only the last value
+  // in each frame is applied, keeping the snap instant.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    let rafId;
+    const update = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const root = document.documentElement;
+        root.style.setProperty("--vvh", `${vv.height}px`);
+        root.style.setProperty("--vvt", `${vv.offsetTop}px`);
+      });
+    };
+    update();
+    vv.addEventListener("resize", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      cancelAnimationFrame(rafId);
+    };
+  }, []);
 
   // ── Socket setup ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -2159,8 +2183,12 @@ function ChatApp({ token, currentUser, onLogout }) {
         onChange={handleAvatarFile}
       />
 
-      {/* Chat Panel */}
-      <div className="fixed inset-0 z-[200] pointer-events-none">
+      {/* Chat Panel — position driven by --vvt/--vvh (visual viewport) so the
+          header stays visible when the software keyboard opens on iOS Safari. */}
+      <div
+        className="fixed left-0 right-0 z-[200] pointer-events-none"
+        style={{ top: "var(--vvt, 0px)", height: "var(--vvh, 100dvh)" }}
+      >
         <div
           className={`absolute inset-0 flex flex-col transition-opacity duration-200 ${activeRoomId ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
           style={{ background: isDark ? darkBg0 : lightBg0 }}
