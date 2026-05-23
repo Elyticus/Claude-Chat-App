@@ -2447,24 +2447,8 @@ function ChatApp({ token, currentUser, onLogout }) {
                         className={`flex w-full items-end gap-2 animate-fade-in-up ${isMine ? "flex-row-reverse" : "flex-row"}`}
                         onContextMenu={(e) => !isTemp && handleContextMenu(e, msg)}
                       >
-                        {!isMine && (
-                          <Avatar
-                            userId={msg.user_id}
-                            username={msg.username}
-                            size={28}
-                            avatar={avatarMap[msg.user_id]}
-                          />
-                        )}
-                        {isMine && (
-                          <Avatar
-                            userId={currentUser.id}
-                            username={currentUser.username}
-                            size={28}
-                            avatar={myAvatar}
-                          />
-                        )}
                         <div
-                          className={`flex flex-col ${isMine ? "items-end" : "items-start"} max-w-[72%]`}
+                          className={`flex flex-col ${isMine ? "items-end" : "items-start"} max-w-[78%]`}
                         >
                           {!isMine && !!activeRoom.is_group && (
                             <span
