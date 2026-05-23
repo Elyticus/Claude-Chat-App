@@ -467,30 +467,6 @@ function OrbitalHub({
         )}
       </div>
 
-      {/* Empty state */}
-      {rooms.length === 0 && (
-        <p
-          className="absolute text-sm tracking-wide pointer-events-none"
-          style={{
-            marginTop: "220px",
-            color: isDark ? "rgba(238,242,255,0.2)" : "rgba(99,102,241,0.4)",
-          }}
-        >
-          Tap the orb to start a conversation
-        </p>
-      )}
-      {rooms.length > 0 && orbitRooms.length === 0 && (
-        <p
-          className="absolute text-sm tracking-wide pointer-events-none"
-          style={{
-            marginTop: "220px",
-            color: isDark ? "rgba(238,242,255,0.2)" : "rgba(99,102,241,0.4)",
-          }}
-        >
-          Tap the orb to see all chats
-        </p>
-      )}
-
       {/* Room nodes */}
       {orbitRooms.map((room, index) => {
         const pos = getNodePosition(index, orbitRooms.length);
