@@ -394,46 +394,58 @@ function OrbitalHub({
         </div>
       </div>
 
-      {/* Outer orbit ring — with rotating glowing indicator */}
+      {/* Outer orbit ring — glowing path with rotating beacon */}
       <div
         className="absolute rounded-full pointer-events-none"
         style={{
           width: "min(64vmin, 500px)", height: "min(64vmin, 500px)",
           boxShadow: isDark
-            ? "0 0 0 1px rgba(99,102,241,0.2), 0 0 40px rgba(99,102,241,0.05), inset 0 0 40px rgba(99,102,241,0.03)"
-            : "0 0 0 1px rgba(99,102,241,0.16)",
+            ? [
+                "0 0 0 1px rgba(99,102,241,0.30)",
+                "0 0 0 3px rgba(99,102,241,0.08)",
+                "0 0 0 10px rgba(99,102,241,0.03)",
+                "0 0 80px rgba(99,102,241,0.12)",
+                "inset 0 0 80px rgba(99,102,241,0.07)",
+              ].join(", ")
+            : "0 0 0 1px rgba(99,102,241,0.18), 0 0 28px rgba(99,102,241,0.07)",
         }}
       >
         <div className="absolute inset-0 rounded-full rotate-slow">
           <div style={{
-            position: "absolute", top: -4, left: "50%", transform: "translateX(-50%)",
-            width: 8, height: 8, borderRadius: "50%",
+            position: "absolute", top: -5, left: "50%", transform: "translateX(-50%)",
+            width: 10, height: 10, borderRadius: "50%",
             background: isDark ? "#818cf8" : "#6366f1",
             boxShadow: isDark
-              ? "0 0 10px rgba(129,140,248,1), 0 0 22px rgba(99,102,241,0.8)"
-              : "0 0 8px rgba(99,102,241,0.9), 0 0 16px rgba(99,102,241,0.5)",
+              ? "0 0 12px 3px rgba(129,140,248,0.9), 0 0 28px rgba(99,102,241,0.7)"
+              : "0 0 10px rgba(99,102,241,0.9), 0 0 20px rgba(99,102,241,0.5)",
           }} />
         </div>
       </div>
 
-      {/* Inner orbit ring — counter-rotating */}
+      {/* Inner orbit ring — counter-rotating beacon */}
       <div
         className="absolute rounded-full pointer-events-none"
         style={{
           width: "min(44vmin, 340px)", height: "min(44vmin, 340px)",
           boxShadow: isDark
-            ? "0 0 0 1px rgba(99,102,241,0.13), inset 0 0 20px rgba(99,102,241,0.02)"
-            : "0 0 0 1px rgba(99,102,241,0.11)",
+            ? [
+                "0 0 0 1px rgba(139,92,246,0.22)",
+                "0 0 0 3px rgba(139,92,246,0.06)",
+                "0 0 0 8px rgba(139,92,246,0.02)",
+                "0 0 50px rgba(139,92,246,0.09)",
+                "inset 0 0 50px rgba(139,92,246,0.05)",
+              ].join(", ")
+            : "0 0 0 1px rgba(99,102,241,0.12), 0 0 16px rgba(99,102,241,0.05)",
         }}
       >
         <div className="absolute inset-0 rounded-full rotate-slow-rev">
           <div style={{
-            position: "absolute", top: -3, left: "50%", transform: "translateX(-50%)",
-            width: 5, height: 5, borderRadius: "50%",
+            position: "absolute", top: -4, left: "50%", transform: "translateX(-50%)",
+            width: 7, height: 7, borderRadius: "50%",
             background: isDark ? "#a78bfa" : "#7c3aed",
             boxShadow: isDark
-              ? "0 0 7px rgba(167,139,250,1), 0 0 16px rgba(139,92,246,0.7)"
-              : "0 0 7px rgba(124,58,237,0.8)",
+              ? "0 0 9px 2px rgba(167,139,250,0.9), 0 0 20px rgba(139,92,246,0.7)"
+              : "0 0 8px rgba(124,58,237,0.8)",
           }} />
         </div>
       </div>
@@ -2198,7 +2210,7 @@ function ChatApp({ token, currentUser, onLogout }) {
                 className="flex items-center gap-3 px-4 py-3.5 border-b shrink-0"
                 style={{
                   borderColor: isDark ? darkBorder : lightBorderMid,
-                  background: isDark ? darkBg1 : lightBg1,
+                  background: isDark ? darkBg0 : lightBg1,
                 }}
               >
                 <button
@@ -2549,7 +2561,7 @@ function ChatApp({ token, currentUser, onLogout }) {
                 className="px-4 py-3 flex items-center gap-2.5 shrink-0"
                 style={{
                   borderTop: `1px solid ${isDark ? darkBorder : lightBorderMid}`,
-                  background: isDark ? darkBg1 : lightBg1,
+                  background: isDark ? darkBg0 : lightBg1,
                 }}
               >
                 <input

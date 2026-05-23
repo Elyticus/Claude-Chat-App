@@ -82,20 +82,26 @@ function drawCloud(ctx, x, y, scale, opacity) {
     [x - r * 1.45, y + r * 0.08, r * 0.56],
   ];
   ctx.save();
-  // Subtle shadow pass for depth
-  ctx.fillStyle = `rgba(180,200,230,${opacity * 0.45})`;
+
+  // Shadow underlay — one unified path so overlaps don't double-darken
+  ctx.fillStyle = `rgba(180,200,230,${opacity * 0.38})`;
+  ctx.beginPath();
   circles.forEach(([cx, cy, cr]) => {
-    ctx.beginPath();
+    // moveTo prevents the implicit lineTo between arcs that causes winding-rule holes
+    ctx.moveTo(cx + cr * 0.04 + cr * 0.94, cy + cr * 0.14);
     ctx.arc(cx + cr * 0.04, cy + cr * 0.14, cr * 0.94, 0, Math.PI * 2);
-    ctx.fill();
   });
-  // Solid white cloud body — each circle filled separately to avoid winding-rule holes
+  ctx.fill();
+
+  // White cloud body — single path fill, so the whole shape is one solid piece
   ctx.fillStyle = `rgba(255,255,255,${opacity})`;
+  ctx.beginPath();
   circles.forEach(([cx, cy, cr]) => {
-    ctx.beginPath();
+    ctx.moveTo(cx + cr, cy);
     ctx.arc(cx, cy, cr, 0, Math.PI * 2);
-    ctx.fill();
   });
+  ctx.fill();
+
   ctx.restore();
 }
 
