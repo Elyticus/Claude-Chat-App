@@ -2558,6 +2558,9 @@ function ChatApp({ token, currentUser, onLogout }) {
                       ? "1px solid rgba(99,102,241,0.45)"
                       : "1px solid rgba(99,102,241,0.4)";
                     e.target.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.10)";
+                    setTimeout(() => {
+                      messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+                    }, 50);
                   }}
                   onBlurCapture={(e) => {
                     e.target.style.border = isDark
