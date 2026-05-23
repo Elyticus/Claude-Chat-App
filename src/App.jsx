@@ -2192,7 +2192,13 @@ function ChatApp({ token, currentUser, onLogout }) {
           justify-end pushes messages below the keyboard fold. */}
       <div
         className="fixed left-0 right-0 z-[200] pointer-events-none"
-        style={{ top: "var(--vvt, 0px)", height: "100dvh" }}
+        style={{
+          top: "var(--vvt, 0px)",
+          height: "100dvh",
+          // Cover the gap between --vvh bottom and the keyboard (iOS accessory bar
+          // area) so the orbital hub never bleeds through when keyboard is open
+          background: displayRoomId ? (isDark ? darkBg0 : lightBg0) : "transparent",
+        }}
       >
         <div
           className={`absolute top-0 left-0 right-0 flex flex-col transition-opacity duration-200 ${activeRoomId ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}

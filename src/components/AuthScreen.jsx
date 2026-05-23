@@ -266,12 +266,17 @@ export default function AuthScreen({ onAuth }) {
       </div>
 
       <div className="relative w-full max-w-sm animate-fade-in-up">
+        {/* Backdrop blur as its own layer — inputs must NOT be children of a
+            backdrop-filter element or iOS Safari renders the caret outside the field */}
         <div
-          className="rounded-3xl p-8"
+          className="absolute inset-0 rounded-3xl pointer-events-none"
+          style={{ backdropFilter: "blur(24px)" }}
+        />
+        <div
+          className="relative rounded-3xl p-8"
           style={{
             background: "rgba(255,255,255,0.025)",
             border: "1px solid rgba(99,102,241,0.12)",
-            backdropFilter: "blur(24px)",
             boxShadow:
               "0 0 0 1px rgba(255,255,255,0.025), 0 24px 64px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)",
           }}
