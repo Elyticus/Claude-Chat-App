@@ -211,12 +211,14 @@ a, button, [role="button"] {
   50%       { background-position: 100% 50%; }
 }
 
-.animate-float-1 { animation: floatBlob1 22s ease-in-out infinite; }
-.animate-float-2 { animation: floatBlob2 28s ease-in-out infinite; }
-.animate-float-3 { animation: floatBlob3 34s ease-in-out infinite; }
+/* will-change tells the browser to promote these to GPU layers so transform
+   animations run entirely on the compositor thread — no main-thread cost */
+.animate-float-1 { animation: floatBlob1 22s ease-in-out infinite; will-change: transform; }
+.animate-float-2 { animation: floatBlob2 28s ease-in-out infinite; will-change: transform; }
+.animate-float-3 { animation: floatBlob3 34s ease-in-out infinite; will-change: transform; }
 .hub-breathe     { animation: hubBreathe 3.5s ease-in-out infinite; }
-.rotate-slow     { animation: rotateSlow 12s linear infinite; }
-.rotate-slow-rev { animation: rotateSlow 20s linear infinite reverse; }
+.rotate-slow     { animation: rotateSlow 12s linear infinite;         will-change: transform; }
+.rotate-slow-rev { animation: rotateSlow 20s linear infinite reverse; will-change: transform; }
 
 /* Light mode scrollbar */
 [data-theme="light"] ::-webkit-scrollbar-thumb {

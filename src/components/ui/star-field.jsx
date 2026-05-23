@@ -74,15 +74,28 @@ function makeBirds(w, h) {
 
 function drawCloud(ctx, x, y, scale, opacity) {
   const r = 44 * scale;
+  const circles = [
+    [x,            y,            r       ],
+    [x + r * 0.88, y - r * 0.28, r * 0.76],
+    [x - r * 0.78, y - r * 0.22, r * 0.66],
+    [x + r * 1.55, y + r * 0.05, r * 0.68],
+    [x - r * 1.45, y + r * 0.08, r * 0.56],
+  ];
   ctx.save();
-  ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
-  ctx.beginPath();
-  ctx.arc(x,              y,              r,          0, Math.PI * 2);
-  ctx.arc(x + r * 0.88,   y - r * 0.28,   r * 0.76,  0, Math.PI * 2);
-  ctx.arc(x - r * 0.78,   y - r * 0.22,   r * 0.66,  0, Math.PI * 2);
-  ctx.arc(x + r * 1.55,   y + r * 0.05,   r * 0.68,  0, Math.PI * 2);
-  ctx.arc(x - r * 1.45,   y + r * 0.08,   r * 0.56,  0, Math.PI * 2);
-  ctx.fill();
+  // Subtle shadow pass for depth
+  ctx.fillStyle = `rgba(180,200,230,${opacity * 0.45})`;
+  circles.forEach(([cx, cy, cr]) => {
+    ctx.beginPath();
+    ctx.arc(cx + cr * 0.04, cy + cr * 0.14, cr * 0.94, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  // Solid white cloud body — each circle filled separately to avoid winding-rule holes
+  ctx.fillStyle = `rgba(255,255,255,${opacity})`;
+  circles.forEach(([cx, cy, cr]) => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+    ctx.fill();
+  });
   ctx.restore();
 }
 

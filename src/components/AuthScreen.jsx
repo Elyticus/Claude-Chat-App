@@ -214,20 +214,18 @@ export default function AuthScreen({ onAuth }) {
           className="absolute animate-float-1"
           style={{
             top: "-25%", left: "-15%",
-            width: "65%", height: "65%",
+            width: "72%", height: "72%",
             borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 68%)",
-            filter: "blur(55px)",
+            background: "radial-gradient(circle, rgba(99,102,241,0.22) 0%, rgba(99,102,241,0.13) 22%, rgba(99,102,241,0.05) 46%, transparent 68%)",
           }}
         />
         <div
           className="absolute animate-float-2"
           style={{
             bottom: "-25%", right: "-15%",
-            width: "65%", height: "65%",
+            width: "72%", height: "72%",
             borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(124,58,237,0.14) 0%, transparent 68%)",
-            filter: "blur(55px)",
+            background: "radial-gradient(circle, rgba(124,58,237,0.18) 0%, rgba(124,58,237,0.10) 22%, rgba(124,58,237,0.04) 46%, transparent 68%)",
           }}
         />
         <div
@@ -235,10 +233,9 @@ export default function AuthScreen({ onAuth }) {
           style={{
             top: "45%", left: "45%",
             transform: "translate(-50%,-50%)",
-            width: "50%", height: "50%",
+            width: "56%", height: "56%",
             borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(6,182,212,0.09) 0%, transparent 68%)",
-            filter: "blur(70px)",
+            background: "radial-gradient(circle, rgba(6,182,212,0.12) 0%, rgba(6,182,212,0.07) 25%, rgba(6,182,212,0.02) 50%, transparent 68%)",
             animationDelay: "-9s",
           }}
         />

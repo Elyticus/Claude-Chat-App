@@ -275,31 +275,28 @@ function OrbitalHub({
         <div
           className="absolute animate-float-1"
           style={{
-            top: "-5%", left: "-5%", width: "62%", height: "62%",
+            top: "-5%", left: "-5%", width: "68%", height: "68%",
             background: isDark
-              ? "radial-gradient(circle at 38% 38%, rgba(99,102,241,0.18) 0%, transparent 65%)"
-              : "radial-gradient(circle at 38% 38%, rgba(99,102,241,0.10) 0%, transparent 65%)",
-            filter: "blur(48px)",
+              ? "radial-gradient(circle at 38% 38%, rgba(99,102,241,0.22) 0%, rgba(99,102,241,0.14) 22%, rgba(99,102,241,0.05) 48%, transparent 68%)"
+              : "radial-gradient(circle at 38% 38%, rgba(99,102,241,0.12) 0%, rgba(99,102,241,0.07) 22%, rgba(99,102,241,0.02) 48%, transparent 68%)",
           }}
         />
         <div
           className="absolute animate-float-2"
           style={{
-            bottom: "-8%", right: "-8%", width: "58%", height: "58%",
+            bottom: "-8%", right: "-8%", width: "64%", height: "64%",
             background: isDark
-              ? "radial-gradient(circle at 62% 62%, rgba(139,92,246,0.15) 0%, transparent 65%)"
-              : "radial-gradient(circle at 62% 62%, rgba(139,92,246,0.08) 0%, transparent 65%)",
-            filter: "blur(55px)",
+              ? "radial-gradient(circle at 62% 62%, rgba(139,92,246,0.18) 0%, rgba(139,92,246,0.11) 22%, rgba(139,92,246,0.04) 48%, transparent 68%)"
+              : "radial-gradient(circle at 62% 62%, rgba(139,92,246,0.10) 0%, rgba(139,92,246,0.05) 22%, transparent 68%)",
           }}
         />
         <div
           className="absolute animate-float-3"
           style={{
-            top: "28%", left: "52%", width: "48%", height: "48%",
+            top: "28%", left: "52%", width: "54%", height: "54%",
             background: isDark
-              ? "radial-gradient(circle, rgba(6,182,212,0.10) 0%, transparent 62%)"
-              : "radial-gradient(circle, rgba(6,182,212,0.06) 0%, transparent 62%)",
-            filter: "blur(65px)",
+              ? "radial-gradient(circle, rgba(6,182,212,0.12) 0%, rgba(6,182,212,0.07) 25%, rgba(6,182,212,0.03) 50%, transparent 68%)"
+              : "radial-gradient(circle, rgba(6,182,212,0.08) 0%, rgba(6,182,212,0.04) 25%, transparent 68%)",
             animationDelay: "-14s",
           }}
         />
@@ -311,12 +308,11 @@ function OrbitalHub({
         style={{
           top: "50%", left: "50%",
           transform: "translate(-50%, -50%)",
-          width: 560, height: 560,
+          width: 620, height: 620,
           borderRadius: "50%",
           background: isDark
-            ? "radial-gradient(circle, rgba(99,102,241,0.09) 0%, transparent 65%)"
-            : "radial-gradient(circle, rgba(99,102,241,0.06) 0%, transparent 65%)",
-          filter: "blur(24px)",
+            ? "radial-gradient(circle, rgba(99,102,241,0.10) 0%, rgba(99,102,241,0.06) 30%, rgba(99,102,241,0.02) 55%, transparent 72%)"
+            : "radial-gradient(circle, rgba(99,102,241,0.07) 0%, rgba(99,102,241,0.04) 30%, transparent 65%)",
         }}
       />
 
@@ -2202,8 +2198,7 @@ function ChatApp({ token, currentUser, onLogout }) {
                 className="flex items-center gap-3 px-4 py-3.5 border-b shrink-0"
                 style={{
                   borderColor: isDark ? darkBorder : lightBorderMid,
-                  background: isDark ? "rgba(11,20,38,0.95)" : "rgba(255,255,255,0.95)",
-                  backdropFilter: "blur(16px)",
+                  background: isDark ? darkBg1 : lightBg1,
                 }}
               >
                 <button
@@ -2554,8 +2549,7 @@ function ChatApp({ token, currentUser, onLogout }) {
                 className="px-4 py-3 flex items-center gap-2.5 shrink-0"
                 style={{
                   borderTop: `1px solid ${isDark ? darkBorder : lightBorderMid}`,
-                  background: isDark ? "rgba(11,20,38,0.95)" : "rgba(255,255,255,0.95)",
-                  backdropFilter: "blur(16px)",
+                  background: isDark ? darkBg1 : lightBg1,
                 }}
               >
                 <input
