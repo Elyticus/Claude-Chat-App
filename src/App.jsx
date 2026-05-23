@@ -271,38 +271,42 @@ function OrbitalHub({
       {/* Star field + atmosphere */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <StarField isDark={isDark} />
-        {/* Colour blobs — static (no CSS animation) so filter:blur is rasterised once and cached.
-            Omitted in light mode: the sunrise canvas already fills the background. */}
-        {isDark && <>
-          <div className="absolute" style={{
-            top: "-5%", left: "-5%", width: "68%", height: "68%",
-            background: "radial-gradient(circle at 38% 38%, rgba(99,102,241,0.22) 0%, transparent 70%)",
-            filter: "blur(60px)",
-          }} />
-          <div className="absolute" style={{
-            bottom: "-8%", right: "-8%", width: "64%", height: "64%",
-            background: "radial-gradient(circle at 62% 62%, rgba(139,92,246,0.18) 0%, transparent 70%)",
-            filter: "blur(60px)",
-          }} />
-          <div className="absolute" style={{
-            top: "28%", left: "52%", width: "54%", height: "54%",
-            background: "radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%)",
-            filter: "blur(70px)",
-          }} />
-        </>}
+        {/* Colour blobs — always in DOM so GPU textures are allocated once.
+            Opacity fades on toggle (cheap compositor op) instead of mount/unmount (expensive). */}
+        <div className="absolute" style={{
+          top: "-5%", left: "-5%", width: "68%", height: "68%",
+          background: "radial-gradient(circle at 38% 38%, rgba(99,102,241,0.22) 0%, transparent 70%)",
+          filter: "blur(60px)",
+          opacity: isDark ? 1 : 0,
+          transition: "opacity 0.5s ease",
+        }} />
+        <div className="absolute" style={{
+          bottom: "-8%", right: "-8%", width: "64%", height: "64%",
+          background: "radial-gradient(circle at 62% 62%, rgba(139,92,246,0.18) 0%, transparent 70%)",
+          filter: "blur(60px)",
+          opacity: isDark ? 1 : 0,
+          transition: "opacity 0.5s ease",
+        }} />
+        <div className="absolute" style={{
+          top: "28%", left: "52%", width: "54%", height: "54%",
+          background: "radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%)",
+          filter: "blur(70px)",
+          opacity: isDark ? 1 : 0,
+          transition: "opacity 0.5s ease",
+        }} />
       </div>
 
-      {/* Ambient centre glow — static, composited once */}
-      {isDark && (
-        <div className="absolute pointer-events-none" style={{
-          top: "50%", left: "50%",
-          transform: "translate(-50%, -50%)",
-          width: 620, height: 620,
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%)",
-          filter: "blur(20px)",
-        }} />
-      )}
+      {/* Ambient centre glow — always in DOM, opacity fades on toggle */}
+      <div className="absolute pointer-events-none" style={{
+        top: "50%", left: "50%",
+        transform: "translate(-50%, -50%)",
+        width: 620, height: 620,
+        borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%)",
+        filter: "blur(20px)",
+        opacity: isDark ? 1 : 0,
+        transition: "opacity 0.5s ease",
+      }} />
 
       {/* Top bar */}
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 z-30">

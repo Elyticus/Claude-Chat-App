@@ -126,6 +126,13 @@ export default function StarField({ isDark = true }) {
   const rafRef       = useRef(null);
   const lastTimeRef  = useRef(null);
   const nextCometRef = useRef(2500);
+  const isDarkRef    = useRef(isDark);
+
+  // Sync the ref without restarting the canvas loop
+  useEffect(() => {
+    isDarkRef.current = isDark;
+    lastTimeRef.current = null; // reset dt so first frame of new mode starts clean
+  }, [isDark]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -149,7 +156,7 @@ export default function StarField({ isDark = true }) {
 
       ctx.clearRect(0, 0, w, h);
 
-      if (isDark) {
+      if (isDarkRef.current) {
         // ── Stars ───────────────────────────────────────────────────────────────
         starsRef.current.forEach((star) => {
           const twinkle = Math.sin(t * star.twinkleSpeed + star.twinkleOffset) * 0.35 + 0.65;
@@ -309,7 +316,7 @@ export default function StarField({ isDark = true }) {
       cancelAnimationFrame(rafRef.current);
       lastTimeRef.current = null;
     };
-  }, [isDark]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <canvas
