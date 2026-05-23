@@ -1933,6 +1933,13 @@ function ChatApp({ token, currentUser, onLogout }) {
     else stopTyping();
   }
 
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 120) + "px";
+  }, [inputText]);
+
   const handleContextMenu = useCallback((e, msg) => {
     e.preventDefault();
     setContextMenu({ msg, x: e.clientX, y: e.clientY });
@@ -2553,25 +2560,28 @@ function ChatApp({ token, currentUser, onLogout }) {
 
               {/* Message input */}
               <div
-                className="px-4 py-3 flex items-center gap-2.5 shrink-0"
+                className="px-4 py-3 flex items-end gap-2.5 shrink-0"
                 style={{
                   borderTop: `1px solid ${isDark ? darkBorder : lightBorderMid}`,
                   background: isDark ? darkBg0 : lightBg1,
                 }}
               >
-                <input
+                <textarea
                   ref={inputRef}
-                  type="text"
+                  rows={1}
                   value={inputText}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
                   onBlur={stopTyping}
                   placeholder="Type a message…"
-                  className="flex-1 rounded-2xl px-4 py-2.5 text-sm outline-none transition-[border-color,box-shadow] duration-150"
+                  className="flex-1 rounded-2xl px-4 py-2.5 text-sm outline-none transition-[border-color,box-shadow] duration-150 no-scrollbar"
                   style={{
                     background: isDark ? darkBg2 : "#f1f5f9",
                     border: `1px solid ${isDark ? "rgba(99,102,241,0.15)" : "rgba(226,232,240,1)"}`,
                     color: isDark ? "#eef2ff" : "#0f172a",
+                    resize: "none",
+                    overflowY: "auto",
+                    lineHeight: "1.5",
                   }}
                   onFocus={(e) => {
                     e.target.style.border = isDark
