@@ -836,9 +836,14 @@ function ContextMenu({ msg, position, onClose, onReact, onCopy, onDelete, curren
     ? (window.innerWidth - cardW) / 2
     : Math.max(8, Math.min(position.x, window.innerWidth - cardW - 8));
 
-  // Estimate total height (pill 52px + gap 8px + preview ~56px + copy 52px + maybe delete 52px)
+  // Use visualViewport so positioning works correctly when the keyboard is open.
+  // touch.clientY is in visual-viewport space; fixed positioning is in layout-viewport
+  // space on iOS — add vvt to convert between them.
+  const vvh = window.visualViewport?.height ?? window.innerHeight;
+  const vvt = window.visualViewport?.offsetTop ?? 0;
   const totalH = 52 + 8 + 56 + 52 + (isOwn ? 52 : 0);
-  const top = Math.max(8, Math.min(position.y - totalH / 2, window.innerHeight - totalH - 8));
+  const adjustedY = position.y + vvt;
+  const top = Math.max(vvt + 8, Math.min(adjustedY - totalH / 2, vvt + vvh - totalH - 8));
 
   const divider = (
     <div style={{ height: 1, background: isDark ? "rgba(99,102,241,0.08)" : "rgba(226,232,240,0.9)" }} />
@@ -2483,18 +2488,27 @@ function ChatApp({ token, currentUser, onLogout }) {
                                         "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)",
                                       color: "#ffffff",
                                       boxShadow: "0 2px 16px rgba(99,102,241,0.4)",
+                                      userSelect: "none",
+                                      WebkitUserSelect: "none",
+                                      WebkitTouchCallout: "none",
                                     }
                                   : isDark
                                     ? {
                                         background: darkBg2,
                                         color: "#eef2ff",
                                         border: `1px solid ${darkBorder}`,
+                                        userSelect: "none",
+                                        WebkitUserSelect: "none",
+                                        WebkitTouchCallout: "none",
                                       }
                                     : {
                                         background: "#ffffff",
                                         color: "#1e293b",
                                         border: "1px solid rgba(226,232,240,1)",
                                         boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+                                        userSelect: "none",
+                                        WebkitUserSelect: "none",
+                                        WebkitTouchCallout: "none",
                                       }
                               }
                             >
