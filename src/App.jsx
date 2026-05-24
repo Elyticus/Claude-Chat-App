@@ -2522,7 +2522,7 @@ function ChatApp({ token, currentUser, onLogout }) {
                             </div>
                             {msg.reaction && (
                               <span
-                                className="absolute -bottom-3.5 right-1 text-base rounded-full px-1.5 py-0.5 leading-none"
+                                className="absolute -bottom-3.5 right-1 text-base rounded-full px-1.5 py-0.5 leading-none z-[1]"
                                 style={{
                                   background: isDark ? darkBg1 : "#ffffff",
                                   border: `1px solid ${isDark ? darkBorder : lightBorderMid}`,
