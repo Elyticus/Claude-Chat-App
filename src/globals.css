@@ -69,24 +69,6 @@ input, textarea {
   caret-color: #a5b4fc;
 }
 
-@keyframes caretBlink {
-  0%, 100% { caret-color: #a5b4fc; }
-  50%       { caret-color: transparent; }
-}
-
-input:focus,
-textarea:focus {
-  animation: caretBlink 1.2s step-end infinite;
-}
-
-/* Paused during touchstart so the animation never repaints while
-   the iOS paste / autofill menu is visible (see main.jsx). */
-input.caret-paused,
-textarea.caret-paused {
-  animation: none;
-  caret-color: #a5b4fc;
-}
-
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 3px;
