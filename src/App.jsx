@@ -2556,13 +2556,13 @@ function ChatApp({ token, currentUser, onLogout }) {
                   onKeyDown={handleKeyDown}
                   onBlur={stopTyping}
                   placeholder="Type a message…"
-                  className="flex-1 rounded-2xl px-4 py-2.5 text-sm outline-none transition-[border-color,box-shadow] duration-150"
+                  className="flex-1 rounded-2xl px-4 py-2.5 text-sm outline-none transition-[border-color,box-shadow] duration-150 no-scrollbar"
                   style={{
                     background: isDark ? darkBg2 : "#f1f5f9",
                     border: `1px solid ${isDark ? "rgba(99,102,241,0.15)" : "rgba(226,232,240,1)"}`,
                     color: isDark ? "#eef2ff" : "#0f172a",
                     resize: "none",
-                    overflow: "hidden",
+                    overflowY: "auto",
                     lineHeight: "1.5",
                   }}
                   onFocus={(e) => {
