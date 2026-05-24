@@ -265,7 +265,7 @@ export default function AuthScreen({ onAuth }) {
         />
       </div>
 
-      <div className="relative w-full max-w-sm animate-fade-in-up">
+      <div className="relative w-full max-w-sm">
         {/* Backdrop blur as its own layer — inputs must NOT be children of a
             backdrop-filter element or iOS Safari renders the caret outside the field */}
         <div
