@@ -69,21 +69,6 @@ input, textarea {
   caret-color: #a5b4fc;
 }
 
-/* Force caret to blink on focus — WebKit suppresses the native blink when an
-   ancestor element has an active `animation` property (e.g. animate-fade-in-up
-   with fill-mode:both). Explicit step-end keyframes override that suppression. */
-@keyframes caretBlink {
-  0%, 100% { caret-color: #a5b4fc; }
-  50%       { caret-color: transparent; }
-}
-
-/* Only force caretBlink on <input> elements — the auth inputs need it because
-   the animate-fade-in-up ancestor suppresses WebKit's native blink. The message
-   <textarea> has no such ancestor so its native blink works, and the animation
-   would cause iOS to dismiss the native paste menu on every repaint cycle. */
-input:focus {
-  animation: caretBlink 1.1s step-end infinite;
-}
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
