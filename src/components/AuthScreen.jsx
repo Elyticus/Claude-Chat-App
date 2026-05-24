@@ -182,7 +182,18 @@ export default function AuthScreen({ onAuth }) {
   }
 
   const inputCls =
-    "w-full rounded-xl px-4 py-3 text-sm outline-none cursor-text bg-[#10192e] border border-indigo-500/15 text-[#eef2ff] placeholder:text-indigo-300/25 focus:border-indigo-500/55 focus:ring-2 focus:ring-indigo-500/10";
+    "w-full rounded-xl px-4 py-3 text-sm outline-none cursor-text bg-[#10192e] border border-indigo-500/15 text-[#eef2ff] placeholder:text-indigo-300/25";
+
+  const focusProps = {
+    onFocus: (e) => {
+      e.target.style.borderColor = "rgba(99,102,241,0.55)";
+      e.target.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.10)";
+    },
+    onBlur: (e) => {
+      e.target.style.borderColor = "";
+      e.target.style.boxShadow = "";
+    },
+  };
 
   const digitInputs = (
     <div className="flex gap-2 justify-center">
@@ -197,7 +208,8 @@ export default function AuthScreen({ onAuth }) {
           onChange={(e) => handleDigitChange(i, e.target.value)}
           onKeyDown={(e) => handleDigitKeyDown(i, e)}
           onPaste={handleDigitPaste}
-          className="w-11 h-13 text-center text-[#eef2ff] text-xl font-bold rounded-xl outline-none cursor-text bg-[#10192e] border border-indigo-500/15 focus:border-indigo-500/55 focus:ring-2 focus:ring-indigo-500/10"
+          className="w-11 h-13 text-center text-[#eef2ff] text-xl font-bold rounded-xl outline-none cursor-text bg-[#10192e] border border-indigo-500/15"
+          {...focusProps}
         />
       ))}
     </div>
@@ -390,6 +402,7 @@ export default function AuthScreen({ onAuth }) {
                   autoComplete="email"
                   required
                   className={inputCls}
+                  {...focusProps}
                 />
               </div>
 
@@ -461,6 +474,7 @@ export default function AuthScreen({ onAuth }) {
                   required
                   minLength={6}
                   className={inputCls}
+                  {...focusProps}
                 />
               </div>
 
@@ -479,6 +493,7 @@ export default function AuthScreen({ onAuth }) {
                   autoComplete="new-password"
                   required
                   className={inputCls}
+                  {...focusProps}
                 />
               </div>
 
@@ -577,6 +592,7 @@ export default function AuthScreen({ onAuth }) {
                       autoComplete="username"
                       required
                       className={inputCls}
+                      {...focusProps}
                     />
                   </div>
                 )}
@@ -596,6 +612,7 @@ export default function AuthScreen({ onAuth }) {
                     autoComplete="email"
                     required
                     className={inputCls}
+                    {...focusProps}
                   />
                 </div>
 
@@ -627,6 +644,7 @@ export default function AuthScreen({ onAuth }) {
                     required
                     minLength={6}
                     className={inputCls}
+                    {...focusProps}
                   />
                 </div>
 
