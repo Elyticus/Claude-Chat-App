@@ -10,6 +10,7 @@ import {
   X,
   Trash2,
   Users,
+  Copy,
 } from "lucide-react";
 import AuthScreen from "./components/AuthScreen.jsx";
 import StarField from "./components/ui/star-field.jsx";
@@ -826,131 +827,119 @@ function OrbitalHub({
 // ─── Context Menu ─────────────────────────────────────────────────────────────
 
 function ContextMenu({ msg, position, onClose, onReact, onCopy, onDelete, currentUserId, isDark }) {
-  const menuW = 240;
-  const menuH = 420;
-  const style = {
-    top: Math.max(8, Math.min(position.y, window.innerHeight - menuH - 8)),
-    left: Math.max(8, Math.min(position.x, window.innerWidth - menuW - 8)),
-  };
+  const isOwn = Number(msg.user_id) === Number(currentUserId);
+  const cardW = 260;
+
+  // On mobile: center horizontally. On desktop: follow cursor.
+  const isMobile = window.innerWidth < 640;
+  const left = isMobile
+    ? (window.innerWidth - cardW) / 2
+    : Math.max(8, Math.min(position.x, window.innerWidth - cardW - 8));
+
+  // Estimate total height (pill 52px + gap 8px + preview ~56px + copy 52px + maybe delete 52px)
+  const totalH = 52 + 8 + 56 + 52 + (isOwn ? 52 : 0);
+  const top = Math.max(8, Math.min(position.y - totalH / 2, window.innerHeight - totalH - 8));
+
+  const divider = (
+    <div style={{ height: 1, background: isDark ? "rgba(99,102,241,0.08)" : "rgba(226,232,240,0.9)" }} />
+  );
 
   return (
     <>
-      <div className="fixed inset-0 z-300" onClick={onClose} />
+      {/* Backdrop */}
       <div
-        className="fixed z-300 rounded-2xl overflow-hidden w-60 animate-scale-in"
-        style={{
-          ...style,
-          background: isDark ? darkBg1 : lightBg1,
-          border: `1px solid ${isDark ? darkBorderMid : lightBorderMid}`,
-          boxShadow: isDark
-            ? "0 16px 48px rgba(0,0,0,0.75), 0 0 0 1px rgba(99,102,241,0.06)"
-            : "0 16px 48px rgba(99,102,241,0.14), 0 0 0 1px rgba(226,232,240,0.5)",
-        }}
-      >
-        {/* Preview */}
-        <div
-          className="px-4 py-3 border-b"
-          style={{ borderColor: isDark ? darkBorder : lightBorderMid }}
-        >
-          {msg.reaction && <span className="text-lg mr-1">{msg.reaction}</span>}
-          <p
-            className="text-sm leading-relaxed line-clamp-2"
-            style={{ color: isDark ? "rgba(238,242,255,0.65)" : "#475569" }}
-          >
-            {msg.text}
-          </p>
-          <span
-            className="text-[10px] mt-1 block"
-            style={{ color: isDark ? "rgba(165,180,252,0.3)" : "#94a3b8" }}
-          >
-            {formatFullTime(msg.created_at)}
-          </span>
-        </div>
+        className="fixed inset-0 z-[400]"
+        style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }}
+        onClick={onClose}
+      />
 
-        {/* Reactions */}
+      <div className="fixed z-[401] animate-scale-in" style={{ left, top, width: cardW }}>
+        {/* Emoji reactions pill */}
         <div
-          className="px-3 py-2.5 border-b"
-          style={{ borderColor: isDark ? darkBorder : lightBorderMid }}
+          className="flex items-center justify-between px-2 py-1.5 rounded-2xl mb-2"
+          style={{
+            background: isDark ? darkBg1 : lightBg1,
+            boxShadow: isDark
+              ? "0 8px 32px rgba(0,0,0,0.6)"
+              : "0 8px 32px rgba(0,0,0,0.12)",
+            border: `1px solid ${isDark ? darkBorder : "rgba(226,232,240,0.9)"}`,
+          }}
         >
-          <p
-            className="text-[10px] uppercase tracking-widest mb-2"
-            style={{ color: isDark ? "rgba(165,180,252,0.4)" : "#94a3b8" }}
-          >
-            React
-          </p>
-          <div className="flex gap-1">
-            {REACTIONS.map((emoji) => (
-              <button
-                key={emoji}
-                onClick={() => {
-                  onReact(msg.id, emoji);
-                  onClose();
-                }}
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-base transition-all"
-                style={
-                  msg.reaction === emoji
-                    ? {
-                        background: isDark
-                          ? "rgba(99,102,241,0.2)"
-                          : "rgba(99,102,241,0.12)",
-                        boxShadow: "0 0 0 1px rgba(99,102,241,0.3)",
-                      }
-                    : {}
-                }
-                onMouseEnter={(e) => {
-                  if (msg.reaction !== emoji)
-                    e.currentTarget.style.background = isDark
-                      ? "rgba(99,102,241,0.1)"
-                      : "rgba(99,102,241,0.07)";
-                }}
-                onMouseLeave={(e) => {
-                  if (msg.reaction !== emoji) e.currentTarget.style.background = "";
-                }}
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="p-1.5">
-          <button
-            onClick={() => {
-              onCopy(msg.text);
-              onClose();
-            }}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm transition-all"
-            style={{ color: isDark ? "rgba(238,242,255,0.6)" : "#475569" }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = isDark
-                ? "rgba(99,102,241,0.08)"
-                : "rgba(99,102,241,0.06)";
-              e.currentTarget.style.color = isDark ? "#eef2ff" : "#0f172a";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "";
-              e.currentTarget.style.color = isDark ? "rgba(238,242,255,0.6)" : "#475569";
-            }}
-          >
-            Copy text
-            <kbd
-              className="text-[10px]"
-              style={{ color: isDark ? "rgba(165,180,252,0.3)" : "#94a3b8" }}
-            >
-              ⌘C
-            </kbd>
-          </button>
-          {Number(msg.user_id) === Number(currentUserId) && (
+          {REACTIONS.map((emoji) => (
             <button
-              onClick={() => {
-                onDelete(msg.id);
-                onClose();
+              key={emoji}
+              onClick={() => { onReact(msg.id, emoji); onClose(); }}
+              className="w-9 h-9 flex items-center justify-center text-xl rounded-xl transition-all"
+              style={
+                msg.reaction === emoji
+                  ? { background: isDark ? "rgba(99,102,241,0.18)" : "rgba(99,102,241,0.1)", transform: "scale(1.15)" }
+                  : {}
+              }
+              onMouseEnter={(e) => {
+                if (msg.reaction !== emoji) e.currentTarget.style.background = isDark ? "rgba(99,102,241,0.1)" : "rgba(0,0,0,0.05)";
+                e.currentTarget.style.transform = "scale(1.2)";
               }}
-              className="w-full flex items-center px-3 py-2 rounded-xl text-red-400/80 hover:text-red-400 hover:bg-red-500/10 text-sm transition-all"
+              onMouseLeave={(e) => {
+                if (msg.reaction !== emoji) e.currentTarget.style.background = "";
+                e.currentTarget.style.transform = msg.reaction === emoji ? "scale(1.15)" : "";
+              }}
             >
-              Delete
+              {emoji}
             </button>
+          ))}
+        </div>
+
+        {/* Action card */}
+        <div
+          className="rounded-2xl overflow-hidden"
+          style={{
+            background: isDark ? darkBg1 : lightBg1,
+            boxShadow: isDark
+              ? "0 16px 48px rgba(0,0,0,0.7)"
+              : "0 16px 48px rgba(0,0,0,0.12)",
+            border: `1px solid ${isDark ? darkBorder : "rgba(226,232,240,0.9)"}`,
+          }}
+        >
+          {/* Message preview */}
+          <div
+            className="px-4 py-3"
+            style={{ borderBottom: `1px solid ${isDark ? "rgba(99,102,241,0.08)" : "rgba(226,232,240,0.9)"}` }}
+          >
+            <p
+              className="text-sm leading-relaxed line-clamp-2"
+              style={{ color: isDark ? "rgba(238,242,255,0.6)" : "#475569" }}
+            >
+              {msg.text}
+            </p>
+          </div>
+
+          {/* Copy */}
+          <button
+            onClick={() => { onCopy(msg.text); onClose(); }}
+            className="w-full flex items-center gap-3 px-4 py-3.5 text-sm transition-all"
+            style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = isDark ? "rgba(99,102,241,0.08)" : "rgba(0,0,0,0.04)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = ""; }}
+          >
+            <Copy size={17} style={{ opacity: 0.55 }} />
+            Copy
+          </button>
+
+          {/* Delete — own messages only */}
+          {isOwn && (
+            <>
+              {divider}
+              <button
+                onClick={() => { onDelete(msg.id); onClose(); }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 text-sm transition-all"
+                style={{ color: "#ef4444" }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(239,68,68,0.06)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = ""; }}
+              >
+                <Trash2 size={17} />
+                Delete
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -1605,6 +1594,7 @@ function ChatApp({ token, currentUser, onLogout }) {
   const loadedRoomsRef = useRef(new Set());
   const activeRoomIdRef = useRef(null);
   const closeTimerRef = useRef(null);
+  const longPressTimerRef = useRef(null);
 
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId;
@@ -2455,6 +2445,18 @@ function ChatApp({ token, currentUser, onLogout }) {
                         key={msg.id}
                         className={`flex w-full items-end gap-2 animate-fade-in-up ${isMine ? "flex-row-reverse" : "flex-row"}`}
                         onContextMenu={(e) => !isTemp && handleContextMenu(e, msg)}
+                        onTouchStart={(e) => {
+                          if (isTemp) return;
+                          const touch = e.touches[0];
+                          const x = touch.clientX;
+                          const y = touch.clientY;
+                          longPressTimerRef.current = setTimeout(() => {
+                            setContextMenu({ msg, x, y });
+                          }, 500);
+                        }}
+                        onTouchEnd={() => clearTimeout(longPressTimerRef.current)}
+                        onTouchMove={() => clearTimeout(longPressTimerRef.current)}
+                        onTouchCancel={() => clearTimeout(longPressTimerRef.current)}
                       >
                         <div
                           className={`flex flex-col ${isMine ? "items-end" : "items-start"} max-w-[78%]`}
