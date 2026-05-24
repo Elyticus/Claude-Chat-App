@@ -2448,7 +2448,7 @@ function ChatApp({ token, currentUser, onLogout }) {
                     return (
                       <div
                         key={msg.id}
-                        className={`flex w-full items-end gap-2 animate-fade-in-up ${isMine ? "flex-row-reverse" : "flex-row"}`}
+                        className={`relative flex w-full items-end gap-2 animate-fade-in-up ${isMine ? "flex-row-reverse" : "flex-row"} ${msg.reaction ? "mb-3 z-[1]" : ""}`}
                         onContextMenu={(e) => !isTemp && handleContextMenu(e, msg)}
                         onTouchStart={(e) => {
                           if (isTemp) return;
@@ -2522,7 +2522,7 @@ function ChatApp({ token, currentUser, onLogout }) {
                             </div>
                             {msg.reaction && (
                               <span
-                                className="absolute -bottom-3.5 right-1 text-base rounded-full px-1.5 py-0.5 leading-none z-[1]"
+                                className="absolute -bottom-3.5 right-1 text-base rounded-full px-1.5 py-0.5 leading-none"
                                 style={{
                                   background: isDark ? darkBg1 : "#ffffff",
                                   border: `1px solid ${isDark ? darkBorder : lightBorderMid}`,
