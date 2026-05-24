@@ -278,12 +278,6 @@ export default function AuthScreen({ onAuth }) {
       </div>
 
       <div className="relative w-full max-w-sm">
-        {/* Backdrop blur as its own layer — inputs must NOT be children of a
-            backdrop-filter element or iOS Safari renders the caret outside the field */}
-        <div
-          className="absolute inset-0 rounded-3xl pointer-events-none"
-          style={{ backdropFilter: "blur(24px)" }}
-        />
         <div
           className="relative rounded-3xl p-8"
           style={{
@@ -296,7 +290,7 @@ export default function AuthScreen({ onAuth }) {
           {/* Logo */}
           <div className="flex items-center justify-center gap-3 mb-8">
             <div
-              className="relative w-14 h-14 rounded-2xl flex items-center justify-center hub-breathe"
+              className="relative w-14 h-14 rounded-2xl flex items-center justify-center"
               style={{
                 background: "linear-gradient(145deg, #9f7aea, #6366f1, #3b82f6)",
               }}
