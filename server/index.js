@@ -566,24 +566,35 @@ app.patch("/api/channels/:roomId/members/:userId/role", requireAuth, async (req,
   const targetId = Number(req.params.userId);
   const { role } = req.body ?? {};
 
-  if (!role || !["admin", "moderator", "member"].includes(role)) {
-    return res.status(400).json({ error: "Role must be admin, moderator, or member" });
-  }
+  if (!role) return res.status(400).json({ error: "Role is required" });
 
   const myRole = await queries.getMemberRole.get(roomId, req.user.id);
   if (!myRole) return res.status(403).json({ error: "Not a member" });
   if (ROLE_LEVEL[myRole] < ROLE_LEVEL.admin) return res.status(403).json({ error: "Only admins and owners can assign roles" });
 
+  const allowedRoles = myRole === "owner" ? ["owner", "admin", "moderator", "member"] : ["admin", "moderator", "member"];
+  if (!allowedRoles.includes(role)) return res.status(400).json({ error: "Invalid role" });
+
   const targetRole = await queries.getMemberRole.get(roomId, targetId);
   if (!targetRole) return res.status(404).json({ error: "User is not a member" });
-  if (targetRole === "owner") return res.status(403).json({ error: "Cannot change the channel owner's role" });
-  if (ROLE_LEVEL[myRole] <= ROLE_LEVEL[targetRole]) return res.status(403).json({ error: "Insufficient permissions" });
-  if (ROLE_LEVEL[myRole] <= ROLE_LEVEL[role]) return res.status(403).json({ error: "Cannot assign a role equal to or higher than yours" });
+  if (targetRole === "owner" && myRole !== "owner") return res.status(403).json({ error: "Cannot change the channel owner's role" });
+  if (ROLE_LEVEL[myRole] <= ROLE_LEVEL[targetRole] && myRole !== "owner") return res.status(403).json({ error: "Insufficient permissions" });
+  if (role !== "owner" && ROLE_LEVEL[myRole] <= ROLE_LEVEL[role]) return res.status(403).json({ error: "Cannot assign a role equal to or higher than yours" });
+
+  // Transfer ownership: demote current owner to admin first
+  if (role === "owner") {
+    await queries.setMemberRole.run(roomId, req.user.id, "admin");
+  }
 
   await queries.setMemberRole.run(roomId, targetId, role);
   io.to(`room:${roomId}`).emit("channel:role_changed", {
     roomId, userId: targetId, role, changedBy: req.user.username,
   });
+  if (role === "owner") {
+    io.to(`room:${roomId}`).emit("channel:role_changed", {
+      roomId, userId: req.user.id, role: "admin", changedBy: req.user.username,
+    });
+  }
   res.json({ ok: true });
 });
 
@@ -618,6 +629,121 @@ app.delete("/api/channels/:roomId/members/:userId", requireAuth, async (req, res
   });
   res.json({ ok: true });
 });
+
+// ─── Add member to channel ─────────────────────────────────────────────────────
+
+app.post("/api/channels/:roomId/members", requireAuth, async (req, res) => {
+  const roomId = Number(req.params.roomId);
+  const { userId } = req.body ?? {};
+  if (!userId) return res.status(400).json({ error: "userId required" });
+
+  const myRole = await queries.getMemberRole.get(roomId, req.user.id);
+  if (!myRole) return res.status(403).json({ error: "Not a member" });
+  if (ROLE_LEVEL[myRole] < ROLE_LEVEL.admin) return res.status(403).json({ error: "Only admins and owners can add members" });
+
+  if (await queries.isMember.get(roomId, userId)) {
+    return res.status(409).json({ error: "User is already a member" });
+  }
+
+  await queries.addMemberWithRole.run(roomId, userId, "member");
+
+  online.get(userId)?.forEach((sid) => {
+    io.sockets.sockets.get(sid)?.join(`room:${roomId}`);
+  });
+
+  const room = await queries.getRoomById.get(roomId);
+  io.to(`room:${roomId}`).emit("channel:member_joined", {
+    roomId, userId, addedBy: req.user.username,
+  });
+  online.get(userId)?.forEach((sid) => {
+    io.sockets.sockets.get(sid)?.emit("channel:added", { room });
+  });
+  res.json({ ok: true });
+});
+
+// ─── Edit channel ──────────────────────────────────────────────────────────────
+
+app.patch("/api/channels/:roomId", requireAuth, async (req, res) => {
+  const roomId = Number(req.params.roomId);
+  const { name, description } = req.body ?? {};
+  if (!name?.trim()) return res.status(400).json({ error: "Name is required" });
+
+  const myRole = await queries.getMemberRole.get(roomId, req.user.id);
+  if (!myRole) return res.status(403).json({ error: "Not a member" });
+  if (ROLE_LEVEL[myRole] < ROLE_LEVEL.admin) return res.status(403).json({ error: "Only admins and owners can edit the channel" });
+
+  await queries.updateRoom.run(roomId, name.trim(), description?.trim() || null);
+  io.to(`room:${roomId}`).emit("channel:updated", {
+    roomId, name: name.trim(), description: description?.trim() || null,
+  });
+  res.json({ ok: true });
+});
+
+// ─── Mute member ──────────────────────────────────────────────────────────────
+
+app.patch("/api/channels/:roomId/members/:userId/mute", requireAuth, async (req, res) => {
+  const roomId = Number(req.params.roomId);
+  const targetId = Number(req.params.userId);
+  const { duration } = req.body ?? {};  // seconds; 0 = unmute
+
+  const myRole = await queries.getMemberRole.get(roomId, req.user.id);
+  if (!myRole) return res.status(403).json({ error: "Not a member" });
+  if (ROLE_LEVEL[myRole] < ROLE_LEVEL.moderator) return res.status(403).json({ error: "Only moderators and above can mute members" });
+
+  const targetRole = await queries.getMemberRole.get(roomId, targetId);
+  if (!targetRole) return res.status(404).json({ error: "User is not a member" });
+  if (ROLE_LEVEL[myRole] <= ROLE_LEVEL[targetRole]) return res.status(403).json({ error: "Insufficient permissions" });
+
+  const mutedUntil = duration > 0 ? Math.floor(Date.now() / 1000) + Number(duration) : null;
+  await queries.setMuted.run(roomId, targetId, mutedUntil);
+
+  io.to(`room:${roomId}`).emit("channel:member_muted", {
+    roomId, userId: targetId, mutedUntil, mutedBy: req.user.username,
+  });
+  res.json({ ok: true, mutedUntil });
+});
+
+// ─── Pin messages ─────────────────────────────────────────────────────────────
+
+app.post("/api/channels/:roomId/pins", requireAuth, async (req, res) => {
+  const roomId = Number(req.params.roomId);
+  const { messageId } = req.body ?? {};
+
+  const myRole = await queries.getMemberRole.get(roomId, req.user.id);
+  if (!myRole) return res.status(403).json({ error: "Not a member" });
+  if (ROLE_LEVEL[myRole] < ROLE_LEVEL.moderator) return res.status(403).json({ error: "Only moderators and above can pin messages" });
+
+  const msg = await queries.getMessageById.get(messageId);
+  if (!msg || msg.room_id !== roomId) return res.status(404).json({ error: "Message not found" });
+
+  await queries.pinMessage.run(roomId, messageId, req.user.id);
+
+  const pinned = { message_id: messageId, text: msg.text, author: msg.username, pinned_by: req.user.username, pinned_at: Math.floor(Date.now() / 1000) };
+  io.to(`room:${roomId}`).emit("channel:message_pinned", { roomId, pinned });
+  res.json({ ok: true });
+});
+
+app.delete("/api/channels/:roomId/pins/:messageId", requireAuth, async (req, res) => {
+  const roomId = Number(req.params.roomId);
+  const messageId = Number(req.params.messageId);
+
+  const myRole = await queries.getMemberRole.get(roomId, req.user.id);
+  if (!myRole) return res.status(403).json({ error: "Not a member" });
+  if (ROLE_LEVEL[myRole] < ROLE_LEVEL.moderator) return res.status(403).json({ error: "Only moderators and above can unpin messages" });
+
+  await queries.unpinMessage.run(roomId, messageId);
+  io.to(`room:${roomId}`).emit("channel:message_unpinned", { roomId, messageId });
+  res.json({ ok: true });
+});
+
+app.get("/api/channels/:roomId/pins", requireAuth, async (req, res) => {
+  const roomId = Number(req.params.roomId);
+  if (!(await queries.isMember.get(roomId, req.user.id))) return res.status(403).json({ error: "Not a member" });
+  const pins = await queries.getPinnedMessages.all(roomId);
+  res.json(pins);
+});
+
+// ─── Messages ─────────────────────────────────────────────────────────────────
 
 app.delete("/api/messages/:messageId", requireAuth, async (req, res) => {
   const messageId = Number(req.params.messageId);
@@ -674,6 +800,13 @@ io.on("connection", async (socket) => {
       return;
     }
     if (!(await queries.isMember.get(roomId, userId))) return;
+
+    const mutedUntil = await queries.getMuted.get(roomId, userId);
+    if (mutedUntil && mutedUntil > Math.floor(Date.now() / 1000)) {
+      const remaining = new Date(mutedUntil * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      socket.emit("message:error", { tempId, error: `You are muted until ${remaining}` });
+      return;
+    }
 
     const { lastInsertRowid: msgId } = await queries.insertMessage.run(roomId, userId, text.trim());
     const message = await queries.getMessageById.get(msgId);

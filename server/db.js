@@ -53,6 +53,15 @@ export async function initDb() {
     ALTER TABLE room_members ADD COLUMN IF NOT EXISTS is_new SMALLINT DEFAULT 0;
     ALTER TABLE room_members ADD COLUMN IF NOT EXISTS added_by TEXT;
     ALTER TABLE room_members ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'member';
+    ALTER TABLE room_members ADD COLUMN IF NOT EXISTS muted_until BIGINT;
+    CREATE TABLE IF NOT EXISTS pinned_messages (
+      id         SERIAL PRIMARY KEY,
+      room_id    INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+      message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+      pinned_by  INTEGER NOT NULL REFERENCES users(id),
+      pinned_at  BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT,
+      UNIQUE (room_id, message_id)
+    );
     CREATE TABLE IF NOT EXISTS messages (
       id         SERIAL PRIMARY KEY,
       room_id    INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
@@ -233,9 +242,60 @@ export const queries = {
 
   getRoomMembers: {
     all: (roomId) =>
-      q(`SELECT u.id, u.username, u.avatar, rm.role FROM users u
+      q(`SELECT u.id, u.username, u.avatar, rm.role, rm.muted_until FROM users u
          JOIN room_members rm ON rm.user_id = u.id
          WHERE rm.room_id = $1 ORDER BY u.username ASC`, [roomId]).then(r => r.rows),
+  },
+
+  getRoomOwner: {
+    get: (roomId) =>
+      q("SELECT user_id FROM room_members WHERE room_id = $1 AND role = 'owner'", [roomId])
+        .then(r => r.rows[0]?.user_id ?? null),
+  },
+
+  updateRoom: {
+    run: (roomId, name, description) =>
+      q("UPDATE rooms SET name = $1, description = $2 WHERE id = $3", [name, description ?? null, roomId]),
+  },
+
+  getMuted: {
+    get: (roomId, userId) =>
+      q("SELECT muted_until FROM room_members WHERE room_id = $1 AND user_id = $2", [roomId, userId])
+        .then(r => r.rows[0]?.muted_until ?? null),
+  },
+
+  setMuted: {
+    run: (roomId, userId, mutedUntil) =>
+      q("UPDATE room_members SET muted_until = $1 WHERE room_id = $2 AND user_id = $3", [mutedUntil, roomId, userId]),
+  },
+
+  pinMessage: {
+    run: (roomId, messageId, pinnedBy) =>
+      q("INSERT INTO pinned_messages (room_id, message_id, pinned_by) VALUES ($1, $2, $3) ON CONFLICT (room_id, message_id) DO NOTHING",
+        [roomId, messageId, pinnedBy]),
+  },
+
+  unpinMessage: {
+    run: (roomId, messageId) =>
+      q("DELETE FROM pinned_messages WHERE room_id = $1 AND message_id = $2", [roomId, messageId]),
+  },
+
+  getPin: {
+    get: (roomId, messageId) =>
+      q("SELECT id FROM pinned_messages WHERE room_id = $1 AND message_id = $2", [roomId, messageId])
+        .then(r => r.rows[0] ?? null),
+  },
+
+  getPinnedMessages: {
+    all: (roomId) =>
+      q(`SELECT pm.pinned_at, m.id AS message_id, m.text, m.created_at,
+                u.username AS author, pu.username AS pinned_by
+         FROM pinned_messages pm
+         JOIN messages m  ON m.id  = pm.message_id
+         JOIN users u     ON u.id  = m.user_id
+         JOIN users pu    ON pu.id = pm.pinned_by
+         WHERE pm.room_id = $1
+         ORDER BY pm.pinned_at DESC`, [roomId]).then(r => r.rows),
   },
 
   getRoomById: {

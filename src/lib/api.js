@@ -87,4 +87,22 @@ export const api = {
 
   kickChannelMember: (roomId, userId) =>
     request("DELETE", `/channels/${roomId}/members/${userId}`),
+
+  addChannelMember: (roomId, userId) =>
+    request("POST", `/channels/${roomId}/members`, { userId }),
+
+  editChannel: (roomId, name, description) =>
+    request("PATCH", `/channels/${roomId}`, { name, description }),
+
+  muteChannelMember: (roomId, userId, duration) =>
+    request("PATCH", `/channels/${roomId}/members/${userId}/mute`, { duration }),
+
+  pinMessage: (roomId, messageId) =>
+    request("POST", `/channels/${roomId}/pins`, { messageId }),
+
+  unpinMessage: (roomId, messageId) =>
+    request("DELETE", `/channels/${roomId}/pins/${messageId}`),
+
+  getPinnedMessages: (roomId) =>
+    request("GET", `/channels/${roomId}/pins`),
 };

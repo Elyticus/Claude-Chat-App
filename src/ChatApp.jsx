@@ -25,6 +25,11 @@ import {
   Crown,
   ShieldCheck,
   UserCheck,
+  Pencil,
+  Pin,
+  UserPlus,
+  VolumeX,
+  Volume2,
 } from "lucide-react";
 import StarField from "./components/ui/star-field.jsx";
 import { api } from "./lib/api.js";
@@ -995,15 +1000,17 @@ function ContextMenu({
   onReact,
   onCopy,
   onDelete,
+  onPin,
+  onUnpin,
+  isPinned,
   currentUserId,
   isDark,
   isChannel,
   myRole,
 }) {
-  const isOwn = Number(msg.user_id) === Number(currentUserId);
-  const canDelete =
-    isOwn ||
-    (isChannel && ROLE_LEVEL[myRole] >= ROLE_LEVEL.moderator && !isOwn);
+  const isOwn    = Number(msg.user_id) === Number(currentUserId);
+  const canPin   = isChannel && ROLE_LEVEL[myRole] >= ROLE_LEVEL.moderator;
+  const canDelete = isOwn || (isChannel && ROLE_LEVEL[myRole] >= ROLE_LEVEL.moderator);
   const cardW = 260;
 
   // On mobile: center horizontally. On desktop: follow cursor.
@@ -1141,6 +1148,26 @@ function ContextMenu({
             <Copy size={17} style={{ opacity: 0.55 }} />
             Copy
           </button>
+
+          {/* Pin / Unpin — moderator+ in channels */}
+          {canPin && (
+            <>
+              {divider}
+              <button
+                onClick={() => {
+                  isPinned ? onUnpin(msg.id) : onPin(msg.id);
+                  onClose();
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 text-sm transition-all"
+                style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = isDark ? "rgba(99,102,241,0.08)" : "rgba(0,0,0,0.04)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = ""; }}
+              >
+                <Pin size={17} style={{ opacity: 0.55 }} />
+                {isPinned ? "Unpin" : "Pin"}
+              </button>
+            </>
+          )}
 
           {/* Delete — own messages, or any message for moderator+ in channels */}
           {canDelete && (
@@ -2047,7 +2074,87 @@ function ConfirmModal({
   );
 }
 
+// ─── Edit Channel Modal ───────────────────────────────────────────────────────
+
+function EditChannelModal({ initialName, initialDescription, onSave, onClose, isDark }) {
+  const [name, setName]               = useState(initialName);
+  const [description, setDescription] = useState(initialDescription);
+  const [saving, setSaving]           = useState(false);
+  const [err, setErr]                 = useState("");
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!name.trim()) { setErr("Name is required"); return; }
+    setSaving(true);
+    try {
+      await onSave(name.trim(), description.trim());
+    } catch (ex) {
+      setErr(ex.message || "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-500 flex items-center justify-center p-4">
+      <div className="absolute inset-0" style={{ background: "rgba(7,13,28,0.80)", backdropFilter: "blur(8px)" }} onClick={onClose} />
+      <form
+        onSubmit={submit}
+        className="relative w-full max-w-sm rounded-2xl overflow-hidden animate-scale-in"
+        style={{ background: isDark ? darkBg1 : lightBg1, border: `1px solid ${isDark ? darkBorderMid : lightBorderMid}`, boxShadow: "0 32px 80px rgba(0,0,0,0.5)" }}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: isDark ? darkBorder : lightBorderMid }}>
+          <span className="font-semibold text-sm" style={{ color: isDark ? "#eef2ff" : "#0f172a" }}>Edit Channel</span>
+          <button type="button" onClick={onClose} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ color: isDark ? "rgba(238,242,255,0.4)" : "#64748b" }}>
+            <X size={16} />
+          </button>
+        </div>
+        <div className="px-5 py-4 space-y-3">
+          <div>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: isDark ? "rgba(238,242,255,0.5)" : "#64748b" }}>Channel Name</label>
+            <input
+              className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+              style={{ background: isDark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.05)", color: isDark ? "#eef2ff" : "#0f172a", border: `1px solid ${isDark ? darkBorder : lightBorderMid}` }}
+              value={name}
+              onChange={(e) => { setName(e.target.value); setErr(""); }}
+              maxLength={80}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: isDark ? "rgba(238,242,255,0.5)" : "#64748b" }}>Description</label>
+            <textarea
+              className="w-full px-3 py-2.5 rounded-xl text-sm outline-none resize-none"
+              style={{ background: isDark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.05)", color: isDark ? "#eef2ff" : "#0f172a", border: `1px solid ${isDark ? darkBorder : lightBorderMid}` }}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              maxLength={280}
+            />
+          </div>
+          {err && <p className="text-xs" style={{ color: "#f87171" }}>{err}</p>}
+        </div>
+        <div className="flex gap-2.5 px-5 pb-5">
+          <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all" style={{ background: isDark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.06)", color: isDark ? "rgba(238,242,255,0.6)" : "#64748b" }}>
+            Cancel
+          </button>
+          <button type="submit" disabled={saving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50" style={{ background: "rgba(99,102,241,0.85)", color: "#fff" }}>
+            {saving ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 // ─── Group Members Panel ──────────────────────────────────────────────────────
+
+const MUTE_DURATIONS = [
+  { label: "5m",  seconds: 300 },
+  { label: "30m", seconds: 1800 },
+  { label: "1h",  seconds: 3600 },
+  { label: "8h",  seconds: 28800 },
+  { label: "24h", seconds: 86400 },
+];
 
 function GroupMembersPanel({
   members,
@@ -2060,10 +2167,18 @@ function GroupMembersPanel({
   currentUserId,
   onKick,
   onRoleChange,
+  onMute,
+  onTransferOwnership,
+  onAddMember,
+  allUsers,
 }) {
   const [actionTarget, setActionTarget] = useState(null);
+  const [muteTarget, setMuteTarget]     = useState(null);
+  const [showAdd, setShowAdd]           = useState(false);
+  const [addSearch, setAddSearch]       = useState("");
+  const [nowSec]                        = useState(() => Math.floor(Date.now() / 1000));
 
-  function canAct(targetRole) {
+  function canManage(targetRole) {
     if (!myRole || !isChannel) return false;
     return (
       ROLE_LEVEL[myRole] >= ROLE_LEVEL.admin &&
@@ -2072,126 +2187,151 @@ function GroupMembersPanel({
     );
   }
 
+  function canMuteTarget(targetRole) {
+    if (!myRole || !isChannel) return false;
+    return (
+      ROLE_LEVEL[myRole] >= ROLE_LEVEL.moderator &&
+      ROLE_LEVEL[myRole] > ROLE_LEVEL[targetRole] &&
+      targetRole !== "owner"
+    );
+  }
+
   function nextRole(current) {
     if (myRole === "owner") {
-      if (current === "member") return "moderator";
+      if (current === "member")    return "moderator";
       if (current === "moderator") return "admin";
-      if (current === "admin") return "moderator";
+      if (current === "admin")     return "moderator";
     } else if (myRole === "admin") {
-      if (current === "member") return "moderator";
+      if (current === "member")    return "moderator";
       if (current === "moderator") return "member";
     }
     return null;
   }
 
   const sortedMembers = isChannel
-    ? [...members].sort(
-        (a, b) => (ROLE_LEVEL[b.role] || 0) - (ROLE_LEVEL[a.role] || 0),
-      )
+    ? [...members].sort((a, b) => (ROLE_LEVEL[b.role] || 0) - (ROLE_LEVEL[a.role] || 0))
     : members;
+
+  const memberIdSet = new Set(members.map((m) => m.id));
+  const addableUsers = (allUsers || [])
+    .filter((u) => !memberIdSet.has(u.id) && u.id !== currentUserId)
+    .filter((u) => !addSearch || u.username.toLowerCase().includes(addSearch.toLowerCase()))
+    .slice(0, 8);
+
+  const btnBase = { color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8" };
+  const btnActive = { background: isDark ? "rgba(99,102,241,0.15)" : "rgba(99,102,241,0.08)", color: isDark ? "#a5b4fc" : "#6366f1" };
 
   return (
     <div className="fixed inset-0 z-500 flex items-center justify-center p-4">
       <div
         className="absolute inset-0"
-        style={{
-          background: isDark ? "rgba(7,13,28,0.88)" : "rgba(15,23,42,0.25)",
-          backdropFilter: "blur(8px)",
-        }}
+        style={{ background: isDark ? "rgba(7,13,28,0.88)" : "rgba(15,23,42,0.25)", backdropFilter: "blur(8px)" }}
         onClick={onClose}
       />
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Members"
-        className="relative w-full sm:w-80 max-h-[75dvh] flex flex-col overflow-hidden rounded-2xl animate-scale-in"
+        className="relative w-full sm:w-80 max-h-[80dvh] flex flex-col overflow-hidden rounded-2xl animate-scale-in"
         style={{
           background: isDark ? darkBg1 : lightBg1,
           border: `1px solid ${isDark ? darkBorderMid : lightBorderMid}`,
-          boxShadow: isDark
-            ? "0 32px 80px rgba(0,0,0,0.7)"
-            : "0 32px 80px rgba(99,102,241,0.12)",
+          boxShadow: isDark ? "0 32px 80px rgba(0,0,0,0.7)" : "0 32px 80px rgba(99,102,241,0.12)",
         }}
       >
-        <div
-          className="flex items-center justify-between px-5 py-4 border-b shrink-0"
-          style={{ borderColor: isDark ? darkBorder : lightBorderMid }}
-        >
-          <span
-            className="font-semibold"
-            style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
-          >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3.5 border-b shrink-0" style={{ borderColor: isDark ? darkBorder : lightBorderMid }}>
+          <span className="font-semibold text-sm" style={{ color: isDark ? "#eef2ff" : "#0f172a" }}>
             {isChannel ? "Channel Members" : "Members"} ({members.length})
           </span>
-          <button
-            onClick={onClose}
-            aria-label="Close members panel"
-            className="w-11 h-11 rounded-full flex items-center justify-center transition-all"
-            style={{ color: isDark ? "rgba(238,242,255,0.4)" : "#64748b" }}
-          >
-            <X size={16} />
-          </button>
+          <div className="flex items-center gap-1">
+            {isChannel && ROLE_LEVEL[myRole] >= ROLE_LEVEL.admin && (
+              <button
+                onClick={() => { setShowAdd((v) => !v); setAddSearch(""); }}
+                title="Add member"
+                className="w-9 h-9 rounded-full flex items-center justify-center transition-all"
+                style={showAdd ? btnActive : btnBase}
+              >
+                <UserPlus size={15} />
+              </button>
+            )}
+            <button onClick={onClose} aria-label="Close" className="w-9 h-9 rounded-full flex items-center justify-center transition-all" style={btnBase}>
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
+        {/* Add member search (admin+) */}
+        {showAdd && isChannel && ROLE_LEVEL[myRole] >= ROLE_LEVEL.admin && (
+          <div className="px-3 pt-2.5 pb-2 border-b shrink-0" style={{ borderColor: isDark ? darkBorder : lightBorderMid }}>
+            <input
+              className="w-full px-3 py-2 rounded-xl text-sm outline-none"
+              style={{ background: isDark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.05)", color: isDark ? "#eef2ff" : "#0f172a", border: `1px solid ${isDark ? darkBorder : lightBorderMid}` }}
+              placeholder="Search users to add…"
+              value={addSearch}
+              onChange={(e) => setAddSearch(e.target.value)}
+            />
+            <div className="mt-1.5 max-h-36 overflow-y-auto space-y-0.5">
+              {addableUsers.length === 0 ? (
+                <p className="text-xs px-2 py-2" style={{ color: isDark ? "rgba(238,242,255,0.3)" : "#94a3b8" }}>
+                  {addSearch ? "No users found" : "All users are already members"}
+                </p>
+              ) : addableUsers.map((u) => (
+                <button
+                  key={u.id}
+                  onClick={() => { onAddMember(u.id); setShowAdd(false); setAddSearch(""); }}
+                  className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-left transition-all"
+                  style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = isDark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.06)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = ""; }}
+                >
+                  <Avatar userId={u.id} username={u.username} size={28} online={onlineIds.has(u.id)} avatar={avatarMap[u.id]} />
+                  <span className="truncate">{u.username}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Member list */}
         <div className="flex-1 min-h-0 overflow-y-auto py-2 px-3 space-y-0.5">
           {sortedMembers.map((m) => {
-            const isOnline = onlineIds.has(m.id);
-            const isMe = m.id === currentUserId;
-            const showActions = isChannel && canAct(m.role) && !isMe;
-            const isActing = actionTarget === m.id;
-            const promote = nextRole(m.role);
+            const isOnline     = onlineIds.has(m.id);
+            const isMe         = m.id === currentUserId;
+            const isMuted      = m.muted_until && m.muted_until > nowSec;
+            const showManage   = isChannel && !isMe && canManage(m.role);
+            const showMuteBtn  = isChannel && !isMe && canMuteTarget(m.role);
+            const showActions  = showManage || showMuteBtn;
+            const isActing     = actionTarget === m.id;
+            const isMutePick   = muteTarget === m.id;
+            const promote      = nextRole(m.role);
+            const canTransfer  = myRole === "owner" && m.role === "admin";
 
             return (
               <div key={m.id} className="rounded-xl overflow-hidden">
+                {/* Member row */}
                 <div
                   className="flex items-center gap-3 px-3 py-2.5 transition-all"
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = isDark
-                      ? "rgba(99,102,241,0.06)"
-                      : "rgba(99,102,241,0.04)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "";
-                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = isDark ? "rgba(99,102,241,0.06)" : "rgba(99,102,241,0.04)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = ""; }}
                 >
-                  <Avatar
-                    userId={m.id}
-                    username={m.username}
-                    size={40}
-                    online={isOnline}
-                    avatar={avatarMap[m.id]}
-                  />
+                  <Avatar userId={m.id} username={m.username} size={38} online={isOnline} avatar={avatarMap[m.id]} />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span
-                        className="text-sm font-medium truncate"
-                        style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
-                      >
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-sm font-medium truncate" style={{ color: isDark ? "#eef2ff" : "#0f172a" }}>
                         {m.username}
-                        {isMe && (
-                          <span className="ml-1 opacity-40 text-xs">(you)</span>
-                        )}
+                        {isMe && <span className="ml-1 opacity-40 text-xs">(you)</span>}
                       </span>
                       {isChannel && roleBadge(m.role, isDark)}
+                      {isMuted && <VolumeX size={10} style={{ color: "#f87171", flexShrink: 0 }} />}
                     </div>
-                    {isOnline && (
-                      <div className="text-xs text-emerald-400 font-medium">
-                        Online
-                      </div>
-                    )}
+                    {isOnline && <div className="text-xs text-emerald-400 font-medium">Online</div>}
                   </div>
                   {showActions && (
                     <button
-                      onClick={() => setActionTarget(isActing ? null : m.id)}
+                      onClick={() => { setActionTarget(isActing ? null : m.id); setMuteTarget(null); }}
                       className="w-7 h-7 rounded-lg flex items-center justify-center text-xs shrink-0 transition-all"
-                      style={{
-                        color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8",
-                        background: isActing
-                          ? isDark
-                            ? "rgba(99,102,241,0.15)"
-                            : "rgba(99,102,241,0.08)"
-                          : "transparent",
-                      }}
+                      style={{ ...btnBase, ...(isActing ? btnActive : {}) }}
                       title="Manage member"
                     >
                       •••
@@ -2199,46 +2339,69 @@ function GroupMembersPanel({
                   )}
                 </div>
 
-                {isActing && showActions && (
-                  <div
-                    className="flex gap-1.5 px-3 pb-2.5"
-                    style={{
-                      background: isDark
-                        ? "rgba(99,102,241,0.04)"
-                        : "rgba(99,102,241,0.03)",
-                    }}
-                  >
-                    {promote && (
+                {/* Action buttons row */}
+                {isActing && showActions && !isMutePick && (
+                  <div className="flex flex-wrap gap-1.5 px-3 pb-2.5" style={{ background: isDark ? "rgba(99,102,241,0.04)" : "rgba(99,102,241,0.03)" }}>
+                    {showManage && promote && (
                       <button
-                        onClick={() => {
-                          onRoleChange(m.id, promote);
-                          setActionTarget(null);
-                        }}
+                        onClick={() => { onRoleChange(m.id, promote); setActionTarget(null); }}
                         className="flex-1 text-[11px] font-semibold py-1.5 rounded-lg transition-all"
-                        style={{
-                          background: isDark
-                            ? "rgba(99,102,241,0.12)"
-                            : "rgba(99,102,241,0.08)",
-                          color: isDark ? "#a5b4fc" : "#4f46e5",
-                        }}
+                        style={{ background: isDark ? "rgba(99,102,241,0.12)" : "rgba(99,102,241,0.08)", color: isDark ? "#a5b4fc" : "#4f46e5" }}
                       >
                         → {promote.charAt(0).toUpperCase() + promote.slice(1)}
                       </button>
                     )}
+                    {canTransfer && (
+                      <button
+                        onClick={() => { onTransferOwnership(m.id, m.username); setActionTarget(null); onClose(); }}
+                        className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg transition-all"
+                        style={{ background: "rgba(251,191,36,0.12)", color: "#fbbf24" }}
+                      >
+                        <Crown size={10} /> Owner
+                      </button>
+                    )}
+                    {showMuteBtn && (
+                      <button
+                        onClick={() => isMuted ? onMute(m.id, 0) : setMuteTarget(m.id)}
+                        className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg transition-all"
+                        style={isMuted
+                          ? { background: "rgba(34,197,94,0.10)", color: "#4ade80" }
+                          : { background: "rgba(251,191,36,0.10)", color: "#fbbf24" }}
+                      >
+                        {isMuted ? <><Volume2 size={10} /> Unmute</> : <><VolumeX size={10} /> Mute</>}
+                      </button>
+                    )}
+                    {showManage && (
+                      <button
+                        onClick={() => { onKick(m.id); setActionTarget(null); onClose(); }}
+                        className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg transition-all"
+                        style={{ background: "rgba(239,68,68,0.10)", color: "#f87171" }}
+                      >
+                        <UserMinus size={10} /> Kick
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Mute duration picker */}
+                {isMutePick && (
+                  <div className="flex flex-wrap gap-1.5 px-3 pb-2.5" style={{ background: isDark ? "rgba(251,191,36,0.04)" : "rgba(251,191,36,0.03)" }}>
+                    {MUTE_DURATIONS.map(({ label, seconds }) => (
+                      <button
+                        key={label}
+                        onClick={() => { onMute(m.id, seconds); setMuteTarget(null); setActionTarget(null); }}
+                        className="text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all"
+                        style={{ background: "rgba(251,191,36,0.12)", color: "#fbbf24" }}
+                      >
+                        {label}
+                      </button>
+                    ))}
                     <button
-                      onClick={() => {
-                        onKick(m.id);
-                        setActionTarget(null);
-                        onClose();
-                      }}
-                      className="flex items-center gap-1 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all"
-                      style={{
-                        background: "rgba(239,68,68,0.10)",
-                        color: "#f87171",
-                      }}
+                      onClick={() => setMuteTarget(null)}
+                      className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg"
+                      style={{ color: isDark ? "rgba(238,242,255,0.35)" : "#94a3b8" }}
                     >
-                      <UserMinus size={11} />
-                      Kick
+                      Cancel
                     </button>
                   </div>
                 )}
@@ -2271,6 +2434,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const [myAvatar, setMyAvatar] = useState(() => currentUser.avatar || null);
   const [groupMembersPanel, setGroupMembersPanel] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
+  const [pinnedMessages, setPinnedMessages] = useState({});
+  const [editChannelModal, setEditChannelModal] = useState(null);
+  const [inputError, setInputError] = useState("");
   const [hasMoreMessages, setHasMoreMessages] = useState({});
   const [loadingMore, setLoadingMore] = useState({});
 
@@ -2489,8 +2655,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       if (userId === currentUser.id) setMyAvatar(avatar);
     });
 
-    s.on("message:error", ({ tempId }) => {
-      // Remove the optimistic temp message that the server rejected
+    s.on("message:error", ({ tempId, error }) => {
       setMessages((prev) => {
         const next = { ...prev };
         for (const roomId of Object.keys(next)) {
@@ -2500,6 +2665,10 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         }
         return next;
       });
+      if (error) {
+        setInputError(error);
+        setTimeout(() => setInputError(""), 4000);
+      }
     });
 
     s.on("channel:member_kicked", ({ roomId, kickedUserId }) => {
@@ -2572,14 +2741,39 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         ...prev,
         [roomId]: [
           ...(prev[roomId] || []),
-          {
-            id: `sys_${Date.now()}`,
-            text: `${username} left the channel`,
-            system: true,
-            created_at: Math.floor(Date.now() / 1000),
-          },
+          { id: `sys_${Date.now()}`, text: `${username} left the channel`, system: true, created_at: Math.floor(Date.now() / 1000) },
         ],
       }));
+    });
+
+    s.on("channel:member_muted", ({ roomId, userId, mutedUntil }) => {
+      setGroupMembersPanel((prev) =>
+        prev?.roomId === roomId
+          ? { ...prev, members: prev.members.map((m) => m.id === userId ? { ...m, muted_until: mutedUntil } : m) }
+          : prev,
+      );
+    });
+
+    s.on("channel:message_pinned", ({ roomId, pinned }) => {
+      setPinnedMessages((prev) => ({
+        ...prev,
+        [roomId]: [pinned, ...(prev[roomId] || [])],
+      }));
+    });
+
+    s.on("channel:message_unpinned", ({ roomId, messageId }) => {
+      setPinnedMessages((prev) => ({
+        ...prev,
+        [roomId]: (prev[roomId] || []).filter((p) => p.message_id !== messageId),
+      }));
+    });
+
+    s.on("channel:updated", ({ roomId, name, description }) => {
+      setRooms((prev) => prev.map((r) => r.id === roomId ? { ...r, name, description } : r));
+    });
+
+    s.on("channel:added", ({ room }) => {
+      if (room) api.getRooms().then(setRooms).catch(console.error);
     });
 
     return () => {
@@ -2600,6 +2794,11 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       s.off("channel:role_changed");
       s.off("channel:member_joined");
       s.off("channel:member_left");
+      s.off("channel:member_muted");
+      s.off("channel:message_pinned");
+      s.off("channel:message_unpinned");
+      s.off("channel:updated");
+      s.off("channel:added");
       disconnectSocket();
     };
   }, [token, currentUser.id, currentUser.username]);
@@ -2943,6 +3142,70 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     }
   }
 
+  async function handleMuteUser(userId, duration) {
+    if (!displayRoomId) return;
+    try {
+      await api.muteChannelMember(displayRoomId, userId, duration);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function handleAddMember(userId) {
+    if (!displayRoomId) return;
+    try {
+      await api.addChannelMember(displayRoomId, userId);
+      const members = await api.getRoomMembers(displayRoomId);
+      setGroupMembersPanel((prev) => prev ? { ...prev, members } : prev);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  function handleTransferOwnership(userId, username) {
+    setConfirmModal({
+      title: "Transfer Ownership",
+      body: `Transfer channel ownership to ${username}? You will become an Admin. This cannot be undone without their cooperation.`,
+      confirmLabel: "Transfer",
+      onConfirm: async () => {
+        try {
+          await api.setMemberRole(displayRoomId, userId, "owner");
+        } catch (err) {
+          console.error(err);
+        }
+        setConfirmModal(null);
+      },
+    });
+  }
+
+  async function handleEditChannel(name, description) {
+    if (!displayRoomId) return;
+    try {
+      await api.editChannel(displayRoomId, name, description);
+      setEditChannelModal(null);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function handlePinMessage(messageId) {
+    if (!displayRoomId) return;
+    try {
+      await api.pinMessage(displayRoomId, messageId);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function handleUnpinMessage(messageId) {
+    if (!displayRoomId) return;
+    try {
+      await api.unpinMessage(displayRoomId, messageId);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   async function handleCreateGroup(userIds, name) {
     setShowNewChat(false);
     try {
@@ -2966,6 +3229,12 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     setMsgSearch("");
     stopTyping();
     localStorage.setItem("chatloop_active_room", String(roomId));
+    const room = rooms.find((r) => r.id === roomId);
+    if (room?.type === "channel" || room?.type === "private_channel") {
+      api.getPinnedMessages(roomId)
+        .then((pins) => setPinnedMessages((prev) => ({ ...prev, [roomId]: pins })))
+        .catch(console.error);
+    }
   }
 
   function closeRoom() {
@@ -3215,6 +3484,13 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                     show: true,
                   },
                   {
+                    icon: <Pencil size={16} />,
+                    active: false,
+                    onClick: () => setEditChannelModal({ name: activeRoom.name || "", description: activeRoom.description || "" }),
+                    title: "Edit channel",
+                    show: !!isActiveChannel && ROLE_LEVEL[myActiveRole] >= ROLE_LEVEL.admin,
+                  },
+                  {
                     icon: <Copy size={16} />,
                     active: false,
                     onClick: () => {
@@ -3338,6 +3614,33 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                   </button>
                 </div>
               )}
+
+              {/* Pinned message banner (channels only) */}
+              {isActiveChannel && (pinnedMessages[displayRoomId] || []).length > 0 && (() => {
+                const latest = pinnedMessages[displayRoomId][0];
+                return (
+                  <div
+                    className="flex items-center gap-2.5 px-4 py-2 border-b shrink-0"
+                    style={{ borderColor: isDark ? darkBorder : lightBorderMid, background: isDark ? "rgba(251,191,36,0.05)" : "rgba(251,191,36,0.06)" }}
+                  >
+                    <Pin size={12} style={{ color: "#fbbf24", flexShrink: 0 }} />
+                    <p className="flex-1 text-xs truncate" style={{ color: isDark ? "rgba(238,242,255,0.7)" : "#475569" }}>
+                      <span className="font-semibold" style={{ color: isDark ? "#fbbf24" : "#b45309" }}>Pinned: </span>
+                      {latest.text}
+                    </p>
+                    {ROLE_LEVEL[myActiveRole] >= ROLE_LEVEL.moderator && (
+                      <button
+                        onClick={() => handleUnpinMessage(latest.message_id)}
+                        className="shrink-0 transition-all"
+                        style={{ color: isDark ? "rgba(238,242,255,0.3)" : "#94a3b8" }}
+                        title="Unpin"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Messages — layered: dot-grid texture + fade edges + scroll area */}
               <div
@@ -3593,6 +3896,14 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                 />
               </div>
 
+              {/* Mute / input error */}
+              {inputError && (
+                <div className="px-4 py-1.5 shrink-0 flex items-center gap-2" style={{ background: "rgba(239,68,68,0.08)" }}>
+                  <VolumeX size={12} style={{ color: "#f87171", flexShrink: 0 }} />
+                  <span className="text-xs" style={{ color: "#f87171" }}>{inputError}</span>
+                </div>
+              )}
+
               {/* Message input */}
               <div
                 className="px-4 py-3 flex items-end gap-2.5 shrink-0"
@@ -3705,6 +4016,10 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           currentUserId={currentUser.id}
           onKick={handleKickMember}
           onRoleChange={handleRoleChange}
+          onMute={handleMuteUser}
+          onTransferOwnership={handleTransferOwnership}
+          onAddMember={handleAddMember}
+          allUsers={allUsers}
         />
       )}
 
@@ -3717,10 +4032,24 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           onReact={handleReact}
           onCopy={handleCopy}
           onDelete={handleDeleteMessage}
+          onPin={handlePinMessage}
+          onUnpin={handleUnpinMessage}
+          isPinned={(pinnedMessages[displayRoomId] || []).some((p) => p.message_id === contextMenu.msg.id)}
           currentUserId={currentUser.id}
           isDark={isDark}
           isChannel={!!isActiveChannel}
           myRole={myActiveRole}
+        />
+      )}
+
+      {/* Edit Channel Modal */}
+      {editChannelModal && (
+        <EditChannelModal
+          initialName={editChannelModal.name}
+          initialDescription={editChannelModal.description}
+          onSave={handleEditChannel}
+          onClose={() => setEditChannelModal(null)}
+          isDark={isDark}
         />
       )}
 
