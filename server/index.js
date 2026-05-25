@@ -651,9 +651,12 @@ app.post("/api/channels/:roomId/members", requireAuth, async (req, res) => {
     io.sockets.sockets.get(sid)?.join(`room:${roomId}`);
   });
 
-  const room = await queries.getRoomById.get(roomId);
+  const [room, addedUser] = await Promise.all([
+    queries.getRoomById.get(roomId),
+    queries.getUserById.get(userId),
+  ]);
   io.to(`room:${roomId}`).emit("channel:member_joined", {
-    roomId, userId, addedBy: req.user.username,
+    roomId, userId, username: addedUser?.username, addedBy: req.user.username,
   });
   online.get(userId)?.forEach((sid) => {
     io.sockets.sockets.get(sid)?.emit("channel:added", { room });
