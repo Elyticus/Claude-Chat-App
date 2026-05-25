@@ -572,6 +572,7 @@ app.patch("/api/channels/:roomId/members/:userId/role", requireAuth, async (req,
 
   const myRole = await queries.getMemberRole.get(roomId, req.user.id);
   if (!myRole) return res.status(403).json({ error: "Not a member" });
+  if (ROLE_LEVEL[myRole] < ROLE_LEVEL.admin) return res.status(403).json({ error: "Only admins and owners can assign roles" });
 
   const targetRole = await queries.getMemberRole.get(roomId, targetId);
   if (!targetRole) return res.status(404).json({ error: "User is not a member" });
@@ -592,6 +593,7 @@ app.delete("/api/channels/:roomId/members/:userId", requireAuth, async (req, res
 
   const myRole = await queries.getMemberRole.get(roomId, req.user.id);
   if (!myRole) return res.status(403).json({ error: "Not a member" });
+  if (ROLE_LEVEL[myRole] < ROLE_LEVEL.admin) return res.status(403).json({ error: "Only admins and owners can remove members" });
 
   const targetRole = await queries.getMemberRole.get(roomId, targetId);
   if (!targetRole) return res.status(404).json({ error: "User is not a member" });
@@ -621,11 +623,20 @@ app.delete("/api/messages/:messageId", requireAuth, async (req, res) => {
   const messageId = Number(req.params.messageId);
   const msg = await queries.getMessageById.get(messageId);
   if (!msg) return res.status(404).json({ error: "Not found" });
-  if (msg.user_id !== req.user.id) return res.status(403).json({ error: "You can only delete your own messages" });
   if (!(await queries.isMember.get(msg.room_id, req.user.id))) {
     return res.status(403).json({ error: "Forbidden" });
   }
-  await queries.deleteMessage.run(messageId, req.user.id);
+  const isOwnMessage = msg.user_id === req.user.id;
+  if (!isOwnMessage) {
+    const room = await queries.getRoomById.get(msg.room_id);
+    const isChannel = room?.type === "channel" || room?.type === "private_channel";
+    if (!isChannel) return res.status(403).json({ error: "You can only delete your own messages" });
+    const myRole = await queries.getMemberRole.get(msg.room_id, req.user.id);
+    if (!myRole || ROLE_LEVEL[myRole] < ROLE_LEVEL.moderator) {
+      return res.status(403).json({ error: "Insufficient permissions to delete this message" });
+    }
+  }
+  await queries.deleteMessageById.run(messageId);
   io.to(`room:${msg.room_id}`).emit("message:deleted", { roomId: msg.room_id, messageId });
   res.json({ ok: true });
 });

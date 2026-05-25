@@ -222,7 +222,8 @@ export const queries = {
   },
 
   setReaction:    { run: (reaction, id)   => q("UPDATE messages SET reaction = $1 WHERE id = $2", [reaction, id]) },
-  deleteMessage:  { run: (id, userId)     => q("DELETE FROM messages WHERE id = $1 AND user_id = $2", [id, userId]) },
+  deleteMessage:   { run: (id, userId) => q("DELETE FROM messages WHERE id = $1 AND user_id = $2", [id, userId]) },
+  deleteMessageById: { run: (id)        => q("DELETE FROM messages WHERE id = $1", [id]) },
   removeMember:   { run: (roomId, userId) => q("DELETE FROM room_members WHERE room_id = $1 AND user_id = $2", [roomId, userId]) },
   memberCount:    { get: (roomId)         => q("SELECT COUNT(*)::INT AS cnt FROM room_members WHERE room_id = $1", [roomId]).then(r => r.rows[0]) },
   deleteRoom:     { run: (roomId)         => q("DELETE FROM rooms WHERE id = $1", [roomId]) },

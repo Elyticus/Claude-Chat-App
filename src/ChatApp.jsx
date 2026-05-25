@@ -1,4 +1,11 @@
-import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+  Fragment,
+} from "react";
 import {
   MessageCircle,
   LogOut,
@@ -15,6 +22,9 @@ import {
   Globe,
   Lock,
   UserMinus,
+  Crown,
+  ShieldCheck,
+  UserCheck,
 } from "lucide-react";
 import StarField from "./components/ui/star-field.jsx";
 import { api } from "./lib/api.js";
@@ -80,7 +90,11 @@ function formatDateSeparator(ts) {
   if (diffDays === 0) return "Today";
   if (diffDays === 1) return "Yesterday";
   if (diffDays < 7) return date.toLocaleDateString([], { weekday: "long" });
-  return date.toLocaleDateString([], { day: "numeric", month: "long", year: "numeric" });
+  return date.toLocaleDateString([], {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 }
 
 const REACTIONS = ["🔥", "🙌", "❤️", "😀", "😝", "👍"];
@@ -98,19 +112,32 @@ function toSlug(name) {
 }
 
 function roleBadge(role, isDark) {
-  const styles = {
-    owner: { bg: isDark ? "rgba(251,191,36,0.15)" : "rgba(251,191,36,0.18)", color: "#fbbf24" },
-    admin:      { bg: isDark ? "rgba(167,139,250,0.15)" : "rgba(124,58,237,0.12)", color: isDark ? "#a78bfa" : "#7c3aed" },
-    moderator:  { bg: isDark ? "rgba(34,211,238,0.12)" : "rgba(8,145,178,0.10)",  color: isDark ? "#22d3ee" : "#0891b2" },
+  const config = {
+    owner: {
+      bg: isDark ? "rgba(60,52,137,0.22)" : "#EEEDFE",
+      color: isDark ? "#a09ae8" : "#3C3489",
+      Icon: Crown,
+    },
+    admin: {
+      bg: isDark ? "rgba(12,68,124,0.22)" : "#E6F1FB",
+      color: isDark ? "#5da8e8" : "#0C447C",
+      Icon: ShieldCheck,
+    },
+    moderator: {
+      bg: isDark ? "rgba(8,80,65,0.22)" : "#E1F5EE",
+      color: isDark ? "#40c99a" : "#085041",
+      Icon: UserCheck,
+    },
   };
-  const s = styles[role];
-  if (!s) return null;
+  const c = config[role];
+  if (!c) return null;
   const label = role.charAt(0).toUpperCase() + role.slice(1);
   return (
     <span
-      className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0"
-      style={{ background: s.bg, color: s.color }}
+      className="inline-flex items-center gap-0.75 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0"
+      style={{ background: c.bg, color: c.color }}
     >
+      <c.Icon size={9} strokeWidth={2.5} />
       {label}
     </span>
   );
@@ -575,7 +602,8 @@ function OrbitalHub({
       {/* Room nodes */}
       {orbitRooms.map((room, index) => {
         const pos = getNodePosition(index, orbitRooms.length);
-        const isRoomChannel = room.type === "channel" || room.type === "private_channel";
+        const isRoomChannel =
+          room.type === "channel" || room.type === "private_channel";
         const displayName = isRoomChannel
           ? room.name || `#${room.slug}`
           : room.is_group
@@ -815,7 +843,9 @@ function OrbitalHub({
               ) : (
                 <div className="space-y-0.5 px-2">
                   {rooms.map((room) => {
-                    const isRoomChannel = room.type === "channel" || room.type === "private_channel";
+                    const isRoomChannel =
+                      room.type === "channel" ||
+                      room.type === "private_channel";
                     const displayName = isRoomChannel
                       ? room.name || `#${room.slug}`
                       : room.is_group
@@ -1204,20 +1234,39 @@ function NewChatModal({
 
   function handleSlugChange(e) {
     setSlugManual(true);
-    setChannelSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/-+/g, "-").slice(0, 50));
+    setChannelSlug(
+      e.target.value
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, "")
+        .replace(/-+/g, "-")
+        .slice(0, 50),
+    );
   }
 
   async function submitChannel() {
     setChannelError("");
-    if (!channelName.trim()) { setChannelError("Channel name required"); return; }
-    if (!channelSlug.trim()) { setChannelError("Channel address required"); return; }
+    if (!channelName.trim()) {
+      setChannelError("Channel name required");
+      return;
+    }
+    if (!channelSlug.trim()) {
+      setChannelError("Channel address required");
+      return;
+    }
     if (!/^[a-z0-9]([a-z0-9-]{0,48}[a-z0-9])?$/.test(channelSlug)) {
-      setChannelError("Address must be lowercase letters, numbers, and dashes (e.g. my-channel)");
+      setChannelError(
+        "Address must be lowercase letters, numbers, and dashes (e.g. my-channel)",
+      );
       return;
     }
     setCreating(true);
     try {
-      await onCreateChannel(channelName.trim(), channelSlug, channelDesc.trim(), channelPrivate);
+      await onCreateChannel(
+        channelName.trim(),
+        channelSlug,
+        channelDesc.trim(),
+        channelPrivate,
+      );
     } catch (err) {
       setChannelError(err.message || "Failed to create channel");
     } finally {
@@ -1387,11 +1436,20 @@ function NewChatModal({
               {["create", "join"].map((sub) => (
                 <button
                   key={sub}
-                  onClick={() => { setChannelMode(sub); setChannelError(""); setChannelLookupError(""); }}
+                  onClick={() => {
+                    setChannelMode(sub);
+                    setChannelError("");
+                    setChannelLookupError("");
+                  }}
                   className="flex-1 py-2 rounded-xl text-xs font-medium transition-all"
                   style={
                     channelMode === sub
-                      ? { background: isDark ? "rgba(99,102,241,0.18)" : "rgba(99,102,241,0.12)", color: isDark ? "#a5b4fc" : "#4f46e5" }
+                      ? {
+                          background: isDark
+                            ? "rgba(99,102,241,0.18)"
+                            : "rgba(99,102,241,0.12)",
+                          color: isDark ? "#a5b4fc" : "#4f46e5",
+                        }
                       : { color: isDark ? "rgba(238,242,255,0.4)" : "#64748b" }
                   }
                 >
@@ -1402,12 +1460,21 @@ function NewChatModal({
 
             {channelMode === "create" && (
               <div className="flex-1 overflow-y-auto px-4 pt-3 pb-5 space-y-3">
-                <input className={inputCls} placeholder="Channel name…" value={channelName} onChange={handleChannelNameChange} />
+                <input
+                  className={inputCls}
+                  placeholder="Channel name…"
+                  value={channelName}
+                  onChange={handleChannelNameChange}
+                />
                 <div className="relative">
                   <span
                     className="absolute left-4 top-1/2 -translate-y-1/2 font-bold select-none"
-                    style={{ color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8" }}
-                  >#</span>
+                    style={{
+                      color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8",
+                    }}
+                  >
+                    #
+                  </span>
                   <input
                     className={inputCls}
                     style={{ paddingLeft: "1.75rem" }}
@@ -1416,35 +1483,77 @@ function NewChatModal({
                     onChange={handleSlugChange}
                   />
                 </div>
-                <input className={inputCls} placeholder="Description (optional)…" value={channelDesc} onChange={(e) => setChannelDesc(e.target.value)} />
+                <input
+                  className={inputCls}
+                  placeholder="Description (optional)…"
+                  value={channelDesc}
+                  onChange={(e) => setChannelDesc(e.target.value)}
+                />
                 <button
                   onClick={() => setChannelPrivate((v) => !v)}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left"
                   style={{
                     background: channelPrivate
-                      ? isDark ? "rgba(99,102,241,0.12)" : "rgba(99,102,241,0.07)"
-                      : isDark ? darkBg2 : "#f8fafc",
+                      ? isDark
+                        ? "rgba(99,102,241,0.12)"
+                        : "rgba(99,102,241,0.07)"
+                      : isDark
+                        ? darkBg2
+                        : "#f8fafc",
                     border: `1px solid ${isDark ? darkBorder : lightBorderMid}`,
                   }}
                 >
-                  {channelPrivate ? <Lock size={15} style={{ color: isDark ? "#a5b4fc" : "#6366f1" }} /> : <Globe size={15} style={{ color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8" }} />}
-                  <span className="flex-1 text-sm" style={{ color: isDark ? "#eef2ff" : "#0f172a" }}>
+                  {channelPrivate ? (
+                    <Lock
+                      size={15}
+                      style={{ color: isDark ? "#a5b4fc" : "#6366f1" }}
+                    />
+                  ) : (
+                    <Globe
+                      size={15}
+                      style={{
+                        color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8",
+                      }}
+                    />
+                  )}
+                  <span
+                    className="flex-1 text-sm"
+                    style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+                  >
                     {channelPrivate ? "Private" : "Public"}
                   </span>
-                  <span className="text-xs" style={{ color: isDark ? "rgba(165,180,252,0.4)" : "#94a3b8" }}>
+                  <span
+                    className="text-xs"
+                    style={{
+                      color: isDark ? "rgba(165,180,252,0.4)" : "#94a3b8",
+                    }}
+                  >
                     {channelPrivate ? "Invite only" : "Anyone with the address"}
                   </span>
                 </button>
                 {channelError && (
-                  <div className="px-3 py-2 rounded-xl text-xs" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
+                  <div
+                    className="px-3 py-2 rounded-xl text-xs"
+                    style={{
+                      background: "rgba(239,68,68,0.08)",
+                      border: "1px solid rgba(239,68,68,0.2)",
+                      color: "#f87171",
+                    }}
+                  >
                     {channelError}
                   </div>
                 )}
                 <button
                   onClick={submitChannel}
-                  disabled={!channelName.trim() || !channelSlug.trim() || creating}
+                  disabled={
+                    !channelName.trim() || !channelSlug.trim() || creating
+                  }
                   className="w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-35 disabled:cursor-not-allowed transition-all hover:opacity-90"
-                  style={{ background: "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)", boxShadow: "0 4px 20px rgba(99,102,241,0.4)" }}
+                  style={{
+                    background:
+                      "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)",
+                    boxShadow: "0 4px 20px rgba(99,102,241,0.4)",
+                  }}
                 >
                   {creating ? "Creating…" : "Create Channel"}
                 </button>
@@ -1454,7 +1563,14 @@ function NewChatModal({
             {channelMode === "join" && (
               <div className="flex-1 overflow-y-auto px-4 pt-3 pb-5 space-y-3">
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold select-none" style={{ color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8" }}>#</span>
+                  <span
+                    className="absolute left-4 top-1/2 -translate-y-1/2 font-bold select-none"
+                    style={{
+                      color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8",
+                    }}
+                  >
+                    #
+                  </span>
                   <input
                     className={inputCls}
                     style={{ paddingLeft: "1.75rem" }}
@@ -1466,38 +1582,101 @@ function NewChatModal({
                 {channelPreview && (
                   <div
                     className="rounded-xl px-4 py-3 space-y-1"
-                    style={{ background: isDark ? darkBg2 : "#f8fafc", border: `1px solid ${isDark ? darkBorder : lightBorderMid}` }}
+                    style={{
+                      background: isDark ? darkBg2 : "#f8fafc",
+                      border: `1px solid ${isDark ? darkBorder : lightBorderMid}`,
+                    }}
                   >
                     <div className="flex items-center gap-2">
-                      {channelPreview.type === "private_channel"
-                        ? <Lock size={13} style={{ color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8" }} />
-                        : <Globe size={13} style={{ color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8" }} />}
-                      <span className="font-semibold text-sm" style={{ color: isDark ? "#eef2ff" : "#0f172a" }}>#{channelPreview.slug}</span>
-                      <span className="text-xs" style={{ color: isDark ? "rgba(165,180,252,0.4)" : "#94a3b8" }}>· {channelPreview.memberCount} member{channelPreview.memberCount !== 1 ? "s" : ""}</span>
+                      {channelPreview.type === "private_channel" ? (
+                        <Lock
+                          size={13}
+                          style={{
+                            color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8",
+                          }}
+                        />
+                      ) : (
+                        <Globe
+                          size={13}
+                          style={{
+                            color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8",
+                          }}
+                        />
+                      )}
+                      <span
+                        className="font-semibold text-sm"
+                        style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+                      >
+                        #{channelPreview.slug}
+                      </span>
+                      <span
+                        className="text-xs"
+                        style={{
+                          color: isDark ? "rgba(165,180,252,0.4)" : "#94a3b8",
+                        }}
+                      >
+                        · {channelPreview.memberCount} member
+                        {channelPreview.memberCount !== 1 ? "s" : ""}
+                      </span>
                     </div>
                     {channelPreview.name && (
-                      <div className="text-sm font-medium" style={{ color: isDark ? "rgba(238,242,255,0.8)" : "#334155" }}>{channelPreview.name}</div>
+                      <div
+                        className="text-sm font-medium"
+                        style={{
+                          color: isDark ? "rgba(238,242,255,0.8)" : "#334155",
+                        }}
+                      >
+                        {channelPreview.name}
+                      </div>
                     )}
                     {channelPreview.description && (
-                      <div className="text-xs" style={{ color: isDark ? "rgba(165,180,252,0.5)" : "#64748b" }}>{channelPreview.description}</div>
+                      <div
+                        className="text-xs"
+                        style={{
+                          color: isDark ? "rgba(165,180,252,0.5)" : "#64748b",
+                        }}
+                      >
+                        {channelPreview.description}
+                      </div>
                     )}
                     {channelPreview.isMember && (
-                      <div className="text-xs text-emerald-400 font-medium">You are already a member</div>
+                      <div className="text-xs text-emerald-400 font-medium">
+                        You are already a member
+                      </div>
                     )}
                   </div>
                 )}
                 {channelLookupError && (
-                  <div className="px-3 py-2 rounded-xl text-xs" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
+                  <div
+                    className="px-3 py-2 rounded-xl text-xs"
+                    style={{
+                      background: "rgba(239,68,68,0.08)",
+                      border: "1px solid rgba(239,68,68,0.2)",
+                      color: "#f87171",
+                    }}
+                  >
                     {channelLookupError}
                   </div>
                 )}
                 <button
                   onClick={submitJoin}
-                  disabled={!joinSlug.trim() || creating || (channelPreview?.type === "private_channel")}
+                  disabled={
+                    !joinSlug.trim() ||
+                    creating ||
+                    channelPreview?.type === "private_channel"
+                  }
                   className="w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-35 disabled:cursor-not-allowed transition-all hover:opacity-90"
-                  style={{ background: "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)", boxShadow: "0 4px 20px rgba(99,102,241,0.4)" }}
+                  style={{
+                    background:
+                      "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)",
+                    boxShadow: "0 4px 20px rgba(99,102,241,0.4)",
+                  }}
                 >
-                  {creating ? "Joining…" : channelPreview?.isMember ? "Open Channel" : "Join Channel"}
+                  {creating
+                    ? "Joining…"
+                    : channelPreview?.isMember
+                      ? "Open Channel"
+                      : "Join Channel"}
                 </button>
               </div>
             )}
@@ -1530,208 +1709,136 @@ function NewChatModal({
 
         {/* Search — only for dm/group/find modes */}
         {mode !== "channel" && (
-        <div className="px-4 pt-3 shrink-0">
-          <div
-            className="flex items-center gap-2 rounded-xl px-3 py-2.5"
-            style={{
-              background: isDark ? darkBg2 : "#f8fafc",
-              border: `1px solid ${isDark ? darkBorder : lightBorderMid}`,
-            }}
-          >
-            <Search
-              size={14}
-              className="shrink-0"
-              style={{ color: isDark ? "rgba(165,180,252,0.4)" : "#94a3b8" }}
-            />
-            <input
-              type="text"
-              placeholder={
-                mode === "dm"
-                  ? "Search contacts…"
-                  : mode === "group"
-                    ? "Add members…"
-                    : "Search people…"
-              }
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 bg-transparent text-sm outline-none"
-              style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
-            />
+          <div className="px-4 pt-3 shrink-0">
+            <div
+              className="flex items-center gap-2 rounded-xl px-3 py-2.5"
+              style={{
+                background: isDark ? darkBg2 : "#f8fafc",
+                border: `1px solid ${isDark ? darkBorder : lightBorderMid}`,
+              }}
+            >
+              <Search
+                size={14}
+                className="shrink-0"
+                style={{ color: isDark ? "rgba(165,180,252,0.4)" : "#94a3b8" }}
+              />
+              <input
+                type="text"
+                placeholder={
+                  mode === "dm"
+                    ? "Search contacts…"
+                    : mode === "group"
+                      ? "Add members…"
+                      : "Search people…"
+                }
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="flex-1 bg-transparent text-sm outline-none"
+                style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+              />
+            </div>
           </div>
-        </div>
         )}
 
         {/* User list — only for dm/group/find modes */}
         {mode !== "channel" && (
-        <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2 mt-1">
-          {mode === "find" ? (
-            <div className="space-y-0.5">
-              {incoming.length > 0 && !search && (
-                <div className="mb-2">
-                  <p
-                    className="text-[10px] uppercase tracking-widest px-3 py-1"
-                    style={{
-                      color: isDark ? "rgba(165,180,252,0.35)" : "#94a3b8",
-                    }}
-                  >
-                    Requests
-                  </p>
-                  {incoming.map((u) => (
-                    <div
-                      key={u.id}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+          <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2 mt-1">
+            {mode === "find" ? (
+              <div className="space-y-0.5">
+                {incoming.length > 0 && !search && (
+                  <div className="mb-2">
+                    <p
+                      className="text-[10px] uppercase tracking-widest px-3 py-1"
                       style={{
-                        background: isDark
-                          ? "rgba(99,102,241,0.07)"
-                          : "rgba(99,102,241,0.05)",
+                        color: isDark ? "rgba(165,180,252,0.35)" : "#94a3b8",
                       }}
                     >
-                      <Avatar
-                        userId={u.id}
-                        username={u.username}
-                        size={40}
-                        online={onlineIds.has(u.id)}
-                        avatar={avatarMap[u.id]}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div
-                          className="text-sm font-medium truncate"
-                          style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
-                        >
-                          {u.username}
+                      Requests
+                    </p>
+                    {incoming.map((u) => (
+                      <div
+                        key={u.id}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                        style={{
+                          background: isDark
+                            ? "rgba(99,102,241,0.07)"
+                            : "rgba(99,102,241,0.05)",
+                        }}
+                      >
+                        <Avatar
+                          userId={u.id}
+                          username={u.username}
+                          size={40}
+                          online={onlineIds.has(u.id)}
+                          avatar={avatarMap[u.id]}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div
+                            className="text-sm font-medium truncate"
+                            style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+                          >
+                            {u.username}
+                          </div>
+                        </div>
+                        <div className="flex gap-1.5 shrink-0">
+                          <button
+                            onClick={() => onAcceptContact(u.id)}
+                            className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-all"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            onClick={() => onRemoveContact(u.id)}
+                            className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
+                          >
+                            Decline
+                          </button>
                         </div>
                       </div>
-                      <div className="flex gap-1.5 shrink-0">
-                        <button
-                          onClick={() => onAcceptContact(u.id)}
-                          className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-all"
-                        >
-                          Accept
-                        </button>
-                        <button
-                          onClick={() => onRemoveContact(u.id)}
-                          className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
-                        >
-                          Decline
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  <div
-                    className="mx-3 my-2 border-t"
-                    style={{
-                      borderColor: isDark ? darkBorder : lightBorderMid,
-                    }}
-                  />
-                </div>
-              )}
-
-              {filtered.length === 0 && (
-                <p
-                  className="text-center text-sm py-8"
-                  style={{
-                    color: isDark ? "rgba(238,242,255,0.22)" : "#94a3b8",
-                  }}
-                >
-                  No users found
-                </p>
-              )}
-              {findError && (
-                <div
-                  className="mx-1 mb-2 px-3 py-2 rounded-xl text-xs"
-                  style={{
-                    background: "rgba(239,68,68,0.08)",
-                    border: "1px solid rgba(239,68,68,0.2)",
-                    color: "#f87171",
-                  }}
-                >
-                  {findError}
-                </div>
-              )}
-              {filtered.map((u) => (
-                <div
-                  key={u.id}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = isDark
-                      ? "rgba(99,102,241,0.06)"
-                      : "rgba(99,102,241,0.04)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "";
-                  }}
-                >
-                  <Avatar
-                    userId={u.id}
-                    username={u.username}
-                    size={40}
-                    online={onlineIds.has(u.id)}
-                    avatar={avatarMap[u.id]}
-                  />
-                  <div className="flex-1 min-w-0">
+                    ))}
                     <div
-                      className="text-sm font-medium truncate"
-                      style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
-                    >
-                      {u.username}
-                    </div>
+                      className="mx-3 my-2 border-t"
+                      style={{
+                        borderColor: isDark ? darkBorder : lightBorderMid,
+                      }}
+                    />
                   </div>
-                  <ContactStatusButton
-                    status={u.contact_status}
-                    onAdd={async () => {
-                      setFindError("");
-                      try {
-                        await onSendRequest(u.id);
-                      } catch (err) {
-                        setFindError(err.message || "Failed to send request");
-                      }
-                    }}
-                    onRemove={() => onRemoveContact(u.id)}
-                    isDark={isDark}
-                  />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-0.5">
-              {filtered.length === 0 && (
-                <p
-                  className="text-center text-sm py-10"
-                  style={{
-                    color: isDark ? "rgba(238,242,255,0.22)" : "#94a3b8",
-                  }}
-                >
-                  {contacts.length === 0
-                    ? 'No contacts yet — use "Find People" to add some'
-                    : "No contacts match your search"}
-                </p>
-              )}
-              {filtered.map((u) => {
-                const selected = selectedIds.includes(u.id);
-                return (
-                  <button
-                    key={u.id}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left"
+                )}
+
+                {filtered.length === 0 && (
+                  <p
+                    className="text-center text-sm py-8"
                     style={{
-                      background: selected
-                        ? isDark
-                          ? "rgba(99,102,241,0.14)"
-                          : "rgba(99,102,241,0.08)"
-                        : "transparent",
+                      color: isDark ? "rgba(238,242,255,0.22)" : "#94a3b8",
                     }}
+                  >
+                    No users found
+                  </p>
+                )}
+                {findError && (
+                  <div
+                    className="mx-1 mb-2 px-3 py-2 rounded-xl text-xs"
+                    style={{
+                      background: "rgba(239,68,68,0.08)",
+                      border: "1px solid rgba(239,68,68,0.2)",
+                      color: "#f87171",
+                    }}
+                  >
+                    {findError}
+                  </div>
+                )}
+                {filtered.map((u) => (
+                  <div
+                    key={u.id}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
                     onMouseEnter={(e) => {
-                      if (!selected)
-                        e.currentTarget.style.background = isDark
-                          ? "rgba(99,102,241,0.07)"
-                          : "rgba(99,102,241,0.05)";
+                      e.currentTarget.style.background = isDark
+                        ? "rgba(99,102,241,0.06)"
+                        : "rgba(99,102,241,0.04)";
                     }}
                     onMouseLeave={(e) => {
-                      if (!selected)
-                        e.currentTarget.style.background = "transparent";
+                      e.currentTarget.style.background = "";
                     }}
-                    onClick={() =>
-                      mode === "dm" ? onSelectUser(u) : toggleSelect(u.id)
-                    }
                   >
                     <Avatar
                       userId={u.id}
@@ -1748,23 +1855,94 @@ function NewChatModal({
                         {u.username}
                       </div>
                     </div>
-                    {mode === "dm" && onlineIds.has(u.id) && (
-                      <span className="text-[10px] text-emerald-400 font-semibold shrink-0">
-                        Online
-                      </span>
-                    )}
-                    {mode === "group" && selected && (
-                      <span className="text-indigo-400 font-bold shrink-0">
-                        ✓
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
+                    <ContactStatusButton
+                      status={u.contact_status}
+                      onAdd={async () => {
+                        setFindError("");
+                        try {
+                          await onSendRequest(u.id);
+                        } catch (err) {
+                          setFindError(err.message || "Failed to send request");
+                        }
+                      }}
+                      onRemove={() => onRemoveContact(u.id)}
+                      isDark={isDark}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-0.5">
+                {filtered.length === 0 && (
+                  <p
+                    className="text-center text-sm py-10"
+                    style={{
+                      color: isDark ? "rgba(238,242,255,0.22)" : "#94a3b8",
+                    }}
+                  >
+                    {contacts.length === 0
+                      ? 'No contacts yet — use "Find People" to add some'
+                      : "No contacts match your search"}
+                  </p>
+                )}
+                {filtered.map((u) => {
+                  const selected = selectedIds.includes(u.id);
+                  return (
+                    <button
+                      key={u.id}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left"
+                      style={{
+                        background: selected
+                          ? isDark
+                            ? "rgba(99,102,241,0.14)"
+                            : "rgba(99,102,241,0.08)"
+                          : "transparent",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!selected)
+                          e.currentTarget.style.background = isDark
+                            ? "rgba(99,102,241,0.07)"
+                            : "rgba(99,102,241,0.05)";
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!selected)
+                          e.currentTarget.style.background = "transparent";
+                      }}
+                      onClick={() =>
+                        mode === "dm" ? onSelectUser(u) : toggleSelect(u.id)
+                      }
+                    >
+                      <Avatar
+                        userId={u.id}
+                        username={u.username}
+                        size={40}
+                        online={onlineIds.has(u.id)}
+                        avatar={avatarMap[u.id]}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className="text-sm font-medium truncate"
+                          style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+                        >
+                          {u.username}
+                        </div>
+                      </div>
+                      {mode === "dm" && onlineIds.has(u.id) && (
+                        <span className="text-[10px] text-emerald-400 font-semibold shrink-0">
+                          Online
+                        </span>
+                      )}
+                      {mode === "group" && selected && (
+                        <span className="text-indigo-400 font-bold shrink-0">
+                          ✓
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         )}
         {/* Create group CTA */}
         {mode === "group" && (
@@ -1882,7 +2060,9 @@ function GroupMembersPanel({
 
   function canAct(targetRole) {
     if (!myRole || !isChannel) return false;
-    return ROLE_LEVEL[myRole] > ROLE_LEVEL[targetRole] && targetRole !== "owner";
+    return (
+      ROLE_LEVEL[myRole] > ROLE_LEVEL[targetRole] && targetRole !== "owner"
+    );
   }
 
   function nextRole(current) {
@@ -1898,7 +2078,9 @@ function GroupMembersPanel({
   }
 
   const sortedMembers = isChannel
-    ? [...members].sort((a, b) => (ROLE_LEVEL[b.role] || 0) - (ROLE_LEVEL[a.role] || 0))
+    ? [...members].sort(
+        (a, b) => (ROLE_LEVEL[b.role] || 0) - (ROLE_LEVEL[a.role] || 0),
+      )
     : members;
 
   return (
@@ -1928,7 +2110,10 @@ function GroupMembersPanel({
           className="flex items-center justify-between px-5 py-4 border-b shrink-0"
           style={{ borderColor: isDark ? darkBorder : lightBorderMid }}
         >
-          <span className="font-semibold" style={{ color: isDark ? "#eef2ff" : "#0f172a" }}>
+          <span
+            className="font-semibold"
+            style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+          >
             {isChannel ? "Channel Members" : "Members"} ({members.length})
           </span>
           <button
@@ -1962,16 +2147,31 @@ function GroupMembersPanel({
                     e.currentTarget.style.background = "";
                   }}
                 >
-                  <Avatar userId={m.id} username={m.username} size={40} online={isOnline} avatar={avatarMap[m.id]} />
+                  <Avatar
+                    userId={m.id}
+                    username={m.username}
+                    size={40}
+                    online={isOnline}
+                    avatar={avatarMap[m.id]}
+                  />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-sm font-medium truncate" style={{ color: isDark ? "#eef2ff" : "#0f172a" }}>
+                      <span
+                        className="text-sm font-medium truncate"
+                        style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+                      >
                         {m.username}
-                        {isMe && <span className="ml-1 opacity-40 text-xs">(you)</span>}
+                        {isMe && (
+                          <span className="ml-1 opacity-40 text-xs">(you)</span>
+                        )}
                       </span>
                       {isChannel && roleBadge(m.role, isDark)}
                     </div>
-                    {isOnline && <div className="text-xs text-emerald-400 font-medium">Online</div>}
+                    {isOnline && (
+                      <div className="text-xs text-emerald-400 font-medium">
+                        Online
+                      </div>
+                    )}
                   </div>
                   {showActions && (
                     <button
@@ -1980,7 +2180,9 @@ function GroupMembersPanel({
                       style={{
                         color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8",
                         background: isActing
-                          ? isDark ? "rgba(99,102,241,0.15)" : "rgba(99,102,241,0.08)"
+                          ? isDark
+                            ? "rgba(99,102,241,0.15)"
+                            : "rgba(99,102,241,0.08)"
                           : "transparent",
                       }}
                       title="Manage member"
@@ -1993,14 +2195,23 @@ function GroupMembersPanel({
                 {isActing && showActions && (
                   <div
                     className="flex gap-1.5 px-3 pb-2.5"
-                    style={{ background: isDark ? "rgba(99,102,241,0.04)" : "rgba(99,102,241,0.03)" }}
+                    style={{
+                      background: isDark
+                        ? "rgba(99,102,241,0.04)"
+                        : "rgba(99,102,241,0.03)",
+                    }}
                   >
                     {promote && (
                       <button
-                        onClick={() => { onRoleChange(m.id, promote); setActionTarget(null); }}
+                        onClick={() => {
+                          onRoleChange(m.id, promote);
+                          setActionTarget(null);
+                        }}
                         className="flex-1 text-[11px] font-semibold py-1.5 rounded-lg transition-all"
                         style={{
-                          background: isDark ? "rgba(99,102,241,0.12)" : "rgba(99,102,241,0.08)",
+                          background: isDark
+                            ? "rgba(99,102,241,0.12)"
+                            : "rgba(99,102,241,0.08)",
                           color: isDark ? "#a5b4fc" : "#4f46e5",
                         }}
                       >
@@ -2008,9 +2219,16 @@ function GroupMembersPanel({
                       </button>
                     )}
                     <button
-                      onClick={() => { onKick(m.id); setActionTarget(null); onClose(); }}
+                      onClick={() => {
+                        onKick(m.id);
+                        setActionTarget(null);
+                        onClose();
+                      }}
                       className="flex items-center gap-1 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all"
-                      style={{ background: "rgba(239,68,68,0.10)", color: "#f87171" }}
+                      style={{
+                        background: "rgba(239,68,68,0.10)",
+                        color: "#f87171",
+                      }}
                     >
                       <UserMinus size={11} />
                       Kick
@@ -2290,12 +2508,20 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           ...prev,
           [roomId]: [
             ...(prev[roomId] || []),
-            { id: `sys_${Date.now()}`, text: `A member was removed from the channel`, system: true, created_at: Math.floor(Date.now() / 1000) },
+            {
+              id: `sys_${Date.now()}`,
+              text: `A member was removed from the channel`,
+              system: true,
+              created_at: Math.floor(Date.now() / 1000),
+            },
           ],
         }));
         setGroupMembersPanel((prev) =>
           prev?.roomId === roomId
-            ? { ...prev, members: prev.members.filter((m) => m.id !== kickedUserId) }
+            ? {
+                ...prev,
+                members: prev.members.filter((m) => m.id !== kickedUserId),
+              }
             : prev,
         );
       }
@@ -2304,11 +2530,18 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     s.on("channel:role_changed", ({ roomId, userId, role }) => {
       setGroupMembersPanel((prev) =>
         prev?.roomId === roomId
-          ? { ...prev, members: prev.members.map((m) => m.id === userId ? { ...m, role } : m) }
+          ? {
+              ...prev,
+              members: prev.members.map((m) =>
+                m.id === userId ? { ...m, role } : m,
+              ),
+            }
           : prev,
       );
       setRooms((prev) =>
-        prev.map((r) => r.id === roomId && userId === currentUser.id ? { ...r, role } : r),
+        prev.map((r) =>
+          r.id === roomId && userId === currentUser.id ? { ...r, role } : r,
+        ),
       );
     });
 
@@ -2317,7 +2550,12 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         ...prev,
         [roomId]: [
           ...(prev[roomId] || []),
-          { id: `sys_${Date.now()}`, text: `${username} joined the channel`, system: true, created_at: Math.floor(Date.now() / 1000) },
+          {
+            id: `sys_${Date.now()}`,
+            text: `${username} joined the channel`,
+            system: true,
+            created_at: Math.floor(Date.now() / 1000),
+          },
         ],
       }));
     });
@@ -2327,7 +2565,12 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         ...prev,
         [roomId]: [
           ...(prev[roomId] || []),
-          { id: `sys_${Date.now()}`, text: `${username} left the channel`, system: true, created_at: Math.floor(Date.now() / 1000) },
+          {
+            id: `sys_${Date.now()}`,
+            text: `${username} left the channel`,
+            system: true,
+            created_at: Math.floor(Date.now() / 1000),
+          },
         ],
       }));
     });
@@ -2424,7 +2667,10 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     if (!earliest) return;
     setLoadingMore((prev) => ({ ...prev, [displayRoomId]: true }));
     try {
-      const { messages: older, hasMore } = await api.getMessages(displayRoomId, earliest.created_at);
+      const { messages: older, hasMore } = await api.getMessages(
+        displayRoomId,
+        earliest.created_at,
+      );
       setMessages((prev) => ({
         ...prev,
         [displayRoomId]: [...older, ...(prev[displayRoomId] || [])],
@@ -2559,12 +2805,17 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   function handleDeleteRoom(roomId) {
     const room = rooms.find((r) => r.id === roomId);
     const isGroup = !!room?.is_group;
-    const isChannel = room?.type === "channel" || room?.type === "private_channel";
+    const isChannel =
+      room?.type === "channel" || room?.type === "private_channel";
     const amOwner = isChannel && room?.role === "owner";
     setConfirmModal({
       title: isChannel
-        ? amOwner ? "Delete channel?" : "Leave channel?"
-        : isGroup ? "Leave group?" : "Delete conversation?",
+        ? amOwner
+          ? "Delete channel?"
+          : "Leave channel?"
+        : isGroup
+          ? "Leave group?"
+          : "Delete conversation?",
       body: isChannel
         ? amOwner
           ? "This will permanently delete the channel and all its messages for everyone."
@@ -2655,24 +2906,16 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
   async function handleCreateChannel(name, slug, description, isPrivate) {
     setShowNewChat(false);
-    try {
-      const { roomId } = await api.createChannel(name, slug, description, isPrivate);
-      selectRoom(roomId);
-      api.getRooms().then(setRooms).catch(console.error);
-    } catch (err) {
-      throw err;
-    }
+    const { roomId } = await api.createChannel(name, slug, description, isPrivate);
+    selectRoom(roomId);
+    api.getRooms().then(setRooms).catch(console.error);
   }
 
   async function handleJoinChannel(slug) {
-    try {
-      const { roomId } = await api.joinChannel(slug);
-      setShowNewChat(false);
-      selectRoom(roomId);
-      api.getRooms().then(setRooms).catch(console.error);
-    } catch (err) {
-      throw err;
-    }
+    const { roomId } = await api.joinChannel(slug);
+    setShowNewChat(false);
+    selectRoom(roomId);
+    api.getRooms().then(setRooms).catch(console.error);
   }
 
   async function handleKickMember(userId) {
@@ -2730,7 +2973,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   // ── Derived ──────────────────────────────────────────────────────────────────
 
   const contacts = allUsers.filter((u) => u.contact_status === "accepted");
-  const pendingUsers = allUsers.filter((u) => u.contact_status === "pending_received");
+  const pendingUsers = allUsers.filter(
+    (u) => u.contact_status === "pending_received",
+  );
   const pendingRequestCount = pendingUsers.length;
   const avatarMap = useMemo(() => {
     const map = {};
@@ -2746,7 +2991,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const displayedMessages =
     showMsgSearch && msgSearch.trim()
       ? activeMessages.filter(
-          (m) => !m.system && m.text.toLowerCase().includes(msgSearch.toLowerCase()),
+          (m) =>
+            !m.system && m.text.toLowerCase().includes(msgSearch.toLowerCase()),
         )
       : activeMessages;
 
@@ -2756,7 +3002,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         .map((u) => u.username)
     : [];
 
-  const isActiveChannel = activeRoom?.type === "channel" || activeRoom?.type === "private_channel";
+  const isActiveChannel =
+    activeRoom?.type === "channel" || activeRoom?.type === "private_channel";
   const myActiveRole = activeRoom?.role || null;
 
   const activeRoomName = activeRoom
@@ -2893,16 +3140,35 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    {isActiveChannel && <Hash size={13} style={{ color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8", flexShrink: 0 }} />}
+                    {isActiveChannel && (
+                      <Hash
+                        size={13}
+                        style={{
+                          color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8",
+                          flexShrink: 0,
+                        }}
+                      />
+                    )}
                     <span
                       className="font-semibold text-sm truncate"
                       style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
                     >
-                      {isActiveChannel ? (activeRoom.slug || activeRoomName) : activeRoomName}
+                      {isActiveChannel
+                        ? activeRoom.slug || activeRoomName
+                        : activeRoomName}
                     </span>
-                    {isActiveChannel && activeRoom.type === "private_channel" && (
-                      <Lock size={11} style={{ color: isDark ? "rgba(165,180,252,0.35)" : "#94a3b8", flexShrink: 0 }} />
-                    )}
+                    {isActiveChannel &&
+                      activeRoom.type === "private_channel" && (
+                        <Lock
+                          size={11}
+                          style={{
+                            color: isDark
+                              ? "rgba(165,180,252,0.35)"
+                              : "#94a3b8",
+                            flexShrink: 0,
+                          }}
+                        />
+                      )}
                   </div>
                   <div className="text-xs mt-0.5">
                     {typingNames.length > 0 ? (
@@ -2945,7 +3211,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                     icon: <Copy size={16} />,
                     active: false,
                     onClick: () => {
-                      navigator.clipboard.writeText(`#${activeRoom.slug}`).catch(console.error);
+                      navigator.clipboard
+                        .writeText(`#${activeRoom.slug}`)
+                        .catch(console.error);
                     },
                     title: `Copy channel address (#${activeRoom.slug})`,
                     show: !!isActiveChannel,
@@ -2962,7 +3230,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                     active: false,
                     onClick: () => handleDeleteRoom(activeRoomId),
                     title: isActiveChannel
-                      ? (myActiveRole === "owner" ? "Delete channel" : "Leave channel")
+                      ? myActiveRole === "owner"
+                        ? "Delete channel"
+                        : "Leave channel"
                       : "Delete chat",
                     danger: true,
                     show: true,
@@ -3093,11 +3363,15 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                           className="text-xs px-4 py-1.5 rounded-full transition-all disabled:opacity-40"
                           style={{
                             color: isDark ? "rgba(165,180,252,0.7)" : "#6366f1",
-                            background: isDark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.06)",
+                            background: isDark
+                              ? "rgba(99,102,241,0.08)"
+                              : "rgba(99,102,241,0.06)",
                             border: `1px solid ${isDark ? "rgba(99,102,241,0.18)" : "rgba(99,102,241,0.2)"}`,
                           }}
                         >
-                          {loadingMore[displayRoomId] ? "Loading…" : "↑ Load earlier messages"}
+                          {loadingMore[displayRoomId]
+                            ? "Loading…"
+                            : "↑ Load earlier messages"}
                         </button>
                       </div>
                     )}
@@ -3142,16 +3416,21 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
                     {displayedMessages.map((msg, index) => {
                       const prev = displayedMessages[index - 1];
-                      const showSeparator = !!msg.created_at && (
-                        !prev || dayKey(msg.created_at) !== dayKey(prev.created_at)
-                      );
+                      const showSeparator =
+                        !!msg.created_at &&
+                        (!prev ||
+                          dayKey(msg.created_at) !== dayKey(prev.created_at));
                       const dateSeparator = showSeparator && (
                         <div className="flex justify-center py-3">
                           <span
                             className="text-[11px] px-3 py-1 rounded-full select-none"
                             style={{
-                              background: isDark ? "rgba(99,102,241,0.08)" : "rgba(0,0,0,0.06)",
-                              color: isDark ? "rgba(165,180,252,0.55)" : "#64748b",
+                              background: isDark
+                                ? "rgba(99,102,241,0.08)"
+                                : "rgba(0,0,0,0.06)",
+                              color: isDark
+                                ? "rgba(165,180,252,0.55)"
+                                : "#64748b",
                             }}
                           >
                             {formatDateSeparator(msg.created_at)}
@@ -3185,112 +3464,112 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                       const isTemp = !!msg.temp;
                       return (
                         <Fragment key={msg.id}>
-                        {dateSeparator}
-                        <div
-                          className={`relative flex w-full items-end gap-2 animate-fade-in-up ${isMine ? "flex-row-reverse" : "flex-row"} ${msg.reaction ? "mb-3 z-1" : ""}`}
-                          onContextMenu={(e) =>
-                            !isTemp && handleContextMenu(e, msg)
-                          }
-                          onTouchStart={(e) => {
-                            if (isTemp) return;
-                            const touch = e.touches[0];
-                            const x = touch.clientX;
-                            const y = touch.clientY;
-                            longPressTimerRef.current = setTimeout(() => {
-                              setContextMenu({ msg, x, y });
-                            }, 500);
-                          }}
-                          onTouchEnd={() =>
-                            clearTimeout(longPressTimerRef.current)
-                          }
-                          onTouchMove={() =>
-                            clearTimeout(longPressTimerRef.current)
-                          }
-                          onTouchCancel={() =>
-                            clearTimeout(longPressTimerRef.current)
-                          }
-                        >
+                          {dateSeparator}
                           <div
-                            className={`flex flex-col ${isMine ? "items-end" : "items-start"} max-w-[78%]`}
+                            className={`relative flex w-full items-end gap-2 animate-fade-in-up ${isMine ? "flex-row-reverse" : "flex-row"} ${msg.reaction ? "mb-3 z-1" : ""}`}
+                            onContextMenu={(e) =>
+                              !isTemp && handleContextMenu(e, msg)
+                            }
+                            onTouchStart={(e) => {
+                              if (isTemp) return;
+                              const touch = e.touches[0];
+                              const x = touch.clientX;
+                              const y = touch.clientY;
+                              longPressTimerRef.current = setTimeout(() => {
+                                setContextMenu({ msg, x, y });
+                              }, 500);
+                            }}
+                            onTouchEnd={() =>
+                              clearTimeout(longPressTimerRef.current)
+                            }
+                            onTouchMove={() =>
+                              clearTimeout(longPressTimerRef.current)
+                            }
+                            onTouchCancel={() =>
+                              clearTimeout(longPressTimerRef.current)
+                            }
                           >
-                            {!isMine && !!activeRoom.is_group && (
-                              <span
-                                className="text-[11px] mb-1 ml-1 font-medium"
-                                style={{
-                                  color: isDark
-                                    ? "rgba(165,180,252,0.5)"
-                                    : "#94a3b8",
-                                }}
-                              >
-                                {msg.username}
-                              </span>
-                            )}
-                            <div className="relative">
-                              <div
-                                className={`px-4 py-2.5 text-sm leading-relaxed wrap-break-word ${
-                                  isMine
-                                    ? "rounded-2xl rounded-br-sm"
-                                    : "rounded-2xl rounded-bl-sm"
-                                } ${isTemp ? "opacity-50" : ""}`}
-                                style={
-                                  isMine
-                                    ? {
-                                        background:
-                                          "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)",
-                                        color: "#ffffff",
-                                        boxShadow:
-                                          "0 2px 16px rgba(99,102,241,0.4)",
-                                        userSelect: "none",
-                                        WebkitUserSelect: "none",
-                                        WebkitTouchCallout: "none",
-                                      }
-                                    : isDark
-                                      ? {
-                                          background: darkBg2,
-                                          color: "#eef2ff",
-                                          border: `1px solid ${darkBorder}`,
-                                          userSelect: "none",
-                                          WebkitUserSelect: "none",
-                                          WebkitTouchCallout: "none",
-                                        }
-                                      : {
-                                          background: "#ffffff",
-                                          color: "#1e293b",
-                                          border:
-                                            "1px solid rgba(226,232,240,1)",
-                                          boxShadow:
-                                            "0 1px 4px rgba(0,0,0,0.05)",
-                                          userSelect: "none",
-                                          WebkitUserSelect: "none",
-                                          WebkitTouchCallout: "none",
-                                        }
-                                }
-                              >
-                                {msg.text}
+                            <div
+                              className={`flex flex-col ${isMine ? "items-end" : "items-start"} max-w-[78%]`}
+                            >
+                              {!isMine && !!activeRoom.is_group && (
                                 <span
-                                  className="ml-2 text-[10px] whitespace-nowrap"
-                                  style={{ opacity: 0.4 }}
-                                >
-                                  {formatFullTime(msg.created_at)}
-                                </span>
-                              </div>
-                              {msg.reaction && (
-                                <span
-                                  className="absolute -bottom-3.5 right-1 text-base rounded-full px-1.5 py-0.5 leading-none"
+                                  className="text-[11px] mb-1 ml-1 font-medium"
                                   style={{
-                                    background: isDark ? darkBg1 : "#ffffff",
-                                    border: `1px solid ${isDark ? darkBorder : lightBorderMid}`,
-                                    boxShadow: isDark
-                                      ? "0 2px 8px rgba(0,0,0,0.4)"
-                                      : "0 2px 8px rgba(0,0,0,0.08)",
+                                    color: isDark
+                                      ? "rgba(165,180,252,0.5)"
+                                      : "#94a3b8",
                                   }}
                                 >
-                                  {msg.reaction}
+                                  {msg.username}
                                 </span>
                               )}
+                              <div className="relative">
+                                <div
+                                  className={`px-4 py-2.5 text-sm leading-relaxed wrap-break-word ${
+                                    isMine
+                                      ? "rounded-2xl rounded-br-sm"
+                                      : "rounded-2xl rounded-bl-sm"
+                                  } ${isTemp ? "opacity-50" : ""}`}
+                                  style={
+                                    isMine
+                                      ? {
+                                          background:
+                                            "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)",
+                                          color: "#ffffff",
+                                          boxShadow:
+                                            "0 2px 16px rgba(99,102,241,0.4)",
+                                          userSelect: "none",
+                                          WebkitUserSelect: "none",
+                                          WebkitTouchCallout: "none",
+                                        }
+                                      : isDark
+                                        ? {
+                                            background: darkBg2,
+                                            color: "#eef2ff",
+                                            border: `1px solid ${darkBorder}`,
+                                            userSelect: "none",
+                                            WebkitUserSelect: "none",
+                                            WebkitTouchCallout: "none",
+                                          }
+                                        : {
+                                            background: "#ffffff",
+                                            color: "#1e293b",
+                                            border:
+                                              "1px solid rgba(226,232,240,1)",
+                                            boxShadow:
+                                              "0 1px 4px rgba(0,0,0,0.05)",
+                                            userSelect: "none",
+                                            WebkitUserSelect: "none",
+                                            WebkitTouchCallout: "none",
+                                          }
+                                  }
+                                >
+                                  {msg.text}
+                                  <span
+                                    className="ml-2 text-[10px] whitespace-nowrap"
+                                    style={{ opacity: 0.4 }}
+                                  >
+                                    {formatFullTime(msg.created_at)}
+                                  </span>
+                                </div>
+                                {msg.reaction && (
+                                  <span
+                                    className="absolute -bottom-3.5 right-1 text-base rounded-full px-1.5 py-0.5 leading-none"
+                                    style={{
+                                      background: isDark ? darkBg1 : "#ffffff",
+                                      border: `1px solid ${isDark ? darkBorder : lightBorderMid}`,
+                                      boxShadow: isDark
+                                        ? "0 2px 8px rgba(0,0,0,0.4)"
+                                        : "0 2px 8px rgba(0,0,0,0.08)",
+                                    }}
+                                  >
+                                    {msg.reaction}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
                         </Fragment>
                       );
                     })}
