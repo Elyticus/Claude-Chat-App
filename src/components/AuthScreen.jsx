@@ -208,7 +208,7 @@ export default function AuthScreen({ onAuth }) {
   };
 
   const digitInputs = (
-    <div className="flex gap-1.5">
+    <div className="flex gap-1.5" role="group" aria-label="Verification code">
       {codeDigits.map((d, i) => (
         <input
           key={i}
@@ -220,6 +220,7 @@ export default function AuthScreen({ onAuth }) {
           onChange={(e) => handleDigitChange(i, e.target.value)}
           onKeyDown={(e) => handleDigitKeyDown(i, e)}
           onPaste={handleDigitPaste}
+          aria-label={`Digit ${i + 1} of 8`}
           className="flex-1 min-w-0 h-11 text-center text-[#eef2ff] text-lg font-bold rounded-xl outline-none cursor-text bg-popover border border-indigo-500/15"
           {...focusProps}
         />
@@ -232,46 +233,39 @@ export default function AuthScreen({ onAuth }) {
       className="h-screen flex items-center justify-center p-4 relative overflow-hidden"
       style={{ background: "#070d1c" }}
     >
-      {/* Ambient glow blobs — static (no animation) so filter:blur is composited once */}
+      {/* Ambient glow blobs — rendered as soft radial gradients, no filter:blur so zero extra compositor layers */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div
           className="absolute"
           style={{
-            top: "-25%",
-            left: "-15%",
-            width: "72%",
-            height: "72%",
-            borderRadius: "50%",
+            top: "-30%",
+            left: "-20%",
+            width: "90%",
+            height: "90%",
             background:
-              "radial-gradient(circle, rgba(99,102,241,0.22) 0%, transparent 70%)",
-            filter: "blur(60px)",
+              "radial-gradient(ellipse at center, rgba(99,102,241,0.14) 0%, rgba(99,102,241,0.05) 40%, transparent 70%)",
           }}
         />
         <div
           className="absolute"
           style={{
-            bottom: "-25%",
-            right: "-15%",
-            width: "72%",
-            height: "72%",
-            borderRadius: "50%",
+            bottom: "-30%",
+            right: "-20%",
+            width: "90%",
+            height: "90%",
             background:
-              "radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%)",
-            filter: "blur(60px)",
+              "radial-gradient(ellipse at center, rgba(124,58,237,0.12) 0%, rgba(124,58,237,0.04) 40%, transparent 70%)",
           }}
         />
         <div
           className="absolute"
           style={{
-            top: "45%",
-            left: "45%",
-            transform: "translate(-50%,-50%)",
-            width: "56%",
-            height: "56%",
-            borderRadius: "50%",
+            top: "20%",
+            left: "20%",
+            width: "60%",
+            height: "60%",
             background:
-              "radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%)",
-            filter: "blur(70px)",
+              "radial-gradient(ellipse at center, rgba(6,182,212,0.08) 0%, rgba(6,182,212,0.02) 45%, transparent 70%)",
           }}
         />
       </div>
@@ -437,12 +431,14 @@ export default function AuthScreen({ onAuth }) {
 
               <div>
                 <label
+                  htmlFor="forgot-email"
                   className="block text-xs font-medium mb-2 uppercase tracking-wider"
                   style={{ color: "rgba(165,180,252,0.6)" }}
                 >
                   Email
                 </label>
                 <input
+                  id="forgot-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -515,12 +511,14 @@ export default function AuthScreen({ onAuth }) {
 
               <div>
                 <label
+                  htmlFor="reset-new-password"
                   className="block text-xs font-medium mb-2 uppercase tracking-wider"
                   style={{ color: "rgba(165,180,252,0.6)" }}
                 >
                   New Password
                 </label>
                 <input
+                  id="reset-new-password"
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
@@ -535,12 +533,14 @@ export default function AuthScreen({ onAuth }) {
 
               <div>
                 <label
+                  htmlFor="reset-confirm-password"
                   className="block text-xs font-medium mb-2 uppercase tracking-wider"
                   style={{ color: "rgba(165,180,252,0.6)" }}
                 >
                   Confirm Password
                 </label>
                 <input
+                  id="reset-confirm-password"
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
@@ -637,12 +637,14 @@ export default function AuthScreen({ onAuth }) {
                 {mode === "register" && (
                   <div>
                     <label
+                      htmlFor="auth-username"
                       className="block text-xs font-medium mb-2 uppercase tracking-wider"
                       style={{ color: "rgba(165,180,252,0.6)" }}
                     >
                       Username
                     </label>
                     <input
+                      id="auth-username"
                       type="text"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
@@ -657,12 +659,14 @@ export default function AuthScreen({ onAuth }) {
 
                 <div>
                   <label
+                    htmlFor="auth-email"
                     className="block text-xs font-medium mb-2 uppercase tracking-wider"
                     style={{ color: "rgba(165,180,252,0.6)" }}
                   >
                     Email
                   </label>
                   <input
+                    id="auth-email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -677,6 +681,7 @@ export default function AuthScreen({ onAuth }) {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label
+                      htmlFor="auth-password"
                       className="block text-xs font-medium uppercase tracking-wider"
                       style={{ color: "rgba(165,180,252,0.6)" }}
                     >
@@ -694,6 +699,7 @@ export default function AuthScreen({ onAuth }) {
                     )}
                   </div>
                   <input
+                    id="auth-password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}

@@ -307,6 +307,7 @@ function OrbitalHub({
           <button
             onClick={onAvatarClick}
             title="Change profile picture"
+            aria-label="Change profile picture"
             className="flex items-center gap-2 rounded-full focus:outline-none group cursor-pointer"
           >
             <div className="relative">
@@ -341,7 +342,8 @@ function OrbitalHub({
           <button
             onClick={onToggleTheme}
             title={isDark ? "Light mode" : "Dark mode"}
-            className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
             style={{
               background: isDark
                 ? "rgba(129,140,248,0.14)"
@@ -358,7 +360,8 @@ function OrbitalHub({
           <button
             onClick={onLogout}
             title="Sign out"
-            className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+            aria-label="Sign out"
+            className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
             style={{
               background: isDark
                 ? "rgba(239,68,68,0.10)"
@@ -448,13 +451,16 @@ function OrbitalHub({
       </div>
 
       {/* Center hub — breathing glow */}
-      <div
+      <button
+        type="button"
         className="absolute w-20 h-20 rounded-full flex items-center justify-center cursor-pointer z-20 select-none hub-breathe"
         style={{
           background: "linear-gradient(145deg, #9f7aea, #6366f1, #3b82f6)",
         }}
         onClick={() => setShowContactsList((v) => !v)}
         title="See all chats"
+        aria-label={showContactsList ? "Close all chats" : "Open all chats"}
+        aria-expanded={showContactsList}
       >
         {/* Specular highlight — makes it look 3-D */}
         <div
@@ -512,7 +518,7 @@ function OrbitalHub({
             }}
           />
         )}
-      </div>
+      </button>
 
       {/* Room nodes */}
       {orbitRooms.map((room, index) => {
@@ -653,7 +659,8 @@ function OrbitalHub({
                 </button>
                 <button
                   onClick={() => setShowContactsList(false)}
-                  className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+                  aria-label="Close all chats"
+                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all"
                   style={{
                     color: isDark ? "rgba(238,242,255,0.4)" : "#64748b",
                   }}
@@ -964,6 +971,7 @@ function ContextMenu({
                 onReact(msg.id, emoji);
                 onClose();
               }}
+              aria-label={`React with ${emoji}`}
               className="w-9 h-9 flex items-center justify-center text-xl rounded-xl transition-all"
               style={
                 msg.reaction === emoji
@@ -1145,6 +1153,9 @@ function NewChatModal({
         onClick={onClose}
       />
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={headerTitle}
         className="relative w-full sm:w-100 max-h-[85dvh] flex flex-col overflow-hidden rounded-2xl animate-scale-in"
         style={{
           background: isDark ? darkBg1 : lightBg1,
@@ -1167,7 +1178,8 @@ function NewChatModal({
           </span>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+            aria-label="Close"
+            className="w-11 h-11 rounded-full flex items-center justify-center transition-all"
             style={{ color: isDark ? "rgba(238,242,255,0.4)" : "#64748b" }}
           >
             <X size={16} />
@@ -1534,6 +1546,9 @@ function ConfirmModal({
         onClick={onClose}
       />
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         className="relative w-full sm:w-96 overflow-hidden rounded-2xl animate-scale-in"
         style={{
           background: isDark ? darkBg2 : lightBg1,
@@ -1595,6 +1610,9 @@ function GroupMembersPanel({ members, onClose, onlineIds, avatarMap, isDark }) {
         onClick={onClose}
       />
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Group members"
         className="relative w-full sm:w-80 max-h-[75dvh] flex flex-col overflow-hidden rounded-2xl animate-scale-in"
         style={{
           background: isDark ? darkBg1 : lightBg1,
@@ -1616,7 +1634,8 @@ function GroupMembersPanel({ members, onClose, onlineIds, avatarMap, isDark }) {
           </span>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+            aria-label="Close members panel"
+            className="w-11 h-11 rounded-full flex items-center justify-center transition-all"
             style={{ color: isDark ? "rgba(238,242,255,0.4)" : "#64748b" }}
           >
             <X size={16} />
@@ -2378,6 +2397,7 @@ function ChatApp({ token, currentUser, onLogout }) {
         ref={avatarFileRef}
         type="file"
         accept="image/*"
+        aria-label="Upload profile picture"
         className="hidden"
         onChange={handleAvatarFile}
       />
@@ -2430,7 +2450,8 @@ function ChatApp({ token, currentUser, onLogout }) {
               >
                 <button
                   onClick={closeRoom}
-                  className="w-9 h-9 rounded-full flex items-center justify-center transition-all shrink-0"
+                  aria-label="Back to conversations"
+                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all shrink-0"
                   style={{
                     color: isDark ? "rgba(238,242,255,0.5)" : "#64748b",
                   }}
@@ -2522,7 +2543,8 @@ function ChatApp({ token, currentUser, onLogout }) {
                       key={i}
                       onClick={btn.onClick}
                       title={btn.title}
-                      className="w-9 h-9 rounded-full flex items-center justify-center transition-all shrink-0"
+                      aria-label={btn.title}
+                      className="w-11 h-11 rounded-full flex items-center justify-center transition-all shrink-0"
                       style={{
                         background: btn.active
                           ? isDark
@@ -2598,6 +2620,8 @@ function ChatApp({ token, currentUser, onLogout }) {
                       setShowMsgSearch(false);
                       setMsgSearch("");
                     }}
+                    aria-label="Close search"
+                    className="w-11 h-11 flex items-center justify-center shrink-0"
                     style={{
                       color: isDark ? "rgba(165,180,252,0.4)" : "#94a3b8",
                     }}
@@ -2855,6 +2879,7 @@ function ChatApp({ token, currentUser, onLogout }) {
                   }}
                   onKeyDown={handleKeyDown}
                   onBlur={stopTyping}
+                  aria-label="Message"
                   placeholder="Type a message…"
                   className="flex-1 rounded-2xl px-4 py-2.5 text-sm outline-none transition-[border-color,box-shadow] duration-150 no-scrollbar"
                   style={{
@@ -2882,7 +2907,8 @@ function ChatApp({ token, currentUser, onLogout }) {
                 <button
                   onClick={sendMessage}
                   disabled={!inputText.trim()}
-                  className="w-10 h-10 rounded-full flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                  aria-label="Send message"
+                  className="w-12 h-12 rounded-full flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
                   style={{
                     background: inputText.trim()
                       ? "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)"

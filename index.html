@@ -4,10 +4,25 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-visual" />
+    <meta name="description" content="Chatloop — real-time messaging for you and your contacts. Start DMs or group chats instantly." />
+    <meta name="theme-color" content="#070d1c" />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:title" content="Chatloop" />
+    <meta property="og:description" content="Real-time messaging for you and your contacts." />
+    <meta property="og:type" content="website" />
     <title>Chatloop</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <!-- Async font load: rel=preload triggers early fetch; onload swaps to stylesheet so it never blocks render -->
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      onload="this.onload=null;this.rel='stylesheet'"
+    />
+    <noscript>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    </noscript>
   </head>
   <body>
     <div id="root"></div>
