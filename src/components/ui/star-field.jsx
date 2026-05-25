@@ -73,7 +73,7 @@ function makeBirds(w, h) {
 }
 
 function drawCloud(ctx, x, y, scale, opacity) {
-  const r = 44 * scale;
+  const r = 72 * scale;
   const circles = [
     [x,            y,            r       ],
     [x + r * 0.88, y - r * 0.28, r * 0.76],
@@ -294,8 +294,8 @@ export default function StarField({ isDark = true }) {
         // ── Clouds ───────────────────────────────────────────────────────────────
         cloudsRef.current.forEach((cloud) => {
           cloud.x += cloud.speed * dt / 1000;
-          if (cloud.x - 130 * cloud.scale > w) {
-            cloud.x = -150 * cloud.scale;
+          if (cloud.x - 215 * cloud.scale > w) {
+            cloud.x = -245 * cloud.scale;
             cloud.y = Math.random() * h * 0.52 + h * 0.03;
           }
           drawCloud(ctx, cloud.x, cloud.y, cloud.scale, cloud.opacity);
