@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "ChatLoop",
+    "slug": "chatloop",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0f172a"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.yourcompany.chatloop",
+      "buildNumber": "1"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0f172a"
+      },
+      "package": "com.yourcompany.chatloop",
+      "versionCode": 1
+    },
+    "extra": {
+      "apiUrl": "https://your-server.com/api",
+      "socketUrl": "https://your-server.com",
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID"
+      }
+    },
+    "plugins": ["expo-secure-store"]
+  }
+}

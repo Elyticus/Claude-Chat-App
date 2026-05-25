@@ -19,7 +19,6 @@ import {
   Users,
   Copy,
   Check,
-  Hash,
   Globe,
   Lock,
   UserMinus,
@@ -3317,7 +3316,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
   const activeRoomName = activeRoom
     ? isActiveChannel
-      ? activeRoom.name || `#${activeRoom.slug}`
+      ? activeRoom.name || activeRoom.slug
       : activeRoom.is_group
         ? activeRoom.name || "Group Chat"
         : activeRoom.other_username || "Unknown"
@@ -3410,7 +3409,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             <>
               {/* Chat header */}
               <div
-                className="flex items-center gap-3 px-4 py-3.5 border-b shrink-0"
+                className="flex items-center gap-1.5 sm:gap-3 px-3 sm:px-4 py-3.5 border-b shrink-0"
                 style={{
                   borderColor: isDark ? darkBorder : lightBorderMid,
                   background: isDark ? darkBg0 : lightBg1,
@@ -3449,22 +3448,11 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    {isActiveChannel && (
-                      <Hash
-                        size={13}
-                        style={{
-                          color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8",
-                          flexShrink: 0,
-                        }}
-                      />
-                    )}
                     <span
                       className="font-semibold text-sm truncate"
                       style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
                     >
-                      {isActiveChannel
-                        ? activeRoom.slug || activeRoomName
-                        : activeRoomName}
+                      {activeRoomName}
                     </span>
                     {isActiveChannel &&
                       activeRoom.type === "private_channel" && (
@@ -3523,6 +3511,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                     onClick: () => setEditChannelModal({ name: activeRoom.name || "", description: activeRoom.description || "", slug: activeRoom.slug || "" }),
                     title: "Edit channel",
                     show: !!isActiveChannel && ROLE_LEVEL[myActiveRole] >= ROLE_LEVEL.admin,
+                    mobileHidden: true,
                   },
                   {
                     icon: copiedSlug ? <Check size={16} /> : <Copy size={16} />,
@@ -3536,6 +3525,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                     },
                     title: copiedSlug ? "Copied!" : `Copy channel address (#${activeRoom.slug})`,
                     show: !!isActiveChannel,
+                    mobileHidden: true,
                   },
                   {
                     icon: <Users size={16} />,
@@ -3564,7 +3554,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                       onClick={btn.onClick}
                       title={btn.title}
                       aria-label={btn.title}
-                      className="w-11 h-11 rounded-full flex items-center justify-center transition-all shrink-0"
+                      className={`w-9 h-9 sm:w-11 sm:h-11 rounded-full items-center justify-center transition-all shrink-0 ${btn.mobileHidden ? "hidden sm:flex" : "flex"}`}
                       style={{
                         background: btn.active
                           ? isDark
