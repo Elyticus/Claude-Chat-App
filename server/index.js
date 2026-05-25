@@ -353,7 +353,7 @@ app.delete("/api/contacts/:contactId", requireAuth, async (req, res) => {
 });
 
 // ─── Role hierarchy ───────────────────────────────────────────────────────────
-const ROLE_LEVEL = { superadmin: 4, admin: 3, moderator: 2, member: 1 };
+const ROLE_LEVEL = { owner: 4, admin: 3, moderator: 2, member: 1 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -474,7 +474,7 @@ app.delete("/api/rooms/:roomId", requireAuth, async (req, res) => {
 
   if (isChannel) {
     const myRole = await queries.getMemberRole.get(roomId, req.user.id);
-    if (myRole === "superadmin") {
+    if (myRole === "owner") {
       // Superadmin deletes the channel for everyone
       await queries.deleteRoom.run(roomId);
       notifyMembers(otherMembers, "room:deleted", { roomId });
@@ -520,7 +520,7 @@ app.post("/api/channels", requireAuth, async (req, res) => {
   const { lastInsertRowid: roomId } = await queries.createChannel.run(
     name.trim(), cleanSlug, description?.trim() || null, !!isPrivate,
   );
-  await queries.addMemberWithRole.run(roomId, req.user.id, "superadmin");
+  await queries.addMemberWithRole.run(roomId, req.user.id, "owner");
 
   notifyNewRoom(roomId, [req.user.id]);
   res.status(201).json({ roomId });
@@ -575,7 +575,7 @@ app.patch("/api/channels/:roomId/members/:userId/role", requireAuth, async (req,
 
   const targetRole = await queries.getMemberRole.get(roomId, targetId);
   if (!targetRole) return res.status(404).json({ error: "User is not a member" });
-  if (targetRole === "superadmin") return res.status(403).json({ error: "Cannot change the channel owner's role" });
+  if (targetRole === "owner") return res.status(403).json({ error: "Cannot change the channel owner's role" });
   if (ROLE_LEVEL[myRole] <= ROLE_LEVEL[targetRole]) return res.status(403).json({ error: "Insufficient permissions" });
   if (ROLE_LEVEL[myRole] <= ROLE_LEVEL[role]) return res.status(403).json({ error: "Cannot assign a role equal to or higher than yours" });
 
@@ -595,7 +595,7 @@ app.delete("/api/channels/:roomId/members/:userId", requireAuth, async (req, res
 
   const targetRole = await queries.getMemberRole.get(roomId, targetId);
   if (!targetRole) return res.status(404).json({ error: "User is not a member" });
-  if (targetRole === "superadmin") return res.status(403).json({ error: "Cannot kick the channel owner" });
+  if (targetRole === "owner") return res.status(403).json({ error: "Cannot kick the channel owner" });
   if (ROLE_LEVEL[myRole] <= ROLE_LEVEL[targetRole]) return res.status(403).json({ error: "Insufficient permissions" });
 
   await queries.removeMember.run(roomId, targetId);

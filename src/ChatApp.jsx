@@ -85,7 +85,7 @@ function formatDateSeparator(ts) {
 
 const REACTIONS = ["🔥", "🙌", "❤️", "😀", "😝", "👍"];
 
-const ROLE_LEVEL = { superadmin: 4, admin: 3, moderator: 2, member: 1 };
+const ROLE_LEVEL = { owner: 4, admin: 3, moderator: 2, member: 1 };
 
 function toSlug(name) {
   return name
@@ -99,7 +99,7 @@ function toSlug(name) {
 
 function roleBadge(role, isDark) {
   const styles = {
-    superadmin: { bg: isDark ? "rgba(251,191,36,0.15)" : "rgba(251,191,36,0.18)", color: "#fbbf24" },
+    owner: { bg: isDark ? "rgba(251,191,36,0.15)" : "rgba(251,191,36,0.18)", color: "#fbbf24" },
     admin:      { bg: isDark ? "rgba(167,139,250,0.15)" : "rgba(124,58,237,0.12)", color: isDark ? "#a78bfa" : "#7c3aed" },
     moderator:  { bg: isDark ? "rgba(34,211,238,0.12)" : "rgba(8,145,178,0.10)",  color: isDark ? "#22d3ee" : "#0891b2" },
   };
@@ -1882,11 +1882,11 @@ function GroupMembersPanel({
 
   function canAct(targetRole) {
     if (!myRole || !isChannel) return false;
-    return ROLE_LEVEL[myRole] > ROLE_LEVEL[targetRole] && targetRole !== "superadmin";
+    return ROLE_LEVEL[myRole] > ROLE_LEVEL[targetRole] && targetRole !== "owner";
   }
 
   function nextRole(current) {
-    if (myRole === "superadmin") {
+    if (myRole === "owner") {
       if (current === "member") return "moderator";
       if (current === "moderator") return "admin";
       if (current === "admin") return "member";
@@ -2560,7 +2560,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     const room = rooms.find((r) => r.id === roomId);
     const isGroup = !!room?.is_group;
     const isChannel = room?.type === "channel" || room?.type === "private_channel";
-    const amOwner = isChannel && room?.role === "superadmin";
+    const amOwner = isChannel && room?.role === "owner";
     setConfirmModal({
       title: isChannel
         ? amOwner ? "Delete channel?" : "Leave channel?"
@@ -2962,7 +2962,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                     active: false,
                     onClick: () => handleDeleteRoom(activeRoomId),
                     title: isActiveChannel
-                      ? (myActiveRole === "superadmin" ? "Delete channel" : "Leave channel")
+                      ? (myActiveRole === "owner" ? "Delete channel" : "Leave channel")
                       : "Delete chat",
                     danger: true,
                     show: true,
