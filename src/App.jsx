@@ -644,7 +644,9 @@ function OrbitalHub({
                           {!!room.is_group && !!room.is_new ? (
                             <span className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.9)]" />
                           ) : (
-                            isRecent && <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                            isRecent && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                            )
                           )}
                         </div>
                       </button>
@@ -1123,9 +1125,16 @@ function NewChatModal({
 
 // ─── Confirm Modal ────────────────────────────────────────────────────────────
 
-function ConfirmModal({ title, body, confirmLabel, onConfirm, onClose, isDark }) {
+function ConfirmModal({
+  title,
+  body,
+  confirmLabel,
+  onConfirm,
+  onClose,
+  isDark,
+}) {
   return (
-    <div className="fixed inset-0 z-[600] flex items-end sm:items-center justify-center p-4">
+    <div className="fixed inset-0 z-600 flex items-end sm:items-center justify-center p-4">
       <div
         className={`absolute inset-0 backdrop-blur-sm ${isDark ? "bg-black/80" : "bg-slate-900/40"}`}
         onClick={onClose}
@@ -1134,10 +1143,14 @@ function ConfirmModal({ title, body, confirmLabel, onConfirm, onClose, isDark })
         className={`relative border rounded-2xl w-full sm:w-96 shadow-2xl overflow-hidden transition-colors duration-300 ${isDark ? "bg-[#111] border-white/10" : "bg-white border-black/10"}`}
       >
         <div className="px-6 pt-6 pb-4">
-          <p className={`font-semibold text-base ${isDark ? "text-white" : "text-black"}`}>
+          <p
+            className={`font-semibold text-base ${isDark ? "text-white" : "text-black"}`}
+          >
             {title}
           </p>
-          <p className={`text-sm mt-2 leading-relaxed ${isDark ? "text-white/50" : "text-black/60"}`}>
+          <p
+            className={`text-sm mt-2 leading-relaxed ${isDark ? "text-white/50" : "text-black/60"}`}
+          >
             {body}
           </p>
         </div>
@@ -1149,7 +1162,10 @@ function ConfirmModal({ title, body, confirmLabel, onConfirm, onClose, isDark })
             Cancel
           </button>
           <button
-            onClick={() => { onConfirm(); onClose(); }}
+            onClick={() => {
+              onConfirm();
+              onClose();
+            }}
             className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all bg-red-500/15 text-red-400 hover:bg-red-500/25"
           >
             {confirmLabel}
@@ -1764,7 +1780,9 @@ function ChatApp({ token, currentUser, onLogout }) {
     setDisplayRoomId(roomId);
     setActiveRoomId(roomId);
     setUnreadCounts((prev) => ({ ...prev, [roomId]: 0 }));
-    setRooms((prev) => prev.map((r) => (r.id === roomId && r.is_new ? { ...r, is_new: 0 } : r)));
+    setRooms((prev) =>
+      prev.map((r) => (r.id === roomId && r.is_new ? { ...r, is_new: 0 } : r)),
+    );
     setShowMsgSearch(false);
     setMsgSearch("");
     stopTyping();
@@ -2012,7 +2030,9 @@ function ChatApp({ token, currentUser, onLogout }) {
                     if (msg.system) {
                       return (
                         <div key={msg.id} className="flex justify-center py-1">
-                          <span className={`text-xs px-3 py-1 rounded-full ${isDark ? "bg-white/8 text-white/35" : "bg-black/6 text-black/45"}`}>
+                          <span
+                            className={`text-xs px-3 py-1 rounded-full ${isDark ? "bg-white/8 text-white/35" : "bg-black/6 text-black/45"}`}
+                          >
                             {msg.text}
                           </span>
                         </div>
@@ -2172,7 +2192,6 @@ function ChatApp({ token, currentUser, onLogout }) {
           isDark={isDark}
         />
       )}
-
     </div>
   );
 }
