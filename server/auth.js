@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 
-const SECRET = process.env.JWT_SECRET || "chatloop-dev-secret-change-in-production";
+const SECRET = process.env.JWT_SECRET;
 
 export function generateToken(user) {
   return jwt.sign(

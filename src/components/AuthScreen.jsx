@@ -13,7 +13,16 @@ export default function AuthScreen({ onAuth }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
-  const [codeDigits, setCodeDigits] = useState(["", "", "", "", "", ""]);
+  const [codeDigits, setCodeDigits] = useState([
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ]);
   const [resendCooldown, setResendCooldown] = useState(0);
   const inputRefs = useRef([]);
 
@@ -51,7 +60,7 @@ export default function AuthScreen({ onAuth }) {
   async function handleVerify(e) {
     e.preventDefault();
     const code = codeDigits.join("");
-    if (code.length !== 6) return;
+    if (code.length !== 8) return;
     setError("");
     setLoading(true);
     try {
@@ -59,7 +68,7 @@ export default function AuthScreen({ onAuth }) {
       onAuth(data);
     } catch (err) {
       setError(err.message);
-      setCodeDigits(["", "", "", "", "", ""]);
+      setCodeDigits(["", "", "", "", "", "", "", ""]);
       setTimeout(() => inputRefs.current[0]?.focus(), 50);
     } finally {
       setLoading(false);
@@ -72,7 +81,7 @@ export default function AuthScreen({ onAuth }) {
     try {
       await api.resendCode(email);
       setResendCooldown(60);
-      setCodeDigits(["", "", "", "", "", ""]);
+      setCodeDigits(["", "", "", "", "", "", "", ""]);
       setTimeout(() => inputRefs.current[0]?.focus(), 50);
     } catch (err) {
       setError(err.message);
@@ -87,7 +96,7 @@ export default function AuthScreen({ onAuth }) {
       await api.forgotPassword(email);
       setStep("forgot-code");
       setResendCooldown(60);
-      setCodeDigits(["", "", "", "", "", ""]);
+      setCodeDigits(["", "", "", "", "", "", "", ""]);
       setNewPassword("");
       setConfirmPassword("");
       setTimeout(() => inputRefs.current[0]?.focus(), 50);
@@ -105,7 +114,7 @@ export default function AuthScreen({ onAuth }) {
       return;
     }
     const code = codeDigits.join("");
-    if (code.length !== 6) return;
+    if (code.length !== 8) return;
     setError("");
     setLoading(true);
     try {
@@ -114,7 +123,7 @@ export default function AuthScreen({ onAuth }) {
       switchMode("login");
     } catch (err) {
       setError(err.message);
-      setCodeDigits(["", "", "", "", "", ""]);
+      setCodeDigits(["", "", "", "", "", "", "", ""]);
       setTimeout(() => inputRefs.current[0]?.focus(), 50);
     } finally {
       setLoading(false);
@@ -127,7 +136,7 @@ export default function AuthScreen({ onAuth }) {
     try {
       await api.forgotPassword(email);
       setResendCooldown(60);
-      setCodeDigits(["", "", "", "", "", ""]);
+      setCodeDigits(["", "", "", "", "", "", "", ""]);
       setTimeout(() => inputRefs.current[0]?.focus(), 50);
     } catch (err) {
       setError(err.message);
@@ -139,7 +148,7 @@ export default function AuthScreen({ onAuth }) {
     const next = [...codeDigits];
     next[index] = digit;
     setCodeDigits(next);
-    if (digit && index < 5) {
+    if (digit && index < 7) {
       inputRefs.current[index + 1]?.focus();
     }
   }
@@ -151,11 +160,14 @@ export default function AuthScreen({ onAuth }) {
   }
 
   function handleDigitPaste(e) {
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
-    if (pasted.length === 6) {
+    const pasted = e.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 8);
+    if (pasted.length === 8) {
       e.preventDefault();
       setCodeDigits(pasted.split(""));
-      inputRefs.current[5]?.focus();
+      inputRefs.current[7]?.focus();
     }
   }
 
@@ -163,7 +175,7 @@ export default function AuthScreen({ onAuth }) {
     setMode(m);
     setStep("form");
     setError("");
-    setCodeDigits(["", "", "", "", "", ""]);
+    setCodeDigits(["", "", "", "", "", "", "", ""]);
     setNewPassword("");
     setConfirmPassword("");
   }
@@ -171,7 +183,7 @@ export default function AuthScreen({ onAuth }) {
   function backToRegister() {
     setStep("form");
     setError("");
-    setCodeDigits(["", "", "", "", "", ""]);
+    setCodeDigits(["", "", "", "", "", "", "", ""]);
   }
 
   function goToForgot() {
@@ -208,7 +220,7 @@ export default function AuthScreen({ onAuth }) {
           onChange={(e) => handleDigitChange(i, e.target.value)}
           onKeyDown={(e) => handleDigitKeyDown(i, e)}
           onPaste={handleDigitPaste}
-          className="w-11 h-13 text-center text-[#eef2ff] text-xl font-bold rounded-xl outline-none cursor-text bg-[#10192e] border border-indigo-500/15"
+          className="w-11 h-13 text-center text-[#eef2ff] text-xl font-bold rounded-xl outline-none cursor-text bg-popover border border-indigo-500/15"
           {...focusProps}
         />
       ))}
@@ -222,28 +234,46 @@ export default function AuthScreen({ onAuth }) {
     >
       {/* Ambient glow blobs — static (no animation) so filter:blur is composited once */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute" style={{
-          top: "-25%", left: "-15%",
-          width: "72%", height: "72%",
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(99,102,241,0.22) 0%, transparent 70%)",
-          filter: "blur(60px)",
-        }} />
-        <div className="absolute" style={{
-          bottom: "-25%", right: "-15%",
-          width: "72%", height: "72%",
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%)",
-          filter: "blur(60px)",
-        }} />
-        <div className="absolute" style={{
-          top: "45%", left: "45%",
-          transform: "translate(-50%,-50%)",
-          width: "56%", height: "56%",
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%)",
-          filter: "blur(70px)",
-        }} />
+        <div
+          className="absolute"
+          style={{
+            top: "-25%",
+            left: "-15%",
+            width: "72%",
+            height: "72%",
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle, rgba(99,102,241,0.22) 0%, transparent 70%)",
+            filter: "blur(60px)",
+          }}
+        />
+        <div
+          className="absolute"
+          style={{
+            bottom: "-25%",
+            right: "-15%",
+            width: "72%",
+            height: "72%",
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%)",
+            filter: "blur(60px)",
+          }}
+        />
+        <div
+          className="absolute"
+          style={{
+            top: "45%",
+            left: "45%",
+            transform: "translate(-50%,-50%)",
+            width: "56%",
+            height: "56%",
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%)",
+            filter: "blur(70px)",
+          }}
+        />
       </div>
 
       {/* Background orbital rings */}
@@ -292,19 +322,28 @@ export default function AuthScreen({ onAuth }) {
             <div
               className="relative w-14 h-14 rounded-2xl flex items-center justify-center"
               style={{
-                background: "linear-gradient(145deg, #9f7aea, #6366f1, #3b82f6)",
+                background:
+                  "linear-gradient(145deg, #9f7aea, #6366f1, #3b82f6)",
               }}
             >
               {/* Specular highlight */}
               <div
                 className="absolute inset-0 rounded-2xl pointer-events-none"
                 style={{
-                  background: "linear-gradient(135deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.06) 50%, transparent 100%)",
+                  background:
+                    "linear-gradient(135deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.06) 50%, transparent 100%)",
                 }}
               />
-              <MessageCircle size={24} className="text-white relative z-10" strokeWidth={1.8} />
+              <MessageCircle
+                size={24}
+                className="text-white relative z-10"
+                strokeWidth={1.8}
+              />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight" style={{ color: "#eef2ff" }}>
+            <h1
+              className="text-2xl font-bold tracking-tight"
+              style={{ color: "#eef2ff" }}
+            >
               Chatloop<span style={{ color: "#818cf8" }}>.</span>
             </h1>
           </div>
@@ -312,11 +351,17 @@ export default function AuthScreen({ onAuth }) {
           {step === "verify" ? (
             <form onSubmit={handleVerify} className="space-y-6">
               <div className="text-center space-y-1.5">
-                <p className="font-semibold text-sm" style={{ color: "#eef2ff" }}>
+                <p
+                  className="font-semibold text-sm"
+                  style={{ color: "#eef2ff" }}
+                >
                   Check your inbox
                 </p>
-                <p className="text-xs leading-relaxed" style={{ color: "rgba(238,242,255,0.45)" }}>
-                  We sent a 6-digit code to
+                <p
+                  className="text-xs leading-relaxed"
+                  style={{ color: "rgba(238,242,255,0.45)" }}
+                >
+                  We sent an 8-digit code to
                 </p>
                 <p className="text-sm font-medium" style={{ color: "#a5b4fc" }}>
                   {email}
@@ -340,10 +385,11 @@ export default function AuthScreen({ onAuth }) {
 
               <button
                 type="submit"
-                disabled={loading || codeDigits.join("").length !== 6}
+                disabled={loading || codeDigits.join("").length !== 8}
                 className="w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-40 transition-all hover:opacity-90 active:scale-[0.98]"
                 style={{
-                  background: "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)",
+                  background:
+                    "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)",
                   boxShadow: "0 4px 20px rgba(99,102,241,0.4)",
                 }}
               >
@@ -366,17 +412,25 @@ export default function AuthScreen({ onAuth }) {
                   className="text-xs transition-colors hover:text-indigo-300 disabled:pointer-events-none"
                   style={{ color: "rgba(238,242,255,0.35)" }}
                 >
-                  {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
+                  {resendCooldown > 0
+                    ? `Resend in ${resendCooldown}s`
+                    : "Resend code"}
                 </button>
               </div>
             </form>
           ) : step === "forgot" ? (
             <form onSubmit={handleForgotRequest} className="space-y-6">
               <div className="text-center space-y-1.5">
-                <p className="font-semibold text-sm" style={{ color: "#eef2ff" }}>
+                <p
+                  className="font-semibold text-sm"
+                  style={{ color: "#eef2ff" }}
+                >
                   Forgot your password?
                 </p>
-                <p className="text-xs leading-relaxed" style={{ color: "rgba(238,242,255,0.45)" }}>
+                <p
+                  className="text-xs leading-relaxed"
+                  style={{ color: "rgba(238,242,255,0.45)" }}
+                >
                   Enter your email and we'll send a reset code.
                 </p>
               </div>
@@ -418,7 +472,8 @@ export default function AuthScreen({ onAuth }) {
                 disabled={loading}
                 className="w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-40 transition-all hover:opacity-90 active:scale-[0.98]"
                 style={{
-                  background: "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)",
+                  background:
+                    "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)",
                   boxShadow: "0 4px 20px rgba(99,102,241,0.4)",
                 }}
               >
@@ -439,10 +494,16 @@ export default function AuthScreen({ onAuth }) {
           ) : step === "forgot-code" ? (
             <form onSubmit={handleResetPassword} className="space-y-5">
               <div className="text-center space-y-1.5">
-                <p className="font-semibold text-sm" style={{ color: "#eef2ff" }}>
+                <p
+                  className="font-semibold text-sm"
+                  style={{ color: "#eef2ff" }}
+                >
                   Set new password
                 </p>
-                <p className="text-xs leading-relaxed" style={{ color: "rgba(238,242,255,0.45)" }}>
+                <p
+                  className="text-xs leading-relaxed"
+                  style={{ color: "rgba(238,242,255,0.45)" }}
+                >
                   Enter the code sent to
                 </p>
                 <p className="text-sm font-medium" style={{ color: "#a5b4fc" }}>
@@ -466,7 +527,7 @@ export default function AuthScreen({ onAuth }) {
                   placeholder="••••••••"
                   autoComplete="new-password"
                   required
-                  minLength={6}
+                  minLength={8}
                   className={inputCls}
                   {...focusProps}
                 />
@@ -508,13 +569,14 @@ export default function AuthScreen({ onAuth }) {
                 type="submit"
                 disabled={
                   loading ||
-                  codeDigits.join("").length !== 6 ||
+                  codeDigits.join("").length !== 8 ||
                   !newPassword ||
                   !confirmPassword
                 }
                 className="w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-40 transition-all hover:opacity-90 active:scale-[0.98]"
                 style={{
-                  background: "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)",
+                  background:
+                    "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)",
                   boxShadow: "0 4px 20px rgba(99,102,241,0.4)",
                 }}
               >
@@ -537,7 +599,9 @@ export default function AuthScreen({ onAuth }) {
                   className="text-xs transition-colors hover:text-indigo-300 disabled:pointer-events-none"
                   style={{ color: "rgba(238,242,255,0.35)" }}
                 >
-                  {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
+                  {resendCooldown > 0
+                    ? `Resend in ${resendCooldown}s`
+                    : "Resend code"}
                 </button>
               </div>
             </form>
@@ -634,9 +698,11 @@ export default function AuthScreen({ onAuth }) {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    autoComplete={mode === "login" ? "current-password" : "new-password"}
+                    autoComplete={
+                      mode === "login" ? "current-password" : "new-password"
+                    }
                     required
-                    minLength={6}
+                    minLength={8}
                     className={inputCls}
                     {...focusProps}
                   />
@@ -673,7 +739,8 @@ export default function AuthScreen({ onAuth }) {
                   disabled={loading}
                   className="w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-40 transition-all hover:opacity-90 active:scale-[0.98] mt-1"
                   style={{
-                    background: "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)",
+                    background:
+                      "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)",
                     boxShadow: "0 4px 24px rgba(99,102,241,0.45)",
                   }}
                 >
@@ -690,7 +757,7 @@ export default function AuthScreen({ onAuth }) {
                 style={{ color: "rgba(238,242,255,0.22)" }}
               >
                 {mode === "register"
-                  ? "We'll send a verification code to your email."
+                  ? "We'll send an 8-digit verification code to your email."
                   : "Welcome back — let's chat."}
               </p>
             </>

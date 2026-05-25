@@ -4,6 +4,10 @@ const { Pool } = pkg;
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+  min: 2,
+  max: 10,
+  idleTimeoutMillis: 30_000,
+  connectionTimeoutMillis: 5_000,
 });
 
 export async function initDb() {
@@ -175,10 +179,22 @@ export const queries = {
   },
 
   getRoomMessages: {
-    all: (roomId) =>
-      q(`SELECT m.id, m.text, m.reaction, m.created_at, u.id AS user_id, u.username
+    // Returns the 50 most recent messages before `before` (epoch seconds), plus a hasMore flag.
+    // Fetches 51 rows; if exactly 51 come back there are older messages to load.
+    page: (roomId, before) => {
+      const params = before ? [roomId, before] : [roomId];
+      const cursor = before ? "AND m.created_at < $2" : "";
+      return q(
+        `SELECT m.id, m.text, m.reaction, m.created_at, u.id AS user_id, u.username
          FROM messages m JOIN users u ON u.id = m.user_id
-         WHERE m.room_id = $1 ORDER BY m.created_at ASC LIMIT 200`, [roomId]).then(r => r.rows),
+         WHERE m.room_id = $1 ${cursor}
+         ORDER BY m.created_at DESC LIMIT 51`,
+        params,
+      ).then((r) => {
+        const hasMore = r.rows.length > 50;
+        return { messages: r.rows.slice(0, 50).reverse(), hasMore };
+      });
+    },
   },
 
   isMember:      { get: (roomId, userId) => q("SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2", [roomId, userId]).then(r => r.rows[0] ?? null) },

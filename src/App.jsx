@@ -1728,6 +1728,8 @@ function ChatApp({ token, currentUser, onLogout }) {
   const [myAvatar, setMyAvatar] = useState(() => currentUser.avatar || null);
   const [groupMembersPanel, setGroupMembersPanel] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
+  const [hasMoreMessages, setHasMoreMessages] = useState({});
+  const [loadingMore, setLoadingMore] = useState({});
 
   function toggleTheme() {
     setIsDark((prev) => {
@@ -1900,6 +1902,7 @@ function ChatApp({ token, currentUser, onLogout }) {
     });
 
     s.on("room:deleted", ({ roomId }) => {
+      loadedRoomsRef.current.delete(roomId);
       setRooms((prev) => prev.filter((r) => r.id !== roomId));
       if (activeRoomIdRef.current === roomId) {
         setActiveRoomId(null);
@@ -1943,6 +1946,19 @@ function ChatApp({ token, currentUser, onLogout }) {
       if (userId === currentUser.id) setMyAvatar(avatar);
     });
 
+    s.on("message:error", ({ tempId }) => {
+      // Remove the optimistic temp message that the server rejected
+      setMessages((prev) => {
+        const next = { ...prev };
+        for (const roomId of Object.keys(next)) {
+          if (Array.isArray(next[roomId])) {
+            next[roomId] = next[roomId].filter((m) => m.id !== tempId);
+          }
+        }
+        return next;
+      });
+    });
+
     return () => {
       s.off("message:new");
       s.off("message:ack");
@@ -1956,6 +1972,7 @@ function ChatApp({ token, currentUser, onLogout }) {
       s.off("contact:request");
       s.off("contact:accepted");
       s.off("user:avatar");
+      s.off("message:error");
     };
   }, [token, currentUser.id, currentUser.username]);
 
@@ -1987,9 +2004,10 @@ function ChatApp({ token, currentUser, onLogout }) {
     loadedRoomsRef.current.add(activeRoomId);
     api
       .getMessages(activeRoomId)
-      .then((msgs) =>
-        setMessages((prev) => ({ ...prev, [activeRoomId]: msgs })),
-      )
+      .then(({ messages: msgs, hasMore }) => {
+        setMessages((prev) => ({ ...prev, [activeRoomId]: msgs }));
+        setHasMoreMessages((prev) => ({ ...prev, [activeRoomId]: hasMore }));
+      })
       .catch((err) => {
         loadedRoomsRef.current.delete(activeRoomId);
         console.error(err);
@@ -2022,9 +2040,29 @@ function ChatApp({ token, currentUser, onLogout }) {
     }
   }, [activeRoomId]);
 
+  async function loadEarlierMessages() {
+    if (!displayRoomId || loadingMore[displayRoomId]) return;
+    const earliest = messages[displayRoomId]?.[0];
+    if (!earliest) return;
+    setLoadingMore((prev) => ({ ...prev, [displayRoomId]: true }));
+    try {
+      const { messages: older, hasMore } = await api.getMessages(displayRoomId, earliest.created_at);
+      setMessages((prev) => ({
+        ...prev,
+        [displayRoomId]: [...older, ...(prev[displayRoomId] || [])],
+      }));
+      setHasMoreMessages((prev) => ({ ...prev, [displayRoomId]: hasMore }));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingMore((prev) => ({ ...prev, [displayRoomId]: false }));
+    }
+  }
+
   const sendMessage = useCallback(() => {
     const text = inputText.trim();
     if (!text || !activeRoomId || !socketRef.current) return;
+    if (text.length > 4000) return;
     const tempId = `temp_${Date.now()}`;
     const tempMsg = {
       id: tempId,
@@ -2096,7 +2134,7 @@ function ChatApp({ token, currentUser, onLogout }) {
   }
 
   function resizeImage(file, maxPx) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const img = new Image();
       const url = URL.createObjectURL(file);
       img.onload = () => {
@@ -2109,6 +2147,10 @@ function ChatApp({ token, currentUser, onLogout }) {
           .getContext("2d")
           .drawImage(img, 0, 0, canvas.width, canvas.height);
         resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("Failed to load image"));
       };
       img.src = url;
     });
@@ -2152,6 +2194,7 @@ function ChatApp({ token, currentUser, onLogout }) {
           await api.deleteRoom(roomId);
         } catch (err) {
           console.error(err);
+          api.getRooms().then(setRooms).catch(console.error);
         }
       },
     });
@@ -2261,9 +2304,8 @@ function ChatApp({ token, currentUser, onLogout }) {
   // ── Derived ──────────────────────────────────────────────────────────────────
 
   const contacts = allUsers.filter((u) => u.contact_status === "accepted");
-  const pendingRequestCount = allUsers.filter(
-    (u) => u.contact_status === "pending_received",
-  ).length;
+  const pendingUsers = allUsers.filter((u) => u.contact_status === "pending_received");
+  const pendingRequestCount = pendingUsers.length;
   const avatarMap = useMemo(() => {
     const map = {};
     allUsers.forEach((u) => {
@@ -2277,8 +2319,8 @@ function ChatApp({ token, currentUser, onLogout }) {
   const activeMessages = displayRoomId ? messages[displayRoomId] || [] : [];
   const displayedMessages =
     showMsgSearch && msgSearch.trim()
-      ? activeMessages.filter((m) =>
-          m.text.toLowerCase().includes(msgSearch.toLowerCase()),
+      ? activeMessages.filter(
+          (m) => !m.system && m.text.toLowerCase().includes(msgSearch.toLowerCase()),
         )
       : activeMessages;
 
@@ -2325,9 +2367,7 @@ function ChatApp({ token, currentUser, onLogout }) {
         isDark={isDark}
         onToggleTheme={toggleTheme}
         pendingCount={pendingRequestCount}
-        pendingUsers={allUsers.filter(
-          (u) => u.contact_status === "pending_received",
-        )}
+        pendingUsers={pendingUsers}
         onAcceptContact={handleAcceptContact}
         onRemoveContact={handleRemoveContact}
         avatarMap={avatarMap}
@@ -2590,6 +2630,22 @@ function ChatApp({ token, currentUser, onLogout }) {
                 {/* Scroll container */}
                 <div className="absolute inset-0 overflow-y-auto px-4 py-4 no-scrollbar">
                   <div className="relative flex flex-col justify-end min-h-full gap-2.5">
+                    {hasMoreMessages[displayRoomId] && (
+                      <div className="flex justify-center py-2 shrink-0">
+                        <button
+                          onClick={loadEarlierMessages}
+                          disabled={loadingMore[displayRoomId]}
+                          className="text-xs px-4 py-1.5 rounded-full transition-all disabled:opacity-40"
+                          style={{
+                            color: isDark ? "rgba(165,180,252,0.7)" : "#6366f1",
+                            background: isDark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.06)",
+                            border: `1px solid ${isDark ? "rgba(99,102,241,0.18)" : "rgba(99,102,241,0.2)"}`,
+                          }}
+                        >
+                          {loadingMore[displayRoomId] ? "Loading…" : "↑ Load earlier messages"}
+                        </button>
+                      </div>
+                    )}
                     {displayedMessages.length === 0 &&
                       messages[activeRoomId] !== undefined && (
                         <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
@@ -2821,7 +2877,6 @@ function ChatApp({ token, currentUser, onLogout }) {
                       ? "1px solid rgba(99,102,241,0.15)"
                       : "1px solid rgba(226,232,240,1)";
                     e.target.style.boxShadow = "none";
-                    stopTyping();
                   }}
                 />
                 <button

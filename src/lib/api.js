@@ -46,7 +46,10 @@ export const api = {
 
   getRooms: () => request("GET", "/rooms"),
 
-  getMessages: (roomId) => request("GET", `/rooms/${roomId}/messages`),
+  getMessages: (roomId, before) => {
+    const qs = before ? `?before=${before}` : "";
+    return request("GET", `/rooms/${roomId}/messages${qs}`);
+  },
 
   createDM: (targetUserId) =>
     request("POST", "/rooms/dm", { targetUserId }),

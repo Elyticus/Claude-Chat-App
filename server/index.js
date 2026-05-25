@@ -4,7 +4,10 @@ import { Server } from "socket.io";
 import cors from "cors";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
+import morgan from "morgan";
+import rateLimit from "express-rate-limit";
 import "dotenv/config";
+import { randomInt } from "crypto";
 
 import { queries, initDb } from "./db.js";
 import { generateToken, verifyToken } from "./auth.js";
@@ -113,15 +116,43 @@ async function sendPasswordResetEmail(email, username, code) {
 }
 
 function generateCode() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  // 8-digit numeric: 90M possibilities, much harder to brute-force than 6-digit (1M)
+  return randomInt(10_000_000, 100_000_000).toString();
 }
 
 const io = new Server(httpServer, {
   cors: { origin: CLIENT_ORIGIN, credentials: true },
 });
 
+app.use(morgan("dev"));
 app.use(cors({ origin: CLIENT_ORIGIN, credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: "512kb" }));
+
+// ─── Rate limiters ────────────────────────────────────────────────────────────
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: "Too many attempts — try again in 15 minutes" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { error: "Too many registrations from this IP — try again later" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const contactLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  message: { error: "Too many contact requests — slow down" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // ─── Presence ──────────────────────────────────────────────────────────────────
 const online = new Map();
@@ -153,13 +184,13 @@ function requireAuth(req, res, next) {
 
 app.get("/", (req, res) => res.json({ status: "ok", service: "Chatloop API" }));
 
-app.post("/api/auth/register", async (req, res) => {
+app.post("/api/auth/register", registerLimiter, async (req, res) => {
   const { username, email, password } = req.body ?? {};
   if (!username?.trim() || !email?.trim() || !password) {
     return res.status(400).json({ error: "username, email, and password are required" });
   }
-  if (password.length < 6) {
-    return res.status(400).json({ error: "Password must be at least 6 characters" });
+  if (password.length < 8 || !/\d/.test(password)) {
+    return res.status(400).json({ error: "Password must be at least 8 characters and contain at least one number" });
   }
 
   const taken = (await queries.getUserByEmail.get(email)) || (await queries.getUserByUsername.get(username));
@@ -174,7 +205,7 @@ app.post("/api/auth/register", async (req, res) => {
   res.status(200).json({ pending: true, email: email.trim() });
 });
 
-app.post("/api/auth/verify", async (req, res) => {
+app.post("/api/auth/verify", authLimiter, async (req, res) => {
   const { email, code } = req.body ?? {};
   if (!email || !code) return res.status(400).json({ error: "email and code are required" });
 
@@ -193,7 +224,7 @@ app.post("/api/auth/verify", async (req, res) => {
   res.status(201).json({ token: generateToken(user), user });
 });
 
-app.post("/api/auth/resend", async (req, res) => {
+app.post("/api/auth/resend", authLimiter, async (req, res) => {
   const { email } = req.body ?? {};
   if (!email) return res.status(400).json({ error: "email is required" });
 
@@ -208,7 +239,7 @@ app.post("/api/auth/resend", async (req, res) => {
   res.json({ ok: true });
 });
 
-app.post("/api/auth/forgot-password", async (req, res) => {
+app.post("/api/auth/forgot-password", authLimiter, async (req, res) => {
   const { email } = req.body ?? {};
   if (!email) return res.status(400).json({ error: "email is required" });
 
@@ -223,13 +254,13 @@ app.post("/api/auth/forgot-password", async (req, res) => {
   res.json({ ok: true });
 });
 
-app.post("/api/auth/reset-password", async (req, res) => {
+app.post("/api/auth/reset-password", authLimiter, async (req, res) => {
   const { email, code, password } = req.body ?? {};
   if (!email || !code || !password) {
     return res.status(400).json({ error: "email, code, and password are required" });
   }
-  if (password.length < 6) {
-    return res.status(400).json({ error: "Password must be at least 6 characters" });
+  if (password.length < 8 || !/\d/.test(password)) {
+    return res.status(400).json({ error: "Password must be at least 8 characters and contain at least one number" });
   }
 
   const token = await queries.getResetToken.get(email);
@@ -247,7 +278,7 @@ app.post("/api/auth/reset-password", async (req, res) => {
   res.json({ ok: true });
 });
 
-app.post("/api/auth/login", async (req, res) => {
+app.post("/api/auth/login", authLimiter, async (req, res) => {
   const { email, password } = req.body ?? {};
   if (!email || !password) {
     return res.status(400).json({ error: "email and password are required" });
@@ -271,8 +302,8 @@ app.get("/api/users", requireAuth, async (req, res) => {
 
 app.post("/api/users/me/avatar", requireAuth, async (req, res) => {
   const { avatar } = req.body ?? {};
-  if (!avatar || !avatar.startsWith("data:image/")) {
-    return res.status(400).json({ error: "Invalid image" });
+  if (!avatar || !/^data:image\/(jpeg|png|webp|gif);base64,/.test(avatar)) {
+    return res.status(400).json({ error: "Invalid image — only JPEG, PNG, WebP, and GIF are allowed" });
   }
   if (avatar.length > 500_000) {
     return res.status(400).json({ error: "Image too large (max ~375 KB)" });
@@ -282,7 +313,7 @@ app.post("/api/users/me/avatar", requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
-app.post("/api/contacts/request", requireAuth, async (req, res) => {
+app.post("/api/contacts/request", requireAuth, contactLimiter, async (req, res) => {
   const { contactId } = req.body ?? {};
   if (!contactId || Number(contactId) === req.user.id) {
     return res.status(400).json({ error: "Invalid contactId" });
@@ -333,6 +364,14 @@ function notifyNewRoom(roomId, memberIds, extra = {}) {
         sock.join(`room:${roomId}`);
         sock.emit("room:new", { roomId, ...extra });
       }
+    });
+  });
+}
+
+function notifyMembers(members, event, payload) {
+  members.forEach(({ id: memberId }) => {
+    online.get(memberId)?.forEach((sid) => {
+      io.sockets.sockets.get(sid)?.emit(event, payload);
     });
   });
 }
@@ -413,7 +452,9 @@ app.get("/api/rooms/:roomId/messages", requireAuth, async (req, res) => {
     return res.status(403).json({ error: "Not a member of this room" });
   }
   await queries.markRoomSeen.run(roomId, req.user.id);
-  res.json(await queries.getRoomMessages.all(roomId));
+  const before = req.query.before ? Number(req.query.before) : null;
+  const result = await queries.getRoomMessages.page(roomId, before);
+  res.json(result);
 });
 
 app.delete("/api/rooms/:roomId", requireAuth, async (req, res) => {
@@ -424,14 +465,6 @@ app.delete("/api/rooms/:roomId", requireAuth, async (req, res) => {
 
   const allMembers = await queries.getRoomMembers.all(roomId);
   const otherMembers = allMembers.filter((m) => m.id !== req.user.id);
-
-  function notifyMembers(members, event, payload) {
-    members.forEach(({ id: memberId }) => {
-      online.get(memberId)?.forEach((sid) => {
-        io.sockets.sockets.get(sid)?.emit(event, payload);
-      });
-    });
-  }
 
   if (otherMembers.length <= 1) {
     // 2-person room (DM or group) — delete entirely for all
@@ -481,12 +514,20 @@ io.on("connection", async (socket) => {
   await queries.touchUser.run(userId);
 
   const userRooms = await queries.getUserRoomIds.all(userId);
-  userRooms.forEach(({ room_id }) => socket.join(`room:${room_id}`));
+  const roomKeys = userRooms.map(({ room_id }) => `room:${room_id}`);
+  roomKeys.forEach((key) => socket.join(key));
 
-  socket.broadcast.emit("user:status", { userId, online: true });
+  // Only notify users who share a room with this user — avoids O(n) global broadcast
+  if (roomKeys.length > 0) {
+    socket.to(roomKeys).emit("user:status", { userId, online: true });
+  }
 
   socket.on("message:send", async ({ roomId, text, tempId }) => {
     if (!text?.trim() || !roomId) return;
+    if (text.trim().length > 4000) {
+      socket.emit("message:error", { tempId, error: "Message too long (max 4,000 characters)" });
+      return;
+    }
     if (!(await queries.isMember.get(roomId, userId))) return;
 
     const { lastInsertRowid: msgId } = await queries.insertMessage.run(roomId, userId, text.trim());
@@ -523,7 +564,10 @@ io.on("connection", async (socket) => {
     markOffline(userId, socket.id);
     await queries.touchUser.run(userId);
     if (!isOnline(userId)) {
-      socket.broadcast.emit("user:status", { userId, online: false });
+      // Room-scoped: only notify users who share a room with this user
+      if (roomKeys.length > 0) {
+        io.to(roomKeys).emit("user:status", { userId, online: false });
+      }
     }
   });
 });
@@ -539,6 +583,9 @@ app.use((err, req, res, next) => {
 // ─── Start ─────────────────────────────────────────────────────────────────────
 
 async function start() {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET environment variable is required — server will not start without it");
+  }
   await initDb();
   httpServer.listen(PORT, () => console.log(`Chatloop server → http://localhost:${PORT}`));
 }
