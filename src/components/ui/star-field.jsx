@@ -74,15 +74,34 @@ function makeBirds(w, h) {
 
 function drawCloud(ctx, x, y, scale, opacity) {
   const r = 44 * scale;
+  const circles = [
+    [x,            y,            r       ],
+    [x + r * 0.88, y - r * 0.28, r * 0.76],
+    [x - r * 0.78, y - r * 0.22, r * 0.66],
+    [x + r * 1.55, y + r * 0.05, r * 0.68],
+    [x - r * 1.45, y + r * 0.08, r * 0.56],
+  ];
   ctx.save();
-  ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+
+  // Shadow underlay — one unified path so overlaps don't double-darken
+  ctx.fillStyle = `rgba(180,200,230,${opacity * 0.38})`;
   ctx.beginPath();
-  ctx.arc(x,              y,              r,          0, Math.PI * 2);
-  ctx.arc(x + r * 0.88,   y - r * 0.28,   r * 0.76,  0, Math.PI * 2);
-  ctx.arc(x - r * 0.78,   y - r * 0.22,   r * 0.66,  0, Math.PI * 2);
-  ctx.arc(x + r * 1.55,   y + r * 0.05,   r * 0.68,  0, Math.PI * 2);
-  ctx.arc(x - r * 1.45,   y + r * 0.08,   r * 0.56,  0, Math.PI * 2);
+  circles.forEach(([cx, cy, cr]) => {
+    // moveTo prevents the implicit lineTo between arcs that causes winding-rule holes
+    ctx.moveTo(cx + cr * 0.04 + cr * 0.94, cy + cr * 0.14);
+    ctx.arc(cx + cr * 0.04, cy + cr * 0.14, cr * 0.94, 0, Math.PI * 2);
+  });
   ctx.fill();
+
+  // White cloud body — single path fill, so the whole shape is one solid piece
+  ctx.fillStyle = `rgba(255,255,255,${opacity})`;
+  ctx.beginPath();
+  circles.forEach(([cx, cy, cr]) => {
+    ctx.moveTo(cx + cr, cy);
+    ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+  });
+  ctx.fill();
+
   ctx.restore();
 }
 
@@ -107,6 +126,14 @@ export default function StarField({ isDark = true }) {
   const rafRef       = useRef(null);
   const lastTimeRef  = useRef(null);
   const nextCometRef = useRef(2500);
+  const isDarkRef    = useRef(isDark);
+  const darkGradsRef = useRef(null);
+
+  // Sync the ref without restarting the canvas loop
+  useEffect(() => {
+    isDarkRef.current = isDark;
+    lastTimeRef.current = null; // reset dt so first frame of new mode starts clean
+  }, [isDark]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -115,9 +142,29 @@ export default function StarField({ isDark = true }) {
     function resize() {
       canvas.width  = canvas.offsetWidth;
       canvas.height = canvas.offsetHeight;
-      starsRef.current  = makeStars(canvas.width, canvas.height);
-      cloudsRef.current = makeClouds(canvas.width, canvas.height);
-      birdsRef.current  = makeBirds(canvas.width, canvas.height);
+      const w = canvas.width, h = canvas.height;
+      starsRef.current  = makeStars(w, h);
+      cloudsRef.current = makeClouds(w, h);
+      birdsRef.current  = makeBirds(w, h);
+
+      // Pre-bake dark-mode atmospheric gradients once per resize
+      const g1 = ctx.createRadialGradient(w * -0.05 + w * 0.34, h * -0.05 + h * 0.34, 0, w * -0.05 + w * 0.34, h * -0.05 + h * 0.34, w * 0.48);
+      g1.addColorStop(0,   "rgba(99,102,241,0.22)");
+      g1.addColorStop(1,   "rgba(99,102,241,0)");
+
+      const g2 = ctx.createRadialGradient(w * 1.08 - w * 0.32, h * 1.08 - h * 0.32, 0, w * 1.08 - w * 0.32, h * 1.08 - h * 0.32, w * 0.45);
+      g2.addColorStop(0,   "rgba(139,92,246,0.18)");
+      g2.addColorStop(1,   "rgba(139,92,246,0)");
+
+      const g3 = ctx.createRadialGradient(w * 0.52 + w * 0.27, h * 0.28 + h * 0.27, 0, w * 0.52 + w * 0.27, h * 0.28 + h * 0.27, w * 0.38);
+      g3.addColorStop(0,   "rgba(6,182,212,0.12)");
+      g3.addColorStop(1,   "rgba(6,182,212,0)");
+
+      const g4 = ctx.createRadialGradient(w * 0.5, h * 0.5, 0, w * 0.5, h * 0.5, 310);
+      g4.addColorStop(0,   "rgba(99,102,241,0.12)");
+      g4.addColorStop(1,   "rgba(99,102,241,0)");
+
+      darkGradsRef.current = [g1, g2, g3, g4];
     }
 
     function draw(timestamp) {
@@ -130,26 +177,37 @@ export default function StarField({ isDark = true }) {
 
       ctx.clearRect(0, 0, w, h);
 
-      if (isDark) {
+      if (isDarkRef.current) {
+        // ── Atmospheric glows (pre-baked gradients, zero per-frame allocation) ──
+        if (darkGradsRef.current) {
+          darkGradsRef.current.forEach((g) => {
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, w, h);
+          });
+        }
+
         // ── Stars ───────────────────────────────────────────────────────────────
         starsRef.current.forEach((star) => {
           const twinkle = Math.sin(t * star.twinkleSpeed + star.twinkleOffset) * 0.35 + 0.65;
           const alpha   = star.baseOpacity * twinkle;
 
           if (star.size > 1.4) {
-            const glow = ctx.createRadialGradient(star.x, star.y, 0, star.x, star.y, star.size * 4);
-            glow.addColorStop(0, `rgba(${star.hue}, ${alpha * 0.6})`);
-            glow.addColorStop(1, `rgba(${star.hue}, 0)`);
+            // shadowBlur is GPU-accelerated and allocates nothing on the JS heap,
+            // replacing the createRadialGradient + extra arc that ran every frame.
+            ctx.save();
+            ctx.shadowBlur  = star.size * 14;
+            ctx.shadowColor = `rgba(${star.hue}, ${alpha * 0.55})`;
             ctx.beginPath();
-            ctx.arc(star.x, star.y, star.size * 4, 0, Math.PI * 2);
-            ctx.fillStyle = glow;
+            ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${star.hue}, ${alpha})`;
+            ctx.fill();
+            ctx.restore();
+          } else {
+            ctx.beginPath();
+            ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${star.hue}, ${alpha})`;
             ctx.fill();
           }
-
-          ctx.beginPath();
-          ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(${star.hue}, ${alpha})`;
-          ctx.fill();
         });
 
         // ── Spawn comets ─────────────────────────────────────────────────────────
@@ -290,7 +348,7 @@ export default function StarField({ isDark = true }) {
       cancelAnimationFrame(rafRef.current);
       lastTimeRef.current = null;
     };
-  }, [isDark]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <canvas

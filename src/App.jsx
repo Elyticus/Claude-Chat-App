@@ -9,8 +9,8 @@ import {
   Search,
   X,
   Trash2,
-  Plus,
   Users,
+  Copy,
 } from "lucide-react";
 import AuthScreen from "./components/AuthScreen.jsx";
 import StarField from "./components/ui/star-field.jsx";
@@ -64,12 +64,24 @@ function formatFullTime(ts) {
 
 const REACTIONS = ["🔥", "🙌", "❤️", "😀", "😝", "👍"];
 
+// ─── Shared style helpers ─────────────────────────────────────────────────────
+
+const darkBg0 = "#070d1c";
+const darkBg1 = "#0b1426";
+const darkBg2 = "#10192e";
+const darkBorder = "rgba(99,102,241,0.11)";
+const darkBorderMid = "rgba(99,102,241,0.14)";
+
+const lightBg0 = "#f5f7ff";
+const lightBg1 = "#ffffff";
+const lightBorderMid = "rgba(226,232,240,1)";
+
 function ContactStatusButton({ status, onAdd, onRemove, isDark }) {
   if (status === "accepted") {
     return (
       <button
         onClick={onRemove}
-        className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${isDark ? "bg-white/8 text-white/50 hover:bg-red-500/15 hover:text-red-400" : "bg-black/6 text-black/50 hover:bg-red-500/10 hover:text-red-400"}`}
+        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${isDark ? "bg-white/6 text-white/45 hover:bg-red-500/15 hover:text-red-400" : "bg-black/5 text-slate-500 hover:bg-red-500/10 hover:text-red-500"}`}
       >
         Remove
       </button>
@@ -78,7 +90,7 @@ function ContactStatusButton({ status, onAdd, onRemove, isDark }) {
   if (status === "pending_sent") {
     return (
       <span
-        className={`px-2.5 py-1 rounded-lg text-xs font-semibold opacity-50 ${isDark ? "bg-white/8 text-white/40" : "bg-black/6 text-black/50"}`}
+        className={`px-3 py-1 rounded-lg text-xs font-semibold opacity-50 ${isDark ? "bg-white/6 text-white/40" : "bg-black/5 text-slate-500"}`}
       >
         Pending
       </span>
@@ -88,7 +100,7 @@ function ContactStatusButton({ status, onAdd, onRemove, isDark }) {
     return (
       <button
         onClick={onRemove}
-        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-all"
+        className="px-3 py-1 rounded-lg text-xs font-semibold bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-all"
       >
         Decline
       </button>
@@ -97,7 +109,7 @@ function ContactStatusButton({ status, onAdd, onRemove, isDark }) {
   return (
     <button
       onClick={onAdd}
-      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-500/15 text-purple-400 hover:bg-purple-500/25 transition-all"
+      className="px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-500/15 text-indigo-400 hover:bg-indigo-500/25 transition-all"
     >
       Add
     </button>
@@ -125,12 +137,12 @@ function Avatar({
         />
       ) : (
         <div
-          className="rounded-full flex items-center justify-center text-white font-bold"
+          className="rounded-full flex items-center justify-center text-white font-semibold"
           style={{
             background: userBg(userId),
             width: size,
             height: size,
-            fontSize: Math.round(size * 0.34),
+            fontSize: Math.round(size * 0.33),
           }}
         >
           {initials(username)}
@@ -138,8 +150,15 @@ function Avatar({
       )}
       {online && (
         <span
-          className="absolute rounded-full bg-green-400 border-2 border-black"
-          style={{ width: dotSize, height: dotSize, bottom: 1, right: 1 }}
+          className="absolute rounded-full bg-emerald-400"
+          style={{
+            width: dotSize,
+            height: dotSize,
+            bottom: 1,
+            right: 1,
+            border: "2px solid #070d1c",
+            boxShadow: "0 0 6px rgba(52,211,153,0.6)",
+          }}
         />
       )}
     </div>
@@ -156,14 +175,14 @@ function TypingIndicator({ names, isDark }) {
       : `${names.join(", ")} are typing`;
   return (
     <span
-      className={`flex items-center gap-1 text-xs ${isDark ? "text-white/50" : "text-black/60"}`}
+      className={`flex items-center gap-1 text-xs ${isDark ? "text-indigo-300/50" : "text-slate-400"}`}
     >
       {label}
       <span className="flex gap-0.5 items-end ml-0.5">
         {[0, 1, 2].map((i) => (
           <span
             key={i}
-            className={`w-1 h-1 rounded-full animate-bounce ${isDark ? "bg-white/40" : "bg-slate-400"}`}
+            className={`w-1 h-1 rounded-full animate-bounce ${isDark ? "bg-indigo-400/50" : "bg-slate-400"}`}
             style={{ animationDelay: `${i * 0.15}s` }}
           />
         ))}
@@ -254,23 +273,32 @@ function OrbitalHub({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-dvh flex items-center justify-center overflow-hidden transition-colors duration-300 ${isDark ? "bg-black" : "bg-indigo-50"}`}
+      className="relative w-full h-dvh flex items-center justify-center overflow-hidden"
+      style={{ background: isDark ? darkBg0 : lightBg0 }}
     >
-      {/* Star field background */}
+      {/* Star field + atmosphere — all glow drawn on canvas, zero CSS blur layers */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <StarField isDark={isDark} />
       </div>
 
       {/* Top bar */}
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 z-30">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <span
-            className={`font-semibold tracking-wide text-xl ${isDark ? "text-white" : "text-black"}`}
+            className="font-bold tracking-wide text-xl"
+            style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
           >
-            Chatloop<span className="text-purple-400">.</span>
+            Chatloop
+            <span style={{ color: "#818cf8" }}>.</span>
           </span>
           {totalUnread > 0 && (
-            <span className="bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">
+            <span
+              className="text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none"
+              style={{
+                background: "linear-gradient(135deg,#ef4444,#dc2626)",
+                boxShadow: "0 2px 8px rgba(239,68,68,0.45)",
+              }}
+            >
               {totalUnread > 99 ? "99+" : totalUnread}
             </span>
           )}
@@ -285,17 +313,27 @@ function OrbitalHub({
               <Avatar
                 userId={currentUser.id}
                 username={currentUser.username}
-                size={56}
+                size={42}
                 avatar={myAvatar}
               />
-              <span className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
-                <span className="text-white text-[10px] opacity-0 group-hover:opacity-100 font-semibold leading-none">
+              <span
+                className="absolute inset-0 rounded-full flex items-center justify-center transition-all"
+                style={{ background: "rgba(0,0,0,0)" }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "rgba(0,0,0,0.35)")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = "rgba(0,0,0,0)")
+                }
+              >
+                <span className="text-white text-[9px] opacity-0 group-hover:opacity-100 font-semibold leading-none">
                   Edit
                 </span>
               </span>
             </div>
             <span
-              className={`text-sm hidden sm:block ${isDark ? "text-white/40" : "text-black/70"}`}
+              className="text-sm hidden sm:block"
+              style={{ color: isDark ? "rgba(238,242,255,0.5)" : "#64748b" }}
             >
               {currentUser.username}
             </span>
@@ -303,89 +341,180 @@ function OrbitalHub({
           <button
             onClick={onToggleTheme}
             title={isDark ? "Light mode" : "Dark mode"}
-            className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all ${isDark ? "border-white/15 text-white/50 hover:text-white hover:border-white/30" : "border-black/20 text-black/60 hover:text-black hover:border-black/40"}`}
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+            style={{
+              background: isDark
+                ? "rgba(129,140,248,0.14)"
+                : "rgba(99,102,241,0.10)",
+              border: `1px solid ${isDark ? "rgba(129,140,248,0.35)" : "rgba(99,102,241,0.28)"}`,
+              color: isDark ? "#a5b4fc" : "#4f46e5",
+              boxShadow: isDark
+                ? "0 0 12px rgba(129,140,248,0.2)"
+                : "0 2px 8px rgba(99,102,241,0.12)",
+            }}
           >
-            {isDark ? <Sun size={14} /> : <Moon size={14} />}
+            {isDark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
           <button
             onClick={onLogout}
             title="Sign out"
-            className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all ${isDark ? "border-white/15 text-white/50 hover:text-white hover:border-white/30" : "border-black/20 text-black/60 hover:text-black hover:border-black/40"}`}
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+            style={{
+              background: isDark
+                ? "rgba(239,68,68,0.10)"
+                : "rgba(239,68,68,0.07)",
+              border: `1px solid ${isDark ? "rgba(239,68,68,0.28)" : "rgba(239,68,68,0.22)"}`,
+              color: isDark ? "#fca5a5" : "#ef4444",
+              boxShadow: isDark
+                ? "0 0 10px rgba(239,68,68,0.14)"
+                : "0 2px 8px rgba(239,68,68,0.08)",
+            }}
           >
-            <LogOut size={14} />
+            <LogOut size={16} />
           </button>
         </div>
       </div>
 
-      {/* Orbit rings */}
+      {/* Outer orbit ring — glowing path with rotating beacon */}
       <div
-        className={`absolute rounded-full border pointer-events-none ${isDark ? "border-white/30" : "border-black/25"}`}
-        style={{ width: "min(64vmin, 500px)", height: "min(64vmin, 500px)" }}
-      />
-      <div
-        className={`absolute rounded-full border pointer-events-none ${isDark ? "border-white/20" : "border-black/15"}`}
-        style={{ width: "min(44vmin, 340px)", height: "min(44vmin, 340px)" }}
-      />
-
-      {/* Center hub */}
-      <div
-        className="absolute w-20 h-20 rounded-full flex items-center justify-center cursor-pointer z-20 select-none"
+        className="absolute rounded-full pointer-events-none"
         style={{
-          background: "linear-gradient(135deg, #6366f1, #3b82f6, #14b8a6)",
-          boxShadow:
-            "0 0 50px rgba(99, 102, 241, 0.35), 0 0 100px rgba(99, 102, 241, 0.15)",
-          animation: "pulse 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+          width: "min(64vmin, 500px)",
+          height: "min(64vmin, 500px)",
+          boxShadow: isDark
+            ? [
+                "0 0 0 1px rgba(99,102,241,0.30)",
+                "0 0 0 3px rgba(99,102,241,0.08)",
+                "0 0 0 10px rgba(99,102,241,0.03)",
+                "0 0 80px rgba(99,102,241,0.12)",
+                "inset 0 0 80px rgba(99,102,241,0.07)",
+              ].join(", ")
+            : "0 0 0 1px rgba(99,102,241,0.18), 0 0 28px rgba(99,102,241,0.07)",
+        }}
+      >
+        <div className="absolute inset-0 rounded-full rotate-slow">
+          <div
+            style={{
+              position: "absolute",
+              top: -5,
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: 10,
+              height: 10,
+              borderRadius: "50%",
+              background: isDark ? "#818cf8" : "#6366f1",
+              boxShadow: isDark
+                ? "0 0 12px 3px rgba(129,140,248,0.9), 0 0 28px rgba(99,102,241,0.7)"
+                : "0 0 10px rgba(99,102,241,0.9), 0 0 20px rgba(99,102,241,0.5)",
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Inner orbit ring — counter-rotating beacon */}
+      <div
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          width: "min(44vmin, 340px)",
+          height: "min(44vmin, 340px)",
+          boxShadow: isDark
+            ? [
+                "0 0 0 1px rgba(139,92,246,0.22)",
+                "0 0 0 3px rgba(139,92,246,0.06)",
+                "0 0 0 8px rgba(139,92,246,0.02)",
+                "0 0 50px rgba(139,92,246,0.09)",
+                "inset 0 0 50px rgba(139,92,246,0.05)",
+              ].join(", ")
+            : "0 0 0 1px rgba(99,102,241,0.12), 0 0 16px rgba(99,102,241,0.05)",
+        }}
+      >
+        <div className="absolute inset-0 rounded-full rotate-slow-rev">
+          <div
+            style={{
+              position: "absolute",
+              top: -4,
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              background: isDark ? "#a78bfa" : "#7c3aed",
+              boxShadow: isDark
+                ? "0 0 9px 2px rgba(167,139,250,0.9), 0 0 20px rgba(139,92,246,0.7)"
+                : "0 0 8px rgba(124,58,237,0.8)",
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Center hub — breathing glow */}
+      <div
+        className="absolute w-20 h-20 rounded-full flex items-center justify-center cursor-pointer z-20 select-none hub-breathe"
+        style={{
+          background: "linear-gradient(145deg, #9f7aea, #6366f1, #3b82f6)",
         }}
         onClick={() => setShowContactsList((v) => !v)}
         title="See all chats"
       >
+        {/* Specular highlight — makes it look 3-D */}
         <div
-          className="absolute rounded-full border border-white/15"
+          className="absolute inset-0 rounded-full pointer-events-none"
           style={{
-            width: 96,
-            height: 96,
-            animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite",
+            background:
+              "linear-gradient(135deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.06) 45%, transparent 100%)",
           }}
         />
         <div
-          className="absolute rounded-full border border-white/[0.07]"
+          className="absolute rounded-full"
+          style={{
+            width: 94,
+            height: 94,
+            animation: "ping 2s cubic-bezier(0,0,0.2,1) infinite",
+            border: isDark
+              ? "1.5px solid rgba(99,102,241,0.6)"
+              : "1.5px solid rgba(99,102,241,0.65)",
+          }}
+        />
+        <div
+          className="absolute rounded-full"
           style={{
             width: 116,
             height: 116,
-            animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite",
-            animationDelay: "0.6s",
+            animation: "ping 2s cubic-bezier(0,0,0.2,1) infinite",
+            animationDelay: "0.75s",
+            border: isDark
+              ? "1px solid rgba(99,102,241,0.32)"
+              : "1px solid rgba(99,102,241,0.38)",
           }}
         />
-        <MessageCircle size={28} className="text-white relative z-10" />
+        <MessageCircle
+          size={26}
+          className="text-white relative z-10"
+          strokeWidth={1.8}
+        />
         {pendingCount > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-md z-20">
+          <span
+            className="absolute -top-1 -right-1 min-w-5 h-5 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 z-20"
+            style={{
+              background: "linear-gradient(135deg,#ef4444,#dc2626)",
+              boxShadow: "0 2px 8px rgba(239,68,68,0.5)",
+            }}
+          >
             {pendingCount > 9 ? "9+" : pendingCount}
           </span>
         )}
         {hasGroupNotif && (
-          <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full border-2 border-black shadow-md z-20 animate-pulse" />
+          <span
+            className="absolute -bottom-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full z-20 animate-pulse"
+            style={{
+              border: `2px solid ${isDark ? darkBg0 : lightBg0}`,
+              boxShadow: "0 0 8px rgba(250,204,21,0.7)",
+            }}
+          />
         )}
       </div>
 
-      {/* Empty state */}
-      {rooms.length === 0 && (
-        <p
-          className={`absolute text-sm tracking-wide pointer-events-none ${isDark ? "text-white/20" : "text-black/50"}`}
-          style={{ marginTop: "220px" }}
-        >
-          Tap the orb to start a conversation
-        </p>
-      )}
-      {rooms.length > 0 && orbitRooms.length === 0 && (
-        <p
-          className={`absolute text-sm tracking-wide pointer-events-none ${isDark ? "text-white/20" : "text-black/50"}`}
-          style={{ marginTop: "220px" }}
-        >
-          Tap the orb to see all chats
-        </p>
-      )}
-
-      {/* Room nodes — only rooms active within the last 24 h */}
+      {/* Room nodes */}
       {orbitRooms.map((room, index) => {
         const pos = getNodePosition(index, orbitRooms.length);
         const displayName = room.is_group
@@ -408,45 +537,69 @@ function OrbitalHub({
             onMouseLeave={() => setHoveredId(null)}
             onClick={() => onSelectRoom(room.id)}
           >
-            {/* Glow aura */}
+            {/* Hover glow aura */}
             <div
-              className="absolute rounded-full pointer-events-none"
+              className="absolute rounded-full pointer-events-none transition-all duration-300"
               style={{
-                width: 72,
-                height: 72,
+                width: 86,
+                height: 86,
                 left: "50%",
                 top: "50%",
                 transform: "translate(-50%, -50%)",
                 background:
-                  "radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%)",
+                  "radial-gradient(circle, rgba(99,102,241,0.4) 0%, transparent 68%)",
+                filter: "blur(10px)",
+                opacity: hoveredId === room.id ? 1 : 0,
               }}
             />
             {/* Node circle */}
             <div
-              className={`relative w-12 h-12 rounded-full flex items-center justify-center text-white text-sm font-bold border-2 shadow-lg hover:scale-110 transition-all duration-200 ${isDark ? "border-white/25 hover:border-white/50" : "border-white/50 hover:border-white/80"}`}
-              style={{ background: userBg(avatarId) }}
+              className={`relative w-12 h-12 rounded-full flex items-center justify-center text-white text-sm font-semibold transition-all duration-200 ${hoveredId === room.id ? "scale-110" : ""}`}
+              style={{
+                background: userBg(avatarId),
+                boxShadow:
+                  hoveredId === room.id
+                    ? isDark
+                      ? "0 0 0 2px rgba(99,102,241,0.5), 0 0 20px rgba(99,102,241,0.4), 0 4px 16px rgba(0,0,0,0.5)"
+                      : "0 0 0 2px rgba(99,102,241,0.45), 0 0 20px rgba(99,102,241,0.3), 0 4px 16px rgba(99,102,241,0.2)"
+                    : isDark
+                      ? "0 0 0 2px rgba(99,102,241,0.22), 0 4px 16px rgba(0,0,0,0.5)"
+                      : "0 0 0 2px rgba(99,102,241,0.18), 0 4px 16px rgba(99,102,241,0.12)",
+              }}
             >
               {initials(displayName)}
               {isOnline && (
                 <span
-                  className={`absolute bottom-0.5 right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 ${isDark ? "border-black" : "border-indigo-50"}`}
+                  className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-emerald-400 rounded-full"
+                  style={{
+                    border: `2px solid ${isDark ? darkBg0 : lightBg0}`,
+                    boxShadow: "0 0 6px rgba(52,211,153,0.6)",
+                  }}
                 />
               )}
               {unread > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-md">
+                <span
+                  className="absolute -top-1.5 -right-1.5 min-w-5 h-5 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1"
+                  style={{
+                    background: "linear-gradient(135deg,#ef4444,#dc2626)",
+                    boxShadow: "0 2px 8px rgba(239,68,68,0.5)",
+                  }}
+                >
                   {unread > 99 ? "99+" : unread}
                 </span>
               )}
             </div>
             {/* Name label */}
             <span
-              className={`mt-2 text-[11px] font-semibold max-w-19 truncate text-center leading-tight ${isDark ? "text-white" : "text-black"}`}
+              className="mt-2 text-[11px] font-semibold max-w-19 truncate text-center leading-tight"
+              style={{ color: isDark ? "rgba(238,242,255,0.9)" : "#1e293b" }}
             >
               {displayName}
             </span>
             {room.last_message_at && (
               <span
-                className={`text-[10px] mt-0.5 ${isDark ? "text-white/70" : "text-black"}`}
+                className="text-[10px] mt-0.5"
+                style={{ color: isDark ? "rgba(165,180,252,0.55)" : "#94a3b8" }}
               >
                 {formatTime(room.last_message_at)}
               </span>
@@ -462,16 +615,25 @@ function OrbitalHub({
           onClick={() => setShowContactsList(false)}
         >
           <div
-            className={`absolute bottom-0 left-0 right-0 rounded-t-2xl border-t flex flex-col shadow-2xl overflow-hidden transition-colors duration-300 ${isDark ? "bg-[#0d0d0d] border-white/10" : "bg-white border-black/10"}`}
-            style={{ height: "100dvh" }}
+            className="absolute bottom-0 left-0 right-0 rounded-t-3xl flex flex-col overflow-hidden animate-slide-up"
+            style={{
+              height: "100dvh",
+              background: isDark ? darkBg1 : lightBg1,
+              borderTop: `1px solid ${isDark ? darkBorderMid : lightBorderMid}`,
+              boxShadow: isDark
+                ? "0 -32px 80px rgba(0,0,0,0.7)"
+                : "0 -32px 80px rgba(99,102,241,0.10)",
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Panel header */}
             <div
-              className={`flex items-center justify-between px-5 py-4 border-b shrink-0 ${isDark ? "border-white/8" : "border-black/6"}`}
+              className="flex items-center justify-between px-5 py-4 border-b shrink-0"
+              style={{ borderColor: isDark ? darkBorder : lightBorderMid }}
             >
               <span
-                className={`font-semibold ${isDark ? "text-white" : "text-black"}`}
+                className="font-semibold text-base"
+                style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
               >
                 All Chats
               </span>
@@ -481,13 +643,20 @@ function OrbitalHub({
                     setShowContactsList(false);
                     onNewChat();
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600/80 text-white text-xs font-semibold hover:bg-purple-600 transition-all"
+                  className="flex items-center px-4 py-2 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90"
+                  style={{
+                    background: "linear-gradient(135deg, #7c3aed, #6366f1)",
+                    boxShadow: "0 2px 12px rgba(99,102,241,0.4)",
+                  }}
                 >
-                  <Plus size={12} /> New Chat
+                  New Chat
                 </button>
                 <button
                   onClick={() => setShowContactsList(false)}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isDark ? "text-white/40 hover:text-white hover:bg-white/10" : "text-black/50 hover:text-black hover:bg-black/6"}`}
+                  className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+                  style={{
+                    color: isDark ? "rgba(238,242,255,0.4)" : "#64748b",
+                  }}
                 >
                   <X size={16} />
                 </button>
@@ -497,14 +666,23 @@ function OrbitalHub({
             {/* Pending requests */}
             {pendingUsers.length > 0 && (
               <div
-                className={`border-b shrink-0 ${isDark ? "border-white/8" : "border-black/6"}`}
+                className="border-b shrink-0"
+                style={{ borderColor: isDark ? darkBorder : lightBorderMid }}
               >
                 <div
-                  className={`flex items-center gap-2 px-5 py-2 ${isDark ? "bg-amber-500/8" : "bg-amber-50"}`}
+                  className="flex items-center gap-2 px-5 py-2"
+                  style={{
+                    background: isDark
+                      ? "rgba(245,158,11,0.07)"
+                      : "rgba(245,158,11,0.06)",
+                  }}
                 >
                   <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
                   <span
-                    className={`text-[11px] uppercase tracking-widest font-semibold ${isDark ? "text-amber-400/80" : "text-amber-600"}`}
+                    className="text-[11px] uppercase tracking-widest font-semibold"
+                    style={{
+                      color: isDark ? "rgba(251,191,36,0.8)" : "#92400e",
+                    }}
                   >
                     Friend Requests ({pendingUsers.length})
                   </span>
@@ -512,7 +690,12 @@ function OrbitalHub({
                 {pendingUsers.map((u) => (
                   <div
                     key={u.id}
-                    className={`flex items-center gap-3 px-4 py-3 ${isDark ? "bg-amber-500/5" : "bg-amber-50/70"}`}
+                    className="flex items-center gap-3 px-4 py-3"
+                    style={{
+                      background: isDark
+                        ? "rgba(245,158,11,0.04)"
+                        : "rgba(254,243,199,0.5)",
+                    }}
                   >
                     <Avatar
                       userId={u.id}
@@ -523,12 +706,16 @@ function OrbitalHub({
                     />
                     <div className="flex-1 min-w-0">
                       <div
-                        className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-black"}`}
+                        className="text-sm font-medium truncate"
+                        style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
                       >
                         {u.username}
                       </div>
                       <div
-                        className={`text-xs ${isDark ? "text-amber-400/70" : "text-amber-600/80"}`}
+                        className="text-xs"
+                        style={{
+                          color: isDark ? "rgba(251,191,36,0.7)" : "#b45309",
+                        }}
                       >
                         wants to connect
                       </div>
@@ -536,7 +723,7 @@ function OrbitalHub({
                     <div className="flex gap-1.5 shrink-0">
                       <button
                         onClick={() => onAcceptContact(u.id)}
-                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-green-500/15 text-green-400 hover:bg-green-500/25 transition-all"
+                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-all"
                       >
                         Accept
                       </button>
@@ -556,7 +743,10 @@ function OrbitalHub({
             <div className="flex-1 min-h-0 overflow-y-auto py-2">
               {rooms.length === 0 ? (
                 <p
-                  className={`text-center text-sm py-8 ${isDark ? "text-white/25" : "text-black/50"}`}
+                  className="text-center text-sm py-8"
+                  style={{
+                    color: isDark ? "rgba(238,242,255,0.22)" : "#94a3b8",
+                  }}
                 >
                   No chats yet — start a new one!
                 </p>
@@ -583,27 +773,50 @@ function OrbitalHub({
                           onSelectRoom(room.id);
                           setTimeout(() => setShowContactsList(false), 200);
                         }}
-                        className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all text-left ${isDark ? "hover:bg-white/6" : "hover:bg-black/4"}`}
+                        className="w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all text-left"
+                        style={{
+                          background: "transparent",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = isDark
+                            ? "rgba(99,102,241,0.07)"
+                            : "rgba(99,102,241,0.05)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "transparent";
+                        }}
                       >
                         <div className="relative shrink-0">
                           <div
-                            className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-sm border-2"
+                            className="w-11 h-11 rounded-full flex items-center justify-center text-white font-semibold text-sm"
                             style={{
                               background: userBg(avatarId),
-                              borderColor: isRecent
-                                ? "rgba(99,102,241,0.7)"
-                                : "transparent",
+                              boxShadow: isRecent
+                                ? "0 0 0 2px rgba(99,102,241,0.6)"
+                                : isDark
+                                  ? "0 0 0 1px rgba(99,102,241,0.15)"
+                                  : "0 0 0 1px rgba(99,102,241,0.12)",
                             }}
                           >
                             {initials(displayName)}
                           </div>
                           {isOnline && (
                             <span
-                              className={`absolute bottom-0.5 right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 ${isDark ? "border-[#0d0d0d]" : "border-white"}`}
+                              className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-emerald-400 rounded-full"
+                              style={{
+                                border: `2px solid ${isDark ? darkBg1 : lightBg1}`,
+                              }}
                             />
                           )}
                           {unread > 0 && (
-                            <span className="absolute -top-1 -right-1 min-w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1">
+                            <span
+                              className="absolute -top-1 -right-1 min-w-4 h-4 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1"
+                              style={{
+                                background:
+                                  "linear-gradient(135deg,#ef4444,#dc2626)",
+                                boxShadow: "0 2px 6px rgba(239,68,68,0.5)",
+                              }}
+                            >
                               {unread > 99 ? "99+" : unread}
                             </span>
                           )}
@@ -611,12 +824,13 @@ function OrbitalHub({
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 min-w-0">
                             <span
-                              className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-black"}`}
+                              className="text-sm font-medium truncate"
+                              style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
                             >
                               {displayName}
                             </span>
                             {!!room.is_group && (
-                              <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-purple-500/15 text-purple-400">
+                              <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-400">
                                 Group
                               </span>
                             )}
@@ -627,7 +841,12 @@ function OrbitalHub({
                             </div>
                           ) : room.last_message ? (
                             <div
-                              className={`text-xs truncate mt-0.5 ${isDark ? "text-white/40" : "text-black/60"}`}
+                              className="text-xs truncate mt-0.5"
+                              style={{
+                                color: isDark
+                                  ? "rgba(165,180,252,0.45)"
+                                  : "#94a3b8",
+                              }}
                             >
                               {room.last_message}
                             </div>
@@ -636,7 +855,12 @@ function OrbitalHub({
                         <div className="flex flex-col items-end gap-1 shrink-0">
                           {room.last_message_at && (
                             <span
-                              className={`text-[10px] ${isDark ? "text-white/30" : "text-black/50"}`}
+                              className="text-[10px]"
+                              style={{
+                                color: isDark
+                                  ? "rgba(165,180,252,0.35)"
+                                  : "#94a3b8",
+                              }}
                             >
                               {formatTime(room.last_message_at)}
                             </span>
@@ -645,7 +869,12 @@ function OrbitalHub({
                             <span className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.9)]" />
                           ) : (
                             isRecent && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                              <span
+                                className="w-1.5 h-1.5 rounded-full bg-indigo-400"
+                                style={{
+                                  boxShadow: "0 0 4px rgba(129,140,248,0.7)",
+                                }}
+                              />
                             )
                           )}
                         </div>
@@ -674,96 +903,166 @@ function ContextMenu({
   currentUserId,
   isDark,
 }) {
-  const menuW = 240;
-  const menuH = 420;
-  const style = {
-    top: Math.max(8, Math.min(position.y, window.innerHeight - menuH - 8)),
-    left: Math.max(8, Math.min(position.x, window.innerWidth - menuW - 8)),
-  };
+  const isOwn = Number(msg.user_id) === Number(currentUserId);
+  const cardW = 260;
+
+  // On mobile: center horizontally. On desktop: follow cursor.
+  const isMobile = window.innerWidth < 640;
+  const left = isMobile
+    ? (window.innerWidth - cardW) / 2
+    : Math.max(8, Math.min(position.x, window.innerWidth - cardW - 8));
+
+  // Use visualViewport so positioning works correctly when the keyboard is open.
+  // touch.clientY is in visual-viewport space; fixed positioning is in layout-viewport
+  // space on iOS — add vvt to convert between them.
+  const vvh = window.visualViewport?.height ?? window.innerHeight;
+  const vvt = window.visualViewport?.offsetTop ?? 0;
+  const totalH = 52 + 8 + 56 + 52 + (isOwn ? 52 : 0);
+  const adjustedY = position.y + vvt;
+  const top = Math.max(
+    vvt + 8,
+    Math.min(adjustedY - totalH / 2, vvt + vvh - totalH - 8),
+  );
+
+  const divider = (
+    <div
+      style={{
+        height: 1,
+        background: isDark ? "rgba(99,102,241,0.08)" : "rgba(226,232,240,0.9)",
+      }}
+    />
+  );
 
   return (
     <>
-      <div className="fixed inset-0 z-300" onClick={onClose} />
+      {/* Backdrop */}
       <div
-        className={`fixed z-300 border rounded-2xl shadow-2xl overflow-hidden w-60 transition-colors duration-300 ${isDark ? "bg-[#111] border-white/12 shadow-black/70" : "bg-white border-black/8 shadow-black/10"}`}
-        style={style}
+        className="fixed inset-0 z-400"
+        style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }}
+        onClick={onClose}
+      />
+
+      <div
+        className="fixed z-401 animate-scale-in"
+        style={{ left, top, width: cardW }}
       >
-        {/* Preview */}
+        {/* Emoji reactions pill */}
         <div
-          className={`px-4 py-3 border-b ${isDark ? "border-white/8" : "border-black/6"}`}
+          className="flex items-center justify-between px-2 py-1.5 rounded-2xl mb-2"
+          style={{
+            background: isDark ? darkBg1 : lightBg1,
+            boxShadow: isDark
+              ? "0 8px 32px rgba(0,0,0,0.6)"
+              : "0 8px 32px rgba(0,0,0,0.12)",
+            border: `1px solid ${isDark ? darkBorder : "rgba(226,232,240,0.9)"}`,
+          }}
         >
-          {msg.reaction && <span className="text-lg mr-1">{msg.reaction}</span>}
-          <p
-            className={`text-sm leading-relaxed line-clamp-2 ${isDark ? "text-white/65" : "text-black/60"}`}
-          >
-            {msg.text}
-          </p>
-          <span
-            className={`text-[10px] mt-1 block ${isDark ? "text-white/25" : "text-black/50"}`}
-          >
-            {formatFullTime(msg.created_at)}
-          </span>
+          {REACTIONS.map((emoji) => (
+            <button
+              key={emoji}
+              onClick={() => {
+                onReact(msg.id, emoji);
+                onClose();
+              }}
+              className="w-9 h-9 flex items-center justify-center text-xl rounded-xl transition-all"
+              style={
+                msg.reaction === emoji
+                  ? {
+                      background: isDark
+                        ? "rgba(99,102,241,0.18)"
+                        : "rgba(99,102,241,0.1)",
+                      transform: "scale(1.15)",
+                    }
+                  : {}
+              }
+              onMouseEnter={(e) => {
+                if (msg.reaction !== emoji)
+                  e.currentTarget.style.background = isDark
+                    ? "rgba(99,102,241,0.1)"
+                    : "rgba(0,0,0,0.05)";
+                e.currentTarget.style.transform = "scale(1.2)";
+              }}
+              onMouseLeave={(e) => {
+                if (msg.reaction !== emoji)
+                  e.currentTarget.style.background = "";
+                e.currentTarget.style.transform =
+                  msg.reaction === emoji ? "scale(1.15)" : "";
+              }}
+            >
+              {emoji}
+            </button>
+          ))}
         </div>
 
-        {/* Reactions */}
+        {/* Action card */}
         <div
-          className={`px-3 py-2.5 border-b ${isDark ? "border-white/8" : "border-black/6"}`}
+          className="rounded-2xl overflow-hidden"
+          style={{
+            background: isDark ? darkBg1 : lightBg1,
+            boxShadow: isDark
+              ? "0 16px 48px rgba(0,0,0,0.7)"
+              : "0 16px 48px rgba(0,0,0,0.12)",
+            border: `1px solid ${isDark ? darkBorder : "rgba(226,232,240,0.9)"}`,
+          }}
         >
-          <p
-            className={`text-[10px] uppercase tracking-widest mb-2 ${isDark ? "text-white/35" : "text-black/50"}`}
+          {/* Message preview */}
+          <div
+            className="px-4 py-3"
+            style={{
+              borderBottom: `1px solid ${isDark ? "rgba(99,102,241,0.08)" : "rgba(226,232,240,0.9)"}`,
+            }}
           >
-            React
-          </p>
-          <div className="flex gap-1">
-            {REACTIONS.map((emoji) => (
-              <button
-                key={emoji}
-                onClick={() => {
-                  onReact(msg.id, emoji);
-                  onClose();
-                }}
-                className={`w-8 h-8 flex items-center justify-center rounded-lg text-base transition-all ${
-                  msg.reaction === emoji
-                    ? isDark
-                      ? "bg-white/20 ring-1 ring-white/30"
-                      : "bg-black/10 ring-1 ring-black/20"
-                    : isDark
-                      ? "hover:bg-white/10"
-                      : "hover:bg-black/6"
-                }`}
-              >
-                {emoji}
-              </button>
-            ))}
+            <p
+              className="text-sm leading-relaxed line-clamp-2"
+              style={{ color: isDark ? "rgba(238,242,255,0.6)" : "#475569" }}
+            >
+              {msg.text}
+            </p>
           </div>
-        </div>
 
-        {/* Actions */}
-        <div className="p-1.5">
+          {/* Copy */}
           <button
             onClick={() => {
               onCopy(msg.text);
               onClose();
             }}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm transition-all ${isDark ? "text-white/65 hover:text-white hover:bg-white/[0.07]" : "text-black/60 hover:text-black hover:bg-black/5"}`}
+            className="w-full flex items-center gap-3 px-4 py-3.5 text-sm transition-all"
+            style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = isDark
+                ? "rgba(99,102,241,0.08)"
+                : "rgba(0,0,0,0.04)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "";
+            }}
           >
-            Copy text
-            <kbd
-              className={`text-[10px] ${isDark ? "text-white/25" : "text-black/50"}`}
-            >
-              ⌘C
-            </kbd>
+            <Copy size={17} style={{ opacity: 0.55 }} />
+            Copy
           </button>
-          {Number(msg.user_id) === Number(currentUserId) && (
-            <button
-              onClick={() => {
-                onDelete(msg.id);
-                onClose();
-              }}
-              className="w-full flex items-center px-3 py-2 rounded-xl text-red-400/80 hover:text-red-400 hover:bg-red-500/10 text-sm transition-all"
-            >
-              Delete
-            </button>
+
+          {/* Delete — own messages only */}
+          {isOwn && (
+            <>
+              {divider}
+              <button
+                onClick={() => {
+                  onDelete(msg.id);
+                  onClose();
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 text-sm transition-all"
+                style={{ color: "#ef4444" }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(239,68,68,0.06)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "";
+                }}
+              >
+                <Trash2 size={17} />
+                Delete
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -829,27 +1128,47 @@ function NewChatModal({
         ? "New Group"
         : "Find People";
 
+  const inputCls = `w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-all ${
+    isDark
+      ? "bg-[#10192e] border border-indigo-500/15 text-[#eef2ff] placeholder:text-indigo-300/20 focus:border-indigo-500/45"
+      : "bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-indigo-400"
+  }`;
+
   return (
     <div className="fixed inset-0 z-500 flex items-center justify-center p-4">
       <div
-        className={`absolute inset-0 backdrop-blur-sm ${isDark ? "bg-black/90" : "bg-slate-900/30"}`}
+        className="absolute inset-0"
+        style={{
+          background: isDark ? "rgba(7,13,28,0.88)" : "rgba(15,23,42,0.25)",
+          backdropFilter: "blur(8px)",
+        }}
         onClick={onClose}
       />
       <div
-        className={`relative border rounded-2xl w-full sm:w-100 max-h-[85dvh] flex flex-col shadow-2xl overflow-hidden transition-colors duration-300 ${isDark ? "bg-[#0d0d0d] border-white/10" : "bg-white border-black/10"}`}
+        className="relative w-full sm:w-100 max-h-[85dvh] flex flex-col overflow-hidden rounded-2xl animate-scale-in"
+        style={{
+          background: isDark ? darkBg1 : lightBg1,
+          border: `1px solid ${isDark ? darkBorderMid : lightBorderMid}`,
+          boxShadow: isDark
+            ? "0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(99,102,241,0.06)"
+            : "0 32px 80px rgba(99,102,241,0.12)",
+        }}
       >
         {/* Header */}
         <div
-          className={`flex items-center justify-between px-5 py-4 border-b shrink-0 ${isDark ? "border-white/8" : "border-black/6"}`}
+          className="flex items-center justify-between px-5 py-4 border-b shrink-0"
+          style={{ borderColor: isDark ? darkBorder : lightBorderMid }}
         >
           <span
-            className={`font-semibold ${isDark ? "text-white" : "text-black"}`}
+            className="font-semibold"
+            style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
           >
             {headerTitle}
           </span>
           <button
             onClick={onClose}
-            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isDark ? "text-white/40 hover:text-white hover:bg-white/10" : "text-black/50 hover:text-black hover:bg-black/6"}`}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+            style={{ color: isDark ? "rgba(238,242,255,0.4)" : "#64748b" }}
           >
             <X size={16} />
           </button>
@@ -866,19 +1185,30 @@ function NewChatModal({
                 setSearch("");
                 setFindError("");
               }}
-              className={`flex-1 relative py-2 rounded-xl text-xs font-medium transition-all ${
+              className="flex-1 relative py-2 rounded-xl text-xs font-medium transition-all"
+              style={
                 mode === m.id
-                  ? isDark
-                    ? "bg-white text-black"
-                    : "bg-slate-900 text-white"
-                  : isDark
-                    ? "text-white/45 hover:text-white hover:bg-white/8"
-                    : "text-black/50 hover:text-black hover:bg-black/5"
-              }`}
+                  ? {
+                      background: isDark ? "#6366f1" : "#0f172a",
+                      color: "#ffffff",
+                      boxShadow: isDark
+                        ? "0 2px 12px rgba(99,102,241,0.4)"
+                        : "none",
+                    }
+                  : {
+                      color: isDark ? "rgba(238,242,255,0.45)" : "#64748b",
+                    }
+              }
             >
               {m.label}
               {m.badge > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1">
+                <span
+                  className="absolute -top-1 -right-1 min-w-4 h-4 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1"
+                  style={{
+                    background: "linear-gradient(135deg,#ef4444,#dc2626)",
+                    boxShadow: "0 2px 6px rgba(239,68,68,0.5)",
+                  }}
+                >
                   {m.badge}
                 </span>
               )}
@@ -890,7 +1220,7 @@ function NewChatModal({
         {mode === "group" && (
           <div className="px-4 pt-3 shrink-0">
             <input
-              className={`w-full border rounded-xl px-4 py-2.5 text-sm outline-none transition-colors ${isDark ? "bg-white/5 border-white/10 text-white placeholder:text-white/25 focus:border-white/25" : "bg-black/4 border-black/10 text-black placeholder:text-black/40 focus:border-black/20"}`}
+              className={inputCls}
               placeholder="Group name…"
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
@@ -907,7 +1237,13 @@ function NewChatModal({
                 <button
                   key={id}
                   onClick={() => toggleSelect(id)}
-                  className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full transition-colors ${isDark ? "bg-white/10 text-white hover:bg-white/20" : "bg-black/8 text-black hover:bg-black/12"}`}
+                  className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full transition-all"
+                  style={{
+                    background: isDark
+                      ? "rgba(99,102,241,0.15)"
+                      : "rgba(99,102,241,0.1)",
+                    color: isDark ? "#a5b4fc" : "#4f46e5",
+                  }}
                 >
                   {u.username} <X size={10} />
                 </button>
@@ -919,11 +1255,16 @@ function NewChatModal({
         {/* Search */}
         <div className="px-4 pt-3 shrink-0">
           <div
-            className={`flex items-center gap-2 border rounded-xl px-3 py-2.5 ${isDark ? "bg-white/5 border-white/8" : "bg-black/4 border-black/8"}`}
+            className="flex items-center gap-2 rounded-xl px-3 py-2.5"
+            style={{
+              background: isDark ? darkBg2 : "#f8fafc",
+              border: `1px solid ${isDark ? darkBorder : lightBorderMid}`,
+            }}
           >
             <Search
               size={14}
-              className={`shrink-0 ${isDark ? "text-white/35" : "text-black/50"}`}
+              className="shrink-0"
+              style={{ color: isDark ? "rgba(165,180,252,0.4)" : "#94a3b8" }}
             />
             <input
               type="text"
@@ -936,7 +1277,8 @@ function NewChatModal({
               }
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className={`flex-1 bg-transparent text-sm outline-none ${isDark ? "text-white placeholder:text-white/25" : "text-black placeholder:text-black/40"}`}
+              className="flex-1 bg-transparent text-sm outline-none"
+              style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
             />
           </div>
         </div>
@@ -945,18 +1287,25 @@ function NewChatModal({
         <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2 mt-1">
           {mode === "find" ? (
             <div className="space-y-0.5">
-              {/* Incoming requests */}
               {incoming.length > 0 && !search && (
                 <div className="mb-2">
                   <p
-                    className={`text-[10px] uppercase tracking-widest px-3 py-1 ${isDark ? "text-white/30" : "text-black/50"}`}
+                    className="text-[10px] uppercase tracking-widest px-3 py-1"
+                    style={{
+                      color: isDark ? "rgba(165,180,252,0.35)" : "#94a3b8",
+                    }}
                   >
                     Requests
                   </p>
                   {incoming.map((u) => (
                     <div
                       key={u.id}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${isDark ? "bg-indigo-500/8" : "bg-indigo-50"}`}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                      style={{
+                        background: isDark
+                          ? "rgba(99,102,241,0.07)"
+                          : "rgba(99,102,241,0.05)",
+                      }}
                     >
                       <Avatar
                         userId={u.id}
@@ -967,7 +1316,8 @@ function NewChatModal({
                       />
                       <div className="flex-1 min-w-0">
                         <div
-                          className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-black"}`}
+                          className="text-sm font-medium truncate"
+                          style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
                         >
                           {u.username}
                         </div>
@@ -975,7 +1325,7 @@ function NewChatModal({
                       <div className="flex gap-1.5 shrink-0">
                         <button
                           onClick={() => onAcceptContact(u.id)}
-                          className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-green-500/15 text-green-400 hover:bg-green-500/25 transition-all"
+                          className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-all"
                         >
                           Accept
                         </button>
@@ -989,28 +1339,48 @@ function NewChatModal({
                     </div>
                   ))}
                   <div
-                    className={`mx-3 my-2 border-t ${isDark ? "border-white/8" : "border-black/6"}`}
+                    className="mx-3 my-2 border-t"
+                    style={{
+                      borderColor: isDark ? darkBorder : lightBorderMid,
+                    }}
                   />
                 </div>
               )}
 
-              {/* All other users */}
               {filtered.length === 0 && (
                 <p
-                  className={`text-center text-sm py-8 ${isDark ? "text-white/25" : "text-black/50"}`}
+                  className="text-center text-sm py-8"
+                  style={{
+                    color: isDark ? "rgba(238,242,255,0.22)" : "#94a3b8",
+                  }}
                 >
                   No users found
                 </p>
               )}
               {findError && (
-                <div className="mx-1 mb-2 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+                <div
+                  className="mx-1 mb-2 px-3 py-2 rounded-xl text-xs"
+                  style={{
+                    background: "rgba(239,68,68,0.08)",
+                    border: "1px solid rgba(239,68,68,0.2)",
+                    color: "#f87171",
+                  }}
+                >
                   {findError}
                 </div>
               )}
               {filtered.map((u) => (
                 <div
                   key={u.id}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${isDark ? "hover:bg-white/4" : "hover:bg-black/3"}`}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = isDark
+                      ? "rgba(99,102,241,0.06)"
+                      : "rgba(99,102,241,0.04)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "";
+                  }}
                 >
                   <Avatar
                     userId={u.id}
@@ -1021,7 +1391,8 @@ function NewChatModal({
                   />
                   <div className="flex-1 min-w-0">
                     <div
-                      className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-black"}`}
+                      className="text-sm font-medium truncate"
+                      style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
                     >
                       {u.username}
                     </div>
@@ -1046,7 +1417,10 @@ function NewChatModal({
             <div className="space-y-0.5">
               {filtered.length === 0 && (
                 <p
-                  className={`text-center text-sm py-10 ${isDark ? "text-white/25" : "text-black/50"}`}
+                  className="text-center text-sm py-10"
+                  style={{
+                    color: isDark ? "rgba(238,242,255,0.22)" : "#94a3b8",
+                  }}
                 >
                   {contacts.length === 0
                     ? 'No contacts yet — use "Find People" to add some'
@@ -1058,15 +1432,24 @@ function NewChatModal({
                 return (
                   <button
                     key={u.id}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left ${
-                      selected
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left"
+                    style={{
+                      background: selected
                         ? isDark
-                          ? "bg-white/12"
-                          : "bg-black/8"
-                        : isDark
-                          ? "hover:bg-white/6"
-                          : "hover:bg-black/4"
-                    }`}
+                          ? "rgba(99,102,241,0.14)"
+                          : "rgba(99,102,241,0.08)"
+                        : "transparent",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!selected)
+                        e.currentTarget.style.background = isDark
+                          ? "rgba(99,102,241,0.07)"
+                          : "rgba(99,102,241,0.05)";
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!selected)
+                        e.currentTarget.style.background = "transparent";
+                    }}
                     onClick={() =>
                       mode === "dm" ? onSelectUser(u) : toggleSelect(u.id)
                     }
@@ -1080,18 +1463,19 @@ function NewChatModal({
                     />
                     <div className="flex-1 min-w-0">
                       <div
-                        className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-black"}`}
+                        className="text-sm font-medium truncate"
+                        style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
                       >
                         {u.username}
                       </div>
                     </div>
                     {mode === "dm" && onlineIds.has(u.id) && (
-                      <span className="text-[10px] text-green-400 font-semibold shrink-0">
+                      <span className="text-[10px] text-emerald-400 font-semibold shrink-0">
                         Online
                       </span>
                     )}
                     {mode === "group" && selected && (
-                      <span className="text-purple-400 font-bold shrink-0">
+                      <span className="text-indigo-400 font-bold shrink-0">
                         ✓
                       </span>
                     )}
@@ -1105,12 +1489,18 @@ function NewChatModal({
         {/* Create group CTA */}
         {mode === "group" && (
           <div
-            className={`px-4 pb-5 pt-2 border-t shrink-0 ${isDark ? "border-white/8" : "border-black/6"}`}
+            className="px-4 pb-5 pt-3 border-t shrink-0"
+            style={{ borderColor: isDark ? darkBorder : lightBorderMid }}
           >
             <button
               onClick={submitGroup}
               disabled={selectedIds.length < 1 || !groupName.trim() || creating}
-              className="w-full py-3 rounded-xl bg-linear-to-r from-purple-600 to-blue-600 text-white text-sm font-semibold disabled:opacity-35 disabled:cursor-not-allowed hover:opacity-90 transition-all"
+              className="w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-35 disabled:cursor-not-allowed transition-all hover:opacity-90 active:scale-[0.99]"
+              style={{
+                background:
+                  "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)",
+                boxShadow: "0 4px 20px rgba(99,102,241,0.4)",
+              }}
             >
               {creating
                 ? "Creating…"
@@ -1136,11 +1526,22 @@ function ConfirmModal({
   return (
     <div className="fixed inset-0 z-600 flex items-end sm:items-center justify-center p-4">
       <div
-        className={`absolute inset-0 backdrop-blur-sm ${isDark ? "bg-black/80" : "bg-slate-900/40"}`}
+        className="absolute inset-0"
+        style={{
+          background: isDark ? "rgba(7,13,28,0.85)" : "rgba(15,23,42,0.35)",
+          backdropFilter: "blur(8px)",
+        }}
         onClick={onClose}
       />
       <div
-        className={`relative border rounded-2xl w-full sm:w-96 shadow-2xl overflow-hidden transition-colors duration-300 ${isDark ? "bg-[#111] border-white/10" : "bg-white border-black/10"}`}
+        className="relative w-full sm:w-96 overflow-hidden rounded-2xl animate-scale-in"
+        style={{
+          background: isDark ? darkBg2 : lightBg1,
+          border: `1px solid ${isDark ? darkBorderMid : lightBorderMid}`,
+          boxShadow: isDark
+            ? "0 24px 64px rgba(0,0,0,0.75)"
+            : "0 24px 64px rgba(99,102,241,0.12)",
+        }}
       >
         <div className="px-6 pt-6 pb-4">
           <p
@@ -1154,10 +1555,14 @@ function ConfirmModal({
             {body}
           </p>
         </div>
-        <div className={`flex gap-2 px-6 pb-6`}>
+        <div className="flex gap-2 px-6 pb-6">
           <button
             onClick={onClose}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${isDark ? "bg-white/8 text-white/70 hover:bg-white/12" : "bg-black/6 text-black/70 hover:bg-black/10"}`}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all"
+            style={{
+              background: isDark ? "rgba(238,242,255,0.06)" : "#f1f5f9",
+              color: isDark ? "rgba(238,242,255,0.7)" : "#475569",
+            }}
           >
             Cancel
           </button>
@@ -1182,23 +1587,37 @@ function GroupMembersPanel({ members, onClose, onlineIds, avatarMap, isDark }) {
   return (
     <div className="fixed inset-0 z-500 flex items-center justify-center p-4">
       <div
-        className={`absolute inset-0 backdrop-blur-sm ${isDark ? "bg-black/90" : "bg-slate-900/30"}`}
+        className="absolute inset-0"
+        style={{
+          background: isDark ? "rgba(7,13,28,0.88)" : "rgba(15,23,42,0.25)",
+          backdropFilter: "blur(8px)",
+        }}
         onClick={onClose}
       />
       <div
-        className={`relative border rounded-2xl w-full sm:w-80 max-h-[75dvh] flex flex-col shadow-2xl overflow-hidden transition-colors duration-300 ${isDark ? "bg-[#0d0d0d] border-white/10" : "bg-white border-black/10"}`}
+        className="relative w-full sm:w-80 max-h-[75dvh] flex flex-col overflow-hidden rounded-2xl animate-scale-in"
+        style={{
+          background: isDark ? darkBg1 : lightBg1,
+          border: `1px solid ${isDark ? darkBorderMid : lightBorderMid}`,
+          boxShadow: isDark
+            ? "0 32px 80px rgba(0,0,0,0.7)"
+            : "0 32px 80px rgba(99,102,241,0.12)",
+        }}
       >
         <div
-          className={`flex items-center justify-between px-5 py-4 border-b shrink-0 ${isDark ? "border-white/8" : "border-black/6"}`}
+          className="flex items-center justify-between px-5 py-4 border-b shrink-0"
+          style={{ borderColor: isDark ? darkBorder : lightBorderMid }}
         >
           <span
-            className={`font-semibold ${isDark ? "text-white" : "text-black"}`}
+            className="font-semibold"
+            style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
           >
             Members ({members.length})
           </span>
           <button
             onClick={onClose}
-            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isDark ? "text-white/40 hover:text-white hover:bg-white/10" : "text-black/50 hover:text-black hover:bg-black/6"}`}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+            style={{ color: isDark ? "rgba(238,242,255,0.4)" : "#64748b" }}
           >
             <X size={16} />
           </button>
@@ -1209,7 +1628,15 @@ function GroupMembersPanel({ members, onClose, onlineIds, avatarMap, isDark }) {
             return (
               <div
                 key={m.id}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${isDark ? "hover:bg-white/4" : "hover:bg-black/3"}`}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = isDark
+                    ? "rgba(99,102,241,0.06)"
+                    : "rgba(99,102,241,0.04)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "";
+                }}
               >
                 <Avatar
                   userId={m.id}
@@ -1220,12 +1647,13 @@ function GroupMembersPanel({ members, onClose, onlineIds, avatarMap, isDark }) {
                 />
                 <div className="flex-1 min-w-0">
                   <div
-                    className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-black"}`}
+                    className="text-sm font-medium truncate"
+                    style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
                   >
                     {m.username}
                   </div>
                   {isOnline && (
-                    <div className="text-xs text-green-400 font-medium">
+                    <div className="text-xs text-emerald-400 font-medium">
                       Online
                     </div>
                   )}
@@ -1318,6 +1746,7 @@ function ChatApp({ token, currentUser, onLogout }) {
   const loadedRoomsRef = useRef(new Set());
   const activeRoomIdRef = useRef(null);
   const closeTimerRef = useRef(null);
+  const longPressTimerRef = useRef(null);
 
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId;
@@ -1332,7 +1761,33 @@ function ChatApp({ token, currentUser, onLogout }) {
     }
   }, []);
 
-  // ── Socket setup ────────────────────────────────────────────────────────────
+  // Track the visual viewport so the chat panel stays locked to the visible
+  // screen area when the software keyboard opens.
+  // --vvt = offsetTop: how far iOS panned the visual viewport upward (panel top)
+  // --vvh = height:    actual visible height above keyboard (inner content height)
+  // Both update in the same handler so they're always in sync.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      const root = document.documentElement;
+      root.style.setProperty("--vvt", `${vv.offsetTop}px`);
+      root.style.setProperty("--vvh", `${vv.height}px`);
+      // After the panel resizes, snap scroll to the last message so it stays visible
+      requestAnimationFrame(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+      });
+    };
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
+
+  // ── Socket setup ─────────────────────────────────────────────────────────────
   useEffect(() => {
     const s = connectSocket(token);
     socketRef.current = s;
@@ -1504,7 +1959,7 @@ function ChatApp({ token, currentUser, onLogout }) {
     };
   }, [token, currentUser.id, currentUser.username]);
 
-  // ── Load rooms + users ──────────────────────────────────────────────────────
+  // ── Load rooms + users ────────────────────────────────────────────────────────
   useEffect(() => {
     api
       .getRooms()
@@ -1526,7 +1981,7 @@ function ChatApp({ token, currentUser, onLogout }) {
       .catch(console.error);
   }, []);
 
-  // ── Load messages on room change ─────────────────────────────────────────────
+  // ── Load messages on room change ──────────────────────────────────────────────
   useEffect(() => {
     if (!activeRoomId || loadedRoomsRef.current.has(activeRoomId)) return;
     loadedRoomsRef.current.add(activeRoomId);
@@ -1541,25 +1996,23 @@ function ChatApp({ token, currentUser, onLogout }) {
       });
   }, [activeRoomId]);
 
-  // ── Auto-scroll ──────────────────────────────────────────────────────────────
-  // Instant when switching rooms — avoids competing with the panel slide-in animation
+  // ── Auto-scroll ───────────────────────────────────────────────────────────────
   useEffect(() => {
     if (activeRoomId)
       messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
   }, [activeRoomId]);
-  // Smooth when a new message arrives in the current room
   useEffect(() => {
     if (activeRoomId)
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activeRoomId, messages]);
 
-  // ── Tab title ────────────────────────────────────────────────────────────────
+  // ── Tab title ─────────────────────────────────────────────────────────────────
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
   useEffect(() => {
     document.title = totalUnread > 0 ? `(${totalUnread}) Chatloop` : "Chatloop";
   }, [totalUnread]);
 
-  // ── Handlers ────────────────────────────────────────────────────────────────
+  // ── Handlers ─────────────────────────────────────────────────────────────────
 
   const stopTyping = useCallback(() => {
     clearTimeout(typingTimerRef.current);
@@ -1621,6 +2074,13 @@ function ChatApp({ token, currentUser, onLogout }) {
     if (e.target.value) startTyping();
     else stopTyping();
   }
+
+  // Reset height after send (inputText cleared to "")
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el || inputText !== "") return;
+    el.style.height = "auto";
+  }, [inputText]);
 
   const handleContextMenu = useCallback((e, msg) => {
     e.preventDefault();
@@ -1798,7 +2258,7 @@ function ChatApp({ token, currentUser, onLogout }) {
     localStorage.removeItem("chatloop_active_room");
   }
 
-  // ── Derived ─────────────────────────────────────────────────────────────────
+  // ── Derived ──────────────────────────────────────────────────────────────────
 
   const contacts = allUsers.filter((u) => u.contact_status === "accepted");
   const pendingRequestCount = allUsers.filter(
@@ -1850,7 +2310,8 @@ function ChatApp({ token, currentUser, onLogout }) {
   return (
     <div
       data-theme={isDark ? "dark" : "light"}
-      className={`relative w-full h-dvh overflow-hidden transition-colors duration-300 ${isDark ? "bg-black" : "bg-indigo-50"}`}
+      className="relative w-full h-dvh overflow-hidden"
+      style={{ background: isDark ? darkBg0 : lightBg0 }}
     >
       {/* Orbital Hub — always in background */}
       <OrbitalHub
@@ -1881,20 +2342,72 @@ function ChatApp({ token, currentUser, onLogout }) {
         onChange={handleAvatarFile}
       />
 
-      {/* Chat Panel */}
-      <div className="fixed inset-0 z-200 pointer-events-none">
+      {/* Solid backdrop — covers the orbital hub completely whenever a chat is
+          open, including during the fade-in transition and the iOS keyboard
+          accessory-bar gap that sits below --vvh */}
+      {displayRoomId && (
         <div
-          className={`absolute inset-0 flex flex-col transition-opacity duration-200 ${isDark ? "bg-black" : "bg-white"} ${activeRoomId ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+          className="fixed inset-0 z-199 pointer-events-none"
+          style={{ background: isDark ? darkBg0 : lightBg0 }}
+        />
+      )}
+
+      {/* Chat Panel
+          Outer: top=--vvt so the panel tracks iOS visual viewport pan.
+          Inner: height=--vvh (actual visible height above keyboard) so the
+          flex column is sized to exactly what the user can see. Without this,
+          justify-end pushes messages below the keyboard fold. */}
+      <div
+        className="fixed left-0 right-0 z-200 pointer-events-none"
+        style={{
+          top: "var(--vvt, 0px)",
+          height: "100dvh",
+          // Cover the gap between --vvh bottom and the keyboard (iOS accessory bar
+          // area) so the orbital hub never bleeds through when keyboard is open
+          background: displayRoomId
+            ? isDark
+              ? darkBg0
+              : lightBg0
+            : "transparent",
+        }}
+      >
+        <div
+          className={`absolute top-0 left-0 right-0 flex flex-col transition-opacity duration-200 ${activeRoomId ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+          style={{
+            height: "var(--vvh, 100dvh)",
+            background: isDark ? darkBg0 : lightBg0,
+          }}
         >
           {displayRoomId && activeRoom && (
             <>
               {/* Chat header */}
               <div
-                className={`flex items-center gap-3 px-4 py-3 border-b shrink-0 ${isDark ? "border-white/8" : "border-black/8"}`}
+                className="flex items-center gap-3 px-4 py-3.5 border-b shrink-0"
+                style={{
+                  borderColor: isDark ? darkBorder : lightBorderMid,
+                  background: isDark ? darkBg0 : lightBg1,
+                }}
               >
                 <button
                   onClick={closeRoom}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isDark ? "text-white/50 hover:text-white hover:bg-white/10" : "text-black/50 hover:text-black hover:bg-black/6"}`}
+                  className="w-9 h-9 rounded-full flex items-center justify-center transition-all shrink-0"
+                  style={{
+                    color: isDark ? "rgba(238,242,255,0.5)" : "#64748b",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = isDark
+                      ? "rgba(99,102,241,0.1)"
+                      : "rgba(99,102,241,0.07)";
+                    e.currentTarget.style.color = isDark
+                      ? "#eef2ff"
+                      : "#0f172a";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "";
+                    e.currentTarget.style.color = isDark
+                      ? "rgba(238,242,255,0.5)"
+                      : "#64748b";
+                  }}
                 >
                   <ArrowLeft size={18} />
                 </button>
@@ -1907,7 +2420,8 @@ function ChatApp({ token, currentUser, onLogout }) {
                 />
                 <div className="flex-1 min-w-0">
                   <div
-                    className={`font-semibold text-sm truncate ${isDark ? "text-white" : "text-black"}`}
+                    className="font-semibold text-sm truncate"
+                    style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
                   >
                     {activeRoomName}
                   </div>
@@ -1916,222 +2430,425 @@ function ChatApp({ token, currentUser, onLogout }) {
                       <TypingIndicator names={typingNames} isDark={isDark} />
                     ) : (
                       <span
-                        className={
-                          activeRoomOnline
-                            ? "text-green-400"
+                        style={{
+                          color: activeRoomOnline
+                            ? "#34d399"
                             : isDark
-                              ? "text-white/35"
-                              : "text-black/50"
-                        }
+                              ? "rgba(165,180,252,0.4)"
+                              : "#94a3b8",
+                        }}
                       >
                         {activeRoom.is_group
                           ? "Group chat"
                           : activeRoomOnline
-                            ? "Online"
+                            ? "Active now"
                             : "Offline"}
                       </span>
                     )}
                   </div>
                 </div>
-                <button
-                  onClick={() => {
-                    setShowMsgSearch((v) => !v);
-                    setMsgSearch("");
-                  }}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                    showMsgSearch
-                      ? isDark
-                        ? "text-white bg-white/10"
-                        : "text-black bg-black/8"
-                      : isDark
-                        ? "text-white/40 hover:text-white hover:bg-white/8"
-                        : "text-black/50 hover:text-black hover:bg-black/5"
-                  }`}
-                  title="Search messages"
-                >
-                  <Search size={16} />
-                </button>
-                {!!activeRoom.is_group && (
-                  <button
-                    onClick={openGroupMembers}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isDark ? "text-white/40 hover:text-white hover:bg-white/8" : "text-black/50 hover:text-black hover:bg-black/5"}`}
-                    title="View members"
-                  >
-                    <Users size={16} />
-                  </button>
-                )}
-                <button
-                  onClick={() => handleDeleteRoom(activeRoomId)}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isDark ? "text-white/40 hover:text-red-400 hover:bg-red-500/10" : "text-black/50 hover:text-red-400 hover:bg-red-500/10"}`}
-                  title="Delete chat"
-                >
-                  <Trash2 size={16} />
-                </button>
+
+                {/* Header action buttons */}
+                {[
+                  {
+                    icon: <Search size={16} />,
+                    active: showMsgSearch,
+                    onClick: () => {
+                      setShowMsgSearch((v) => !v);
+                      setMsgSearch("");
+                    },
+                    title: "Search messages",
+                    show: true,
+                  },
+                  {
+                    icon: <Users size={16} />,
+                    active: false,
+                    onClick: openGroupMembers,
+                    title: "View members",
+                    show: !!activeRoom.is_group,
+                  },
+                  {
+                    icon: <Trash2 size={16} />,
+                    active: false,
+                    onClick: () => handleDeleteRoom(activeRoomId),
+                    title: "Delete chat",
+                    danger: true,
+                    show: true,
+                  },
+                ]
+                  .filter((b) => b.show)
+                  .map((btn, i) => (
+                    <button
+                      key={i}
+                      onClick={btn.onClick}
+                      title={btn.title}
+                      className="w-9 h-9 rounded-full flex items-center justify-center transition-all shrink-0"
+                      style={{
+                        background: btn.active
+                          ? isDark
+                            ? "rgba(99,102,241,0.15)"
+                            : "rgba(99,102,241,0.1)"
+                          : "transparent",
+                        color: btn.active
+                          ? isDark
+                            ? "#a5b4fc"
+                            : "#6366f1"
+                          : isDark
+                            ? "rgba(238,242,255,0.4)"
+                            : "#94a3b8",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = btn.danger
+                          ? "rgba(239,68,68,0.1)"
+                          : isDark
+                            ? "rgba(99,102,241,0.1)"
+                            : "rgba(99,102,241,0.07)";
+                        e.currentTarget.style.color = btn.danger
+                          ? "#f87171"
+                          : isDark
+                            ? "#a5b4fc"
+                            : "#6366f1";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = btn.active
+                          ? isDark
+                            ? "rgba(99,102,241,0.15)"
+                            : "rgba(99,102,241,0.1)"
+                          : "transparent";
+                        e.currentTarget.style.color = btn.active
+                          ? isDark
+                            ? "#a5b4fc"
+                            : "#6366f1"
+                          : isDark
+                            ? "rgba(238,242,255,0.4)"
+                            : "#94a3b8";
+                      }}
+                    >
+                      {btn.icon}
+                    </button>
+                  ))}
               </div>
 
               {/* Message search bar */}
               {showMsgSearch && (
                 <div
-                  className={`flex items-center gap-2 px-4 py-2.5 border-b shrink-0 ${isDark ? "border-white/8 bg-white/3" : "border-black/6 bg-black/3"}`}
+                  className="flex items-center gap-2 px-4 py-2.5 border-b shrink-0"
+                  style={{
+                    borderColor: isDark ? darkBorder : lightBorderMid,
+                    background: isDark ? darkBg2 : "#f8fafc",
+                  }}
                 >
                   <Search
                     size={13}
-                    className={`shrink-0 ${isDark ? "text-white/35" : "text-black/50"}`}
+                    className="shrink-0"
+                    style={{
+                      color: isDark ? "rgba(165,180,252,0.4)" : "#94a3b8",
+                    }}
                   />
                   <input
                     type="text"
                     placeholder="Search messages…"
                     value={msgSearch}
                     onChange={(e) => setMsgSearch(e.target.value)}
-                    className={`flex-1 bg-transparent text-sm outline-none ${isDark ? "text-white placeholder:text-white/25" : "text-black placeholder:text-black/40"}`}
+                    className="flex-1 bg-transparent text-sm outline-none"
+                    style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
                   />
                   <button
                     onClick={() => {
                       setShowMsgSearch(false);
                       setMsgSearch("");
                     }}
-                    className={`transition-colors ${isDark ? "text-white/35 hover:text-white" : "text-black/50 hover:text-black"}`}
+                    style={{
+                      color: isDark ? "rgba(165,180,252,0.4)" : "#94a3b8",
+                    }}
                   >
                     <X size={14} />
                   </button>
                 </div>
               )}
 
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto px-4 py-4">
-                <div className="flex flex-col justify-end min-h-full gap-3">
-                  {displayedMessages.length === 0 &&
-                    messages[activeRoomId] !== undefined && (
-                      <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
-                        <div
-                          className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-                          style={{ background: userBg(activeAvatarId) }}
-                        >
-                          <span className="text-white text-xl font-bold">
-                            {initials(activeRoomName)}
-                          </span>
-                        </div>
-                        <p
-                          className={`text-sm font-medium ${isDark ? "text-white/50" : "text-black/60"}`}
-                        >
-                          {activeRoomName}
-                        </p>
-                        <p
-                          className={`text-xs mt-1 ${isDark ? "text-white/25" : "text-black/50"}`}
-                        >
-                          {msgSearch
-                            ? "No matching messages"
-                            : "No messages yet — say hello! 👋"}
-                        </p>
-                      </div>
-                    )}
-
-                  {displayedMessages.map((msg) => {
-                    if (msg.system) {
-                      return (
-                        <div key={msg.id} className="flex justify-center py-1">
-                          <span
-                            className={`text-xs px-3 py-1 rounded-full ${isDark ? "bg-white/8 text-white/35" : "bg-black/6 text-black/45"}`}
+              {/* Messages — layered: dot-grid texture + fade edges + scroll area */}
+              <div
+                className="flex-1 relative overflow-hidden"
+                style={{ background: isDark ? darkBg0 : lightBg0 }}
+              >
+                {/* Dot grid texture */}
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    backgroundImage: `radial-gradient(circle, ${isDark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.055)"} 1px, transparent 1px)`,
+                    backgroundSize: "28px 28px",
+                  }}
+                />
+                {/* Top fade */}
+                <div
+                  className="absolute top-0 left-0 right-0 h-10 z-10 pointer-events-none"
+                  style={{
+                    background: `linear-gradient(to bottom, ${isDark ? darkBg0 : lightBg0}, transparent)`,
+                  }}
+                />
+                {/* Scroll container */}
+                <div className="absolute inset-0 overflow-y-auto px-4 py-4 no-scrollbar">
+                  <div className="relative flex flex-col justify-end min-h-full gap-2.5">
+                    {displayedMessages.length === 0 &&
+                      messages[activeRoomId] !== undefined && (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
+                          <div
+                            className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+                            style={{
+                              background: userBg(activeAvatarId),
+                              boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+                            }}
                           >
-                            {msg.text}
-                          </span>
-                        </div>
-                      );
-                    }
-                    const isMine = msg.user_id === currentUser.id;
-                    const isTemp = !!msg.temp;
-                    return (
-                      <div
-                        key={msg.id}
-                        className={`flex w-full items-end gap-2 ${isMine ? "flex-row-reverse" : "flex-row"}`}
-                        onContextMenu={(e) =>
-                          !isTemp && handleContextMenu(e, msg)
-                        }
-                      >
-                        {!isMine && (
-                          <Avatar
-                            userId={msg.user_id}
-                            username={msg.username}
-                            size={28}
-                            avatar={avatarMap[msg.user_id]}
-                          />
-                        )}
-                        {isMine && (
-                          <Avatar
-                            userId={currentUser.id}
-                            username={currentUser.username}
-                            size={28}
-                            avatar={myAvatar}
-                          />
-                        )}
-                        <div
-                          className={`flex flex-col ${isMine ? "items-end" : "items-start"} max-w-[72%]`}
-                        >
-                          {!isMine && !!activeRoom.is_group && (
-                            <span
-                              className={`text-[11px] mb-1 ml-1 ${isDark ? "text-white/35" : "text-black/50"}`}
-                            >
-                              {msg.username}
+                            <span className="text-white text-xl font-bold">
+                              {initials(activeRoomName)}
                             </span>
-                          )}
-                          <div className="relative">
-                            <div
-                              className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed wrap-break-word transition-shadow duration-200 ${
-                                isMine
-                                  ? "bg-linear-to-br from-purple-600 to-blue-600 text-white rounded-br-sm hover:shadow-[0_0_22px_4px_rgba(124,58,237,0.55)]"
-                                  : isDark
-                                    ? "bg-white/10 text-white rounded-bl-sm hover:shadow-[0_0_22px_4px_rgba(255,255,255,0.18)]"
-                                    : "bg-slate-100 text-black rounded-bl-sm hover:shadow-[0_0_22px_4px_rgba(99,102,241,0.25)]"
-                              } ${isTemp ? "opacity-50" : ""}`}
+                          </div>
+                          <p
+                            className="text-sm font-medium"
+                            style={{
+                              color: isDark
+                                ? "rgba(238,242,255,0.55)"
+                                : "#475569",
+                            }}
+                          >
+                            {activeRoomName}
+                          </p>
+                          <p
+                            className="text-xs mt-1"
+                            style={{
+                              color: isDark
+                                ? "rgba(165,180,252,0.3)"
+                                : "#94a3b8",
+                            }}
+                          >
+                            {msgSearch
+                              ? "No matching messages"
+                              : "No messages yet — say hello! 👋"}
+                          </p>
+                        </div>
+                      )}
+
+                    {displayedMessages.map((msg) => {
+                      if (msg.system) {
+                        return (
+                          <div
+                            key={msg.id}
+                            className="flex justify-center py-1"
+                          >
+                            <span
+                              className="text-xs px-3 py-1 rounded-full"
+                              style={{
+                                background: isDark
+                                  ? "rgba(99,102,241,0.08)"
+                                  : "rgba(99,102,241,0.06)",
+                                color: isDark
+                                  ? "rgba(165,180,252,0.5)"
+                                  : "#6366f1",
+                                border: `1px solid ${isDark ? "rgba(99,102,241,0.1)" : "rgba(99,102,241,0.12)"}`,
+                              }}
                             >
                               {msg.text}
-                              <span className="ml-2 text-[10px] opacity-40 whitespace-nowrap">
-                                {formatFullTime(msg.created_at)}
-                              </span>
-                            </div>
-                            {msg.reaction && (
+                            </span>
+                          </div>
+                        );
+                      }
+                      const isMine = msg.user_id === currentUser.id;
+                      const isTemp = !!msg.temp;
+                      return (
+                        <div
+                          key={msg.id}
+                          className={`relative flex w-full items-end gap-2 animate-fade-in-up ${isMine ? "flex-row-reverse" : "flex-row"} ${msg.reaction ? "mb-3 z-1" : ""}`}
+                          onContextMenu={(e) =>
+                            !isTemp && handleContextMenu(e, msg)
+                          }
+                          onTouchStart={(e) => {
+                            if (isTemp) return;
+                            const touch = e.touches[0];
+                            const x = touch.clientX;
+                            const y = touch.clientY;
+                            longPressTimerRef.current = setTimeout(() => {
+                              setContextMenu({ msg, x, y });
+                            }, 500);
+                          }}
+                          onTouchEnd={() =>
+                            clearTimeout(longPressTimerRef.current)
+                          }
+                          onTouchMove={() =>
+                            clearTimeout(longPressTimerRef.current)
+                          }
+                          onTouchCancel={() =>
+                            clearTimeout(longPressTimerRef.current)
+                          }
+                        >
+                          <div
+                            className={`flex flex-col ${isMine ? "items-end" : "items-start"} max-w-[78%]`}
+                          >
+                            {!isMine && !!activeRoom.is_group && (
                               <span
-                                className={`absolute -bottom-3.5 right-1 text-base rounded-full px-1.5 py-0.5 border leading-none ${isDark ? "bg-black/80 border-white/10" : "bg-white border-black/10 shadow-sm"}`}
+                                className="text-[11px] mb-1 ml-1 font-medium"
+                                style={{
+                                  color: isDark
+                                    ? "rgba(165,180,252,0.5)"
+                                    : "#94a3b8",
+                                }}
                               >
-                                {msg.reaction}
+                                {msg.username}
                               </span>
                             )}
+                            <div className="relative">
+                              <div
+                                className={`px-4 py-2.5 text-sm leading-relaxed wrap-break-word ${
+                                  isMine
+                                    ? "rounded-2xl rounded-br-sm"
+                                    : "rounded-2xl rounded-bl-sm"
+                                } ${isTemp ? "opacity-50" : ""}`}
+                                style={
+                                  isMine
+                                    ? {
+                                        background:
+                                          "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)",
+                                        color: "#ffffff",
+                                        boxShadow:
+                                          "0 2px 16px rgba(99,102,241,0.4)",
+                                        userSelect: "none",
+                                        WebkitUserSelect: "none",
+                                        WebkitTouchCallout: "none",
+                                      }
+                                    : isDark
+                                      ? {
+                                          background: darkBg2,
+                                          color: "#eef2ff",
+                                          border: `1px solid ${darkBorder}`,
+                                          userSelect: "none",
+                                          WebkitUserSelect: "none",
+                                          WebkitTouchCallout: "none",
+                                        }
+                                      : {
+                                          background: "#ffffff",
+                                          color: "#1e293b",
+                                          border:
+                                            "1px solid rgba(226,232,240,1)",
+                                          boxShadow:
+                                            "0 1px 4px rgba(0,0,0,0.05)",
+                                          userSelect: "none",
+                                          WebkitUserSelect: "none",
+                                          WebkitTouchCallout: "none",
+                                        }
+                                }
+                              >
+                                {msg.text}
+                                <span
+                                  className="ml-2 text-[10px] whitespace-nowrap"
+                                  style={{ opacity: 0.4 }}
+                                >
+                                  {formatFullTime(msg.created_at)}
+                                </span>
+                              </div>
+                              {msg.reaction && (
+                                <span
+                                  className="absolute -bottom-3.5 right-1 text-base rounded-full px-1.5 py-0.5 leading-none"
+                                  style={{
+                                    background: isDark ? darkBg1 : "#ffffff",
+                                    border: `1px solid ${isDark ? darkBorder : lightBorderMid}`,
+                                    boxShadow: isDark
+                                      ? "0 2px 8px rgba(0,0,0,0.4)"
+                                      : "0 2px 8px rgba(0,0,0,0.08)",
+                                  }}
+                                >
+                                  {msg.reaction}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                  <div ref={messagesEndRef} />
+                      );
+                    })}
+                    <div ref={messagesEndRef} />
+                  </div>
                 </div>
+                {/* end scroll container */}
+                {/* Bottom fade */}
+                <div
+                  className="absolute bottom-0 left-0 right-0 h-10 z-10 pointer-events-none"
+                  style={{
+                    background: `linear-gradient(to top, ${isDark ? darkBg0 : lightBg0}, transparent)`,
+                  }}
+                />
               </div>
 
               {/* Message input */}
               <div
-                className={`px-4 py-3 border-t flex items-center gap-2.5 shrink-0 ${isDark ? "border-white/8" : "border-black/8"}`}
+                className="px-4 py-3 flex items-end gap-2.5 shrink-0"
+                style={{
+                  borderTop: `1px solid ${isDark ? darkBorder : lightBorderMid}`,
+                  background: isDark ? darkBg0 : lightBg1,
+                }}
               >
-                <input
+                <textarea
                   ref={inputRef}
-                  type="text"
+                  rows={1}
                   value={inputText}
-                  onChange={handleInputChange}
+                  onChange={(e) => {
+                    handleInputChange(e);
+                    // Synchronous resize — must happen before paint so mobile
+                    // browsers don't flash a scrollbar inside the textarea
+                    e.target.style.height = "auto";
+                    e.target.style.height =
+                      Math.min(e.target.scrollHeight, 120) + "px";
+                  }}
                   onKeyDown={handleKeyDown}
                   onBlur={stopTyping}
                   placeholder="Type a message…"
-                  className={`flex-1 border rounded-full px-4 py-2.5 text-sm outline-none transition-colors ${isDark ? "bg-white/5 border-white/10 text-white placeholder:text-white/25 focus:border-white/20" : "bg-black/4 border-black/10 text-black placeholder:text-black/40 focus:border-black/20"}`}
+                  className="flex-1 rounded-2xl px-4 py-2.5 text-sm outline-none transition-[border-color,box-shadow] duration-150 no-scrollbar"
+                  style={{
+                    background: isDark ? darkBg2 : "#f1f5f9",
+                    border: `1px solid ${isDark ? "rgba(99,102,241,0.15)" : "rgba(226,232,240,1)"}`,
+                    color: isDark ? "#eef2ff" : "#0f172a",
+                    resize: "none",
+                    overflowY: "auto",
+                    lineHeight: "1.5",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.border = isDark
+                      ? "1px solid rgba(99,102,241,0.45)"
+                      : "1px solid rgba(99,102,241,0.4)";
+                    e.target.style.boxShadow =
+                      "0 0 0 3px rgba(99,102,241,0.10)";
+                  }}
+                  onBlurCapture={(e) => {
+                    e.target.style.border = isDark
+                      ? "1px solid rgba(99,102,241,0.15)"
+                      : "1px solid rgba(226,232,240,1)";
+                    e.target.style.boxShadow = "none";
+                    stopTyping();
+                  }}
                 />
                 <button
                   onClick={sendMessage}
                   disabled={!inputText.trim()}
-                  className="w-9 h-9 rounded-full flex items-center justify-center transition-all disabled:opacity-25 disabled:cursor-not-allowed shrink-0"
+                  className="w-10 h-10 rounded-full flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
                   style={{
                     background: inputText.trim()
-                      ? "linear-gradient(135deg, #7c3aed, #2563eb)"
+                      ? "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)"
                       : isDark
-                        ? "rgba(255,255,255,0.05)"
-                        : "rgba(0,0,0,0.06)",
+                        ? "rgba(99,102,241,0.08)"
+                        : "#f1f5f9",
+                    boxShadow: inputText.trim()
+                      ? "0 4px 16px rgba(99,102,241,0.45)"
+                      : "none",
                   }}
                 >
-                  <Send size={16} className="text-white" />
+                  <Send
+                    size={16}
+                    style={{
+                      color: inputText.trim()
+                        ? "#ffffff"
+                        : isDark
+                          ? "rgba(165,180,252,0.4)"
+                          : "#94a3b8",
+                    }}
+                  />
                 </button>
               </div>
             </>
