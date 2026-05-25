@@ -11,6 +11,10 @@ import {
   Trash2,
   Users,
   Copy,
+  Hash,
+  Globe,
+  Lock,
+  UserMinus,
 } from "lucide-react";
 import StarField from "./components/ui/star-field.jsx";
 import { api } from "./lib/api.js";
@@ -80,6 +84,37 @@ function formatDateSeparator(ts) {
 }
 
 const REACTIONS = ["🔥", "🙌", "❤️", "😀", "😝", "👍"];
+
+const ROLE_LEVEL = { superadmin: 4, admin: 3, moderator: 2, member: 1 };
+
+function toSlug(name) {
+  return name
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 50);
+}
+
+function roleBadge(role, isDark) {
+  const styles = {
+    superadmin: { bg: isDark ? "rgba(251,191,36,0.15)" : "rgba(251,191,36,0.18)", color: "#fbbf24" },
+    admin:      { bg: isDark ? "rgba(167,139,250,0.15)" : "rgba(124,58,237,0.12)", color: isDark ? "#a78bfa" : "#7c3aed" },
+    moderator:  { bg: isDark ? "rgba(34,211,238,0.12)" : "rgba(8,145,178,0.10)",  color: isDark ? "#22d3ee" : "#0891b2" },
+  };
+  const s = styles[role];
+  if (!s) return null;
+  const label = role.charAt(0).toUpperCase() + role.slice(1);
+  return (
+    <span
+      className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0"
+      style={{ background: s.bg, color: s.color }}
+    >
+      {label}
+    </span>
+  );
+}
 
 // ─── Shared style helpers ─────────────────────────────────────────────────────
 
@@ -540,9 +575,12 @@ function OrbitalHub({
       {/* Room nodes */}
       {orbitRooms.map((room, index) => {
         const pos = getNodePosition(index, orbitRooms.length);
-        const displayName = room.is_group
-          ? room.name || "Group"
-          : room.other_username || "User";
+        const isRoomChannel = room.type === "channel" || room.type === "private_channel";
+        const displayName = isRoomChannel
+          ? room.name || `#${room.slug}`
+          : room.is_group
+            ? room.name || "Group"
+            : room.other_username || "User";
         const avatarId = room.is_group ? room.id : room.other_user_id;
         const isOnline = !room.is_group && onlineIds.has(room.other_user_id);
         const unread = unreadCounts[room.id] || 0;
@@ -777,9 +815,12 @@ function OrbitalHub({
               ) : (
                 <div className="space-y-0.5 px-2">
                   {rooms.map((room) => {
-                    const displayName = room.is_group
-                      ? room.name || "Group"
-                      : room.other_username || "User";
+                    const isRoomChannel = room.type === "channel" || room.type === "private_channel";
+                    const displayName = isRoomChannel
+                      ? room.name || `#${room.slug}`
+                      : room.is_group
+                        ? room.name || "Group"
+                        : room.other_username || "User";
                     const avatarId = room.is_group
                       ? room.id
                       : room.other_user_id;
@@ -855,7 +896,7 @@ function OrbitalHub({
                             </span>
                             {!!room.is_group && (
                               <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-400">
-                                Group
+                                {isRoomChannel ? "Channel" : "Group"}
                               </span>
                             )}
                           </div>
@@ -1103,6 +1144,8 @@ function NewChatModal({
   onlineIds,
   onSelectUser,
   onCreateGroup,
+  onCreateChannel,
+  onJoinChannel,
   onSendRequest,
   onAcceptContact,
   onRemoveContact,
@@ -1116,6 +1159,19 @@ function NewChatModal({
   const [groupName, setGroupName] = useState("");
   const [creating, setCreating] = useState(false);
   const [findError, setFindError] = useState("");
+
+  // Channel state
+  const [channelMode, setChannelMode] = useState("create"); // "create" | "join"
+  const [channelName, setChannelName] = useState("");
+  const [channelSlug, setChannelSlug] = useState("");
+  const [channelDesc, setChannelDesc] = useState("");
+  const [channelPrivate, setChannelPrivate] = useState(false);
+  const [slugManual, setSlugManual] = useState(false);
+  const [joinSlug, setJoinSlug] = useState("");
+  const [channelPreview, setChannelPreview] = useState(null);
+  const [channelLookupError, setChannelLookupError] = useState("");
+  const [channelError, setChannelError] = useState("");
+  const lookupTimer = useRef(null);
 
   const incoming = allUsers.filter(
     (u) => u.contact_status === "pending_received",
@@ -1140,10 +1196,72 @@ function NewChatModal({
     setCreating(false);
   }
 
+  function handleChannelNameChange(e) {
+    const val = e.target.value;
+    setChannelName(val);
+    if (!slugManual) setChannelSlug(toSlug(val));
+  }
+
+  function handleSlugChange(e) {
+    setSlugManual(true);
+    setChannelSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/-+/g, "-").slice(0, 50));
+  }
+
+  async function submitChannel() {
+    setChannelError("");
+    if (!channelName.trim()) { setChannelError("Channel name required"); return; }
+    if (!channelSlug.trim()) { setChannelError("Channel address required"); return; }
+    if (!/^[a-z0-9]([a-z0-9-]{0,48}[a-z0-9])?$/.test(channelSlug)) {
+      setChannelError("Address must be lowercase letters, numbers, and dashes (e.g. my-channel)");
+      return;
+    }
+    setCreating(true);
+    try {
+      await onCreateChannel(channelName.trim(), channelSlug, channelDesc.trim(), channelPrivate);
+    } catch (err) {
+      setChannelError(err.message || "Failed to create channel");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  function handleJoinSlugChange(e) {
+    const val = e.target.value;
+    setJoinSlug(val);
+    setChannelPreview(null);
+    setChannelLookupError("");
+    clearTimeout(lookupTimer.current);
+    const clean = val.trim().toLowerCase().replace(/^#/, "");
+    if (!clean) return;
+    lookupTimer.current = setTimeout(async () => {
+      try {
+        const data = await api.lookupChannel(clean);
+        setChannelPreview(data);
+        setChannelLookupError("");
+      } catch {
+        setChannelPreview(null);
+        setChannelLookupError("Channel not found");
+      }
+    }, 500);
+  }
+
+  async function submitJoin() {
+    if (!joinSlug.trim()) return;
+    setCreating(true);
+    try {
+      await onJoinChannel(joinSlug.trim());
+    } catch (err) {
+      setChannelLookupError(err.message || "Failed to join channel");
+    } finally {
+      setCreating(false);
+    }
+  }
+
   const tabs = [
     { id: "dm", label: "Direct" },
     { id: "group", label: "Group" },
-    { id: "find", label: "Find People", badge: incoming.length },
+    { id: "channel", label: "Channel" },
+    { id: "find", label: "Find", badge: incoming.length },
   ];
 
   const headerTitle =
@@ -1151,7 +1269,9 @@ function NewChatModal({
       ? "New Message"
       : mode === "group"
         ? "New Group"
-        : "Find People";
+        : mode === "channel"
+          ? "Channel"
+          : "Find People";
 
   const inputCls = `w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-all ${
     isDark
@@ -1213,6 +1333,8 @@ function NewChatModal({
                 setSelectedIds([]);
                 setSearch("");
                 setFindError("");
+                setChannelError("");
+                setChannelLookupError("");
               }}
               className="flex-1 relative py-2 rounded-xl text-xs font-medium transition-all"
               style={
@@ -1257,6 +1379,131 @@ function NewChatModal({
           </div>
         )}
 
+        {/* Channel mode */}
+        {mode === "channel" && (
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            {/* Sub-mode toggle */}
+            <div className="flex gap-1 px-4 pt-3 shrink-0">
+              {["create", "join"].map((sub) => (
+                <button
+                  key={sub}
+                  onClick={() => { setChannelMode(sub); setChannelError(""); setChannelLookupError(""); }}
+                  className="flex-1 py-2 rounded-xl text-xs font-medium transition-all"
+                  style={
+                    channelMode === sub
+                      ? { background: isDark ? "rgba(99,102,241,0.18)" : "rgba(99,102,241,0.12)", color: isDark ? "#a5b4fc" : "#4f46e5" }
+                      : { color: isDark ? "rgba(238,242,255,0.4)" : "#64748b" }
+                  }
+                >
+                  {sub === "create" ? "Create" : "Join"}
+                </button>
+              ))}
+            </div>
+
+            {channelMode === "create" && (
+              <div className="flex-1 overflow-y-auto px-4 pt-3 pb-5 space-y-3">
+                <input className={inputCls} placeholder="Channel name…" value={channelName} onChange={handleChannelNameChange} />
+                <div className="relative">
+                  <span
+                    className="absolute left-4 top-1/2 -translate-y-1/2 font-bold select-none"
+                    style={{ color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8" }}
+                  >#</span>
+                  <input
+                    className={inputCls}
+                    style={{ paddingLeft: "1.75rem" }}
+                    placeholder="channel-address"
+                    value={channelSlug}
+                    onChange={handleSlugChange}
+                  />
+                </div>
+                <input className={inputCls} placeholder="Description (optional)…" value={channelDesc} onChange={(e) => setChannelDesc(e.target.value)} />
+                <button
+                  onClick={() => setChannelPrivate((v) => !v)}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left"
+                  style={{
+                    background: channelPrivate
+                      ? isDark ? "rgba(99,102,241,0.12)" : "rgba(99,102,241,0.07)"
+                      : isDark ? darkBg2 : "#f8fafc",
+                    border: `1px solid ${isDark ? darkBorder : lightBorderMid}`,
+                  }}
+                >
+                  {channelPrivate ? <Lock size={15} style={{ color: isDark ? "#a5b4fc" : "#6366f1" }} /> : <Globe size={15} style={{ color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8" }} />}
+                  <span className="flex-1 text-sm" style={{ color: isDark ? "#eef2ff" : "#0f172a" }}>
+                    {channelPrivate ? "Private" : "Public"}
+                  </span>
+                  <span className="text-xs" style={{ color: isDark ? "rgba(165,180,252,0.4)" : "#94a3b8" }}>
+                    {channelPrivate ? "Invite only" : "Anyone with the address"}
+                  </span>
+                </button>
+                {channelError && (
+                  <div className="px-3 py-2 rounded-xl text-xs" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
+                    {channelError}
+                  </div>
+                )}
+                <button
+                  onClick={submitChannel}
+                  disabled={!channelName.trim() || !channelSlug.trim() || creating}
+                  className="w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-35 disabled:cursor-not-allowed transition-all hover:opacity-90"
+                  style={{ background: "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)", boxShadow: "0 4px 20px rgba(99,102,241,0.4)" }}
+                >
+                  {creating ? "Creating…" : "Create Channel"}
+                </button>
+              </div>
+            )}
+
+            {channelMode === "join" && (
+              <div className="flex-1 overflow-y-auto px-4 pt-3 pb-5 space-y-3">
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold select-none" style={{ color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8" }}>#</span>
+                  <input
+                    className={inputCls}
+                    style={{ paddingLeft: "1.75rem" }}
+                    placeholder="channel-address"
+                    value={joinSlug}
+                    onChange={handleJoinSlugChange}
+                  />
+                </div>
+                {channelPreview && (
+                  <div
+                    className="rounded-xl px-4 py-3 space-y-1"
+                    style={{ background: isDark ? darkBg2 : "#f8fafc", border: `1px solid ${isDark ? darkBorder : lightBorderMid}` }}
+                  >
+                    <div className="flex items-center gap-2">
+                      {channelPreview.type === "private_channel"
+                        ? <Lock size={13} style={{ color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8" }} />
+                        : <Globe size={13} style={{ color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8" }} />}
+                      <span className="font-semibold text-sm" style={{ color: isDark ? "#eef2ff" : "#0f172a" }}>#{channelPreview.slug}</span>
+                      <span className="text-xs" style={{ color: isDark ? "rgba(165,180,252,0.4)" : "#94a3b8" }}>· {channelPreview.memberCount} member{channelPreview.memberCount !== 1 ? "s" : ""}</span>
+                    </div>
+                    {channelPreview.name && (
+                      <div className="text-sm font-medium" style={{ color: isDark ? "rgba(238,242,255,0.8)" : "#334155" }}>{channelPreview.name}</div>
+                    )}
+                    {channelPreview.description && (
+                      <div className="text-xs" style={{ color: isDark ? "rgba(165,180,252,0.5)" : "#64748b" }}>{channelPreview.description}</div>
+                    )}
+                    {channelPreview.isMember && (
+                      <div className="text-xs text-emerald-400 font-medium">You are already a member</div>
+                    )}
+                  </div>
+                )}
+                {channelLookupError && (
+                  <div className="px-3 py-2 rounded-xl text-xs" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
+                    {channelLookupError}
+                  </div>
+                )}
+                <button
+                  onClick={submitJoin}
+                  disabled={!joinSlug.trim() || creating || (channelPreview?.type === "private_channel")}
+                  className="w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-35 disabled:cursor-not-allowed transition-all hover:opacity-90"
+                  style={{ background: "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)", boxShadow: "0 4px 20px rgba(99,102,241,0.4)" }}
+                >
+                  {creating ? "Joining…" : channelPreview?.isMember ? "Open Channel" : "Join Channel"}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Selected chips */}
         {mode === "group" && selectedIds.length > 0 && (
           <div className="flex flex-wrap gap-1.5 px-4 pt-3 shrink-0">
@@ -1281,7 +1528,8 @@ function NewChatModal({
           </div>
         )}
 
-        {/* Search */}
+        {/* Search — only for dm/group/find modes */}
+        {mode !== "channel" && (
         <div className="px-4 pt-3 shrink-0">
           <div
             className="flex items-center gap-2 rounded-xl px-3 py-2.5"
@@ -1311,8 +1559,10 @@ function NewChatModal({
             />
           </div>
         </div>
+        )}
 
-        {/* User list */}
+        {/* User list — only for dm/group/find modes */}
+        {mode !== "channel" && (
         <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2 mt-1">
           {mode === "find" ? (
             <div className="space-y-0.5">
@@ -1515,6 +1765,7 @@ function NewChatModal({
           )}
         </div>
 
+        )}
         {/* Create group CTA */}
         {mode === "group" && (
           <div
@@ -1615,7 +1866,41 @@ function ConfirmModal({
 
 // ─── Group Members Panel ──────────────────────────────────────────────────────
 
-function GroupMembersPanel({ members, onClose, onlineIds, avatarMap, isDark }) {
+function GroupMembersPanel({
+  members,
+  onClose,
+  onlineIds,
+  avatarMap,
+  isDark,
+  isChannel,
+  myRole,
+  currentUserId,
+  onKick,
+  onRoleChange,
+}) {
+  const [actionTarget, setActionTarget] = useState(null);
+
+  function canAct(targetRole) {
+    if (!myRole || !isChannel) return false;
+    return ROLE_LEVEL[myRole] > ROLE_LEVEL[targetRole] && targetRole !== "superadmin";
+  }
+
+  function nextRole(current) {
+    if (myRole === "superadmin") {
+      if (current === "member") return "moderator";
+      if (current === "moderator") return "admin";
+      if (current === "admin") return "member";
+    } else if (myRole === "admin") {
+      if (current === "member") return "moderator";
+      if (current === "moderator") return "member";
+    }
+    return null;
+  }
+
+  const sortedMembers = isChannel
+    ? [...members].sort((a, b) => (ROLE_LEVEL[b.role] || 0) - (ROLE_LEVEL[a.role] || 0))
+    : members;
+
   return (
     <div className="fixed inset-0 z-500 flex items-center justify-center p-4">
       <div
@@ -1629,7 +1914,7 @@ function GroupMembersPanel({ members, onClose, onlineIds, avatarMap, isDark }) {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Group members"
+        aria-label="Members"
         className="relative w-full sm:w-80 max-h-[75dvh] flex flex-col overflow-hidden rounded-2xl animate-scale-in"
         style={{
           background: isDark ? darkBg1 : lightBg1,
@@ -1643,11 +1928,8 @@ function GroupMembersPanel({ members, onClose, onlineIds, avatarMap, isDark }) {
           className="flex items-center justify-between px-5 py-4 border-b shrink-0"
           style={{ borderColor: isDark ? darkBorder : lightBorderMid }}
         >
-          <span
-            className="font-semibold"
-            style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
-          >
-            Members ({members.length})
+          <span className="font-semibold" style={{ color: isDark ? "#eef2ff" : "#0f172a" }}>
+            {isChannel ? "Channel Members" : "Members"} ({members.length})
           </span>
           <button
             onClick={onClose}
@@ -1658,42 +1940,83 @@ function GroupMembersPanel({ members, onClose, onlineIds, avatarMap, isDark }) {
             <X size={16} />
           </button>
         </div>
+
         <div className="flex-1 min-h-0 overflow-y-auto py-2 px-3 space-y-0.5">
-          {members.map((m) => {
+          {sortedMembers.map((m) => {
             const isOnline = onlineIds.has(m.id);
+            const isMe = m.id === currentUserId;
+            const showActions = isChannel && canAct(m.role) && !isMe;
+            const isActing = actionTarget === m.id;
+            const promote = nextRole(m.role);
+
             return (
-              <div
-                key={m.id}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = isDark
-                    ? "rgba(99,102,241,0.06)"
-                    : "rgba(99,102,241,0.04)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "";
-                }}
-              >
-                <Avatar
-                  userId={m.id}
-                  username={m.username}
-                  size={40}
-                  online={isOnline}
-                  avatar={avatarMap[m.id]}
-                />
-                <div className="flex-1 min-w-0">
-                  <div
-                    className="text-sm font-medium truncate"
-                    style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
-                  >
-                    {m.username}
-                  </div>
-                  {isOnline && (
-                    <div className="text-xs text-emerald-400 font-medium">
-                      Online
+              <div key={m.id} className="rounded-xl overflow-hidden">
+                <div
+                  className="flex items-center gap-3 px-3 py-2.5 transition-all"
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = isDark
+                      ? "rgba(99,102,241,0.06)"
+                      : "rgba(99,102,241,0.04)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "";
+                  }}
+                >
+                  <Avatar userId={m.id} username={m.username} size={40} online={isOnline} avatar={avatarMap[m.id]} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-sm font-medium truncate" style={{ color: isDark ? "#eef2ff" : "#0f172a" }}>
+                        {m.username}
+                        {isMe && <span className="ml-1 opacity-40 text-xs">(you)</span>}
+                      </span>
+                      {isChannel && roleBadge(m.role, isDark)}
                     </div>
+                    {isOnline && <div className="text-xs text-emerald-400 font-medium">Online</div>}
+                  </div>
+                  {showActions && (
+                    <button
+                      onClick={() => setActionTarget(isActing ? null : m.id)}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-xs shrink-0 transition-all"
+                      style={{
+                        color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8",
+                        background: isActing
+                          ? isDark ? "rgba(99,102,241,0.15)" : "rgba(99,102,241,0.08)"
+                          : "transparent",
+                      }}
+                      title="Manage member"
+                    >
+                      •••
+                    </button>
                   )}
                 </div>
+
+                {isActing && showActions && (
+                  <div
+                    className="flex gap-1.5 px-3 pb-2.5"
+                    style={{ background: isDark ? "rgba(99,102,241,0.04)" : "rgba(99,102,241,0.03)" }}
+                  >
+                    {promote && (
+                      <button
+                        onClick={() => { onRoleChange(m.id, promote); setActionTarget(null); }}
+                        className="flex-1 text-[11px] font-semibold py-1.5 rounded-lg transition-all"
+                        style={{
+                          background: isDark ? "rgba(99,102,241,0.12)" : "rgba(99,102,241,0.08)",
+                          color: isDark ? "#a5b4fc" : "#4f46e5",
+                        }}
+                      >
+                        → {promote.charAt(0).toUpperCase() + promote.slice(1)}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { onKick(m.id); setActionTarget(null); onClose(); }}
+                      className="flex items-center gap-1 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all"
+                      style={{ background: "rgba(239,68,68,0.10)", color: "#f87171" }}
+                    >
+                      <UserMinus size={11} />
+                      Kick
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -1954,6 +2277,61 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       });
     });
 
+    s.on("channel:member_kicked", ({ roomId, kickedUserId }) => {
+      if (kickedUserId === currentUser.id) {
+        loadedRoomsRef.current.delete(roomId);
+        setRooms((prev) => prev.filter((r) => r.id !== roomId));
+        if (activeRoomIdRef.current === roomId) {
+          setActiveRoomId(null);
+          setTimeout(() => setDisplayRoomId(null), 200);
+        }
+      } else {
+        setMessages((prev) => ({
+          ...prev,
+          [roomId]: [
+            ...(prev[roomId] || []),
+            { id: `sys_${Date.now()}`, text: `A member was removed from the channel`, system: true, created_at: Math.floor(Date.now() / 1000) },
+          ],
+        }));
+        setGroupMembersPanel((prev) =>
+          prev?.roomId === roomId
+            ? { ...prev, members: prev.members.filter((m) => m.id !== kickedUserId) }
+            : prev,
+        );
+      }
+    });
+
+    s.on("channel:role_changed", ({ roomId, userId, role }) => {
+      setGroupMembersPanel((prev) =>
+        prev?.roomId === roomId
+          ? { ...prev, members: prev.members.map((m) => m.id === userId ? { ...m, role } : m) }
+          : prev,
+      );
+      setRooms((prev) =>
+        prev.map((r) => r.id === roomId && userId === currentUser.id ? { ...r, role } : r),
+      );
+    });
+
+    s.on("channel:member_joined", ({ roomId, username }) => {
+      setMessages((prev) => ({
+        ...prev,
+        [roomId]: [
+          ...(prev[roomId] || []),
+          { id: `sys_${Date.now()}`, text: `${username} joined the channel`, system: true, created_at: Math.floor(Date.now() / 1000) },
+        ],
+      }));
+    });
+
+    s.on("channel:member_left", ({ roomId, username }) => {
+      setMessages((prev) => ({
+        ...prev,
+        [roomId]: [
+          ...(prev[roomId] || []),
+          { id: `sys_${Date.now()}`, text: `${username} left the channel`, system: true, created_at: Math.floor(Date.now() / 1000) },
+        ],
+      }));
+    });
+
     return () => {
       s.off("message:new");
       s.off("message:ack");
@@ -1968,6 +2346,10 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       s.off("contact:accepted");
       s.off("user:avatar");
       s.off("message:error");
+      s.off("channel:member_kicked");
+      s.off("channel:role_changed");
+      s.off("channel:member_joined");
+      s.off("channel:member_left");
       disconnectSocket();
     };
   }, [token, currentUser.id, currentUser.username]);
@@ -2177,12 +2559,20 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   function handleDeleteRoom(roomId) {
     const room = rooms.find((r) => r.id === roomId);
     const isGroup = !!room?.is_group;
+    const isChannel = room?.type === "channel" || room?.type === "private_channel";
+    const amOwner = isChannel && room?.role === "superadmin";
     setConfirmModal({
-      title: isGroup ? "Leave group?" : "Delete conversation?",
-      body: isGroup
-        ? "You'll be removed from the group. If only one member remains after you leave, the group will be deleted for everyone."
-        : "This conversation will be permanently deleted. Neither of you will be able to see the messages again.",
-      confirmLabel: isGroup ? "Leave" : "Delete",
+      title: isChannel
+        ? amOwner ? "Delete channel?" : "Leave channel?"
+        : isGroup ? "Leave group?" : "Delete conversation?",
+      body: isChannel
+        ? amOwner
+          ? "This will permanently delete the channel and all its messages for everyone."
+          : "You'll be removed from the channel."
+        : isGroup
+          ? "You'll be removed from the group. If only one member remains after you leave, the group will be deleted for everyone."
+          : "This conversation will be permanently deleted. Neither of you will be able to see the messages again.",
+      confirmLabel: amOwner ? "Delete" : isGroup ? "Leave" : "Delete",
       onConfirm: async () => {
         closeRoom();
         setRooms((prev) => prev.filter((r) => r.id !== roomId));
@@ -2263,6 +2653,46 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     }
   }
 
+  async function handleCreateChannel(name, slug, description, isPrivate) {
+    setShowNewChat(false);
+    try {
+      const { roomId } = await api.createChannel(name, slug, description, isPrivate);
+      selectRoom(roomId);
+      api.getRooms().then(setRooms).catch(console.error);
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async function handleJoinChannel(slug) {
+    try {
+      const { roomId } = await api.joinChannel(slug);
+      setShowNewChat(false);
+      selectRoom(roomId);
+      api.getRooms().then(setRooms).catch(console.error);
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async function handleKickMember(userId) {
+    if (!displayRoomId) return;
+    try {
+      await api.kickChannelMember(displayRoomId, userId);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function handleRoleChange(userId, role) {
+    if (!displayRoomId) return;
+    try {
+      await api.setMemberRole(displayRoomId, userId, role);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   async function handleCreateGroup(userIds, name) {
     setShowNewChat(false);
     try {
@@ -2326,10 +2756,15 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         .map((u) => u.username)
     : [];
 
+  const isActiveChannel = activeRoom?.type === "channel" || activeRoom?.type === "private_channel";
+  const myActiveRole = activeRoom?.role || null;
+
   const activeRoomName = activeRoom
-    ? activeRoom.is_group
-      ? activeRoom.name || "Group Chat"
-      : activeRoom.other_username || "Unknown"
+    ? isActiveChannel
+      ? activeRoom.name || `#${activeRoom.slug}`
+      : activeRoom.is_group
+        ? activeRoom.name || "Group Chat"
+        : activeRoom.other_username || "Unknown"
     : "";
 
   const activeRoomOnline =
@@ -2457,11 +2892,17 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                   avatar={avatarMap[activeAvatarId]}
                 />
                 <div className="flex-1 min-w-0">
-                  <div
-                    className="font-semibold text-sm truncate"
-                    style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
-                  >
-                    {activeRoomName}
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {isActiveChannel && <Hash size={13} style={{ color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8", flexShrink: 0 }} />}
+                    <span
+                      className="font-semibold text-sm truncate"
+                      style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+                    >
+                      {isActiveChannel ? (activeRoom.slug || activeRoomName) : activeRoomName}
+                    </span>
+                    {isActiveChannel && activeRoom.type === "private_channel" && (
+                      <Lock size={11} style={{ color: isDark ? "rgba(165,180,252,0.35)" : "#94a3b8", flexShrink: 0 }} />
+                    )}
                   </div>
                   <div className="text-xs mt-0.5">
                     {typingNames.length > 0 ? (
@@ -2476,11 +2917,13 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                               : "#94a3b8",
                         }}
                       >
-                        {activeRoom.is_group
-                          ? "Group chat"
-                          : activeRoomOnline
-                            ? "Active now"
-                            : "Offline"}
+                        {isActiveChannel
+                          ? activeRoom.name || "Channel"
+                          : activeRoom.is_group
+                            ? "Group chat"
+                            : activeRoomOnline
+                              ? "Active now"
+                              : "Offline"}
                       </span>
                     )}
                   </div>
@@ -2499,6 +2942,15 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                     show: true,
                   },
                   {
+                    icon: <Copy size={16} />,
+                    active: false,
+                    onClick: () => {
+                      navigator.clipboard.writeText(`#${activeRoom.slug}`).catch(console.error);
+                    },
+                    title: `Copy channel address (#${activeRoom.slug})`,
+                    show: !!isActiveChannel,
+                  },
+                  {
                     icon: <Users size={16} />,
                     active: false,
                     onClick: openGroupMembers,
@@ -2509,7 +2961,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                     icon: <Trash2 size={16} />,
                     active: false,
                     onClick: () => handleDeleteRoom(activeRoomId),
-                    title: "Delete chat",
+                    title: isActiveChannel
+                      ? (myActiveRole === "superadmin" ? "Delete channel" : "Leave channel")
+                      : "Delete chat",
                     danger: true,
                     show: true,
                   },
@@ -2941,6 +3395,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           onlineIds={onlineIds}
           onSelectUser={handleSelectUser}
           onCreateGroup={handleCreateGroup}
+          onCreateChannel={handleCreateChannel}
+          onJoinChannel={handleJoinChannel}
           onSendRequest={handleSendRequest}
           onAcceptContact={handleAcceptContact}
           onRemoveContact={handleRemoveContact}
@@ -2958,6 +3414,11 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           onlineIds={onlineIds}
           avatarMap={avatarMap}
           isDark={isDark}
+          isChannel={!!isActiveChannel}
+          myRole={myActiveRole}
+          currentUserId={currentUser.id}
+          onKick={handleKickMember}
+          onRoleChange={handleRoleChange}
         />
       )}
 

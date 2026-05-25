@@ -72,4 +72,19 @@ export const api = {
   uploadAvatar: (avatar) => request("POST", "/users/me/avatar", { avatar }),
 
   getRoomMembers: (roomId) => request("GET", `/rooms/${roomId}/members`),
+
+  createChannel: (name, slug, description, isPrivate) =>
+    request("POST", "/channels", { name, slug, description, isPrivate }),
+
+  joinChannel: (slug) =>
+    request("POST", "/channels/join", { slug }),
+
+  lookupChannel: (slug) =>
+    request("GET", `/channels/lookup/${encodeURIComponent(slug.replace(/^#/, ""))}`),
+
+  setMemberRole: (roomId, userId, role) =>
+    request("PATCH", `/channels/${roomId}/members/${userId}/role`, { role }),
+
+  kickChannelMember: (roomId, userId) =>
+    request("DELETE", `/channels/${roomId}/members/${userId}`),
 };

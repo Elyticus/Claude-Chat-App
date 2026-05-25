@@ -352,6 +352,9 @@ app.delete("/api/contacts/:contactId", requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ─── Role hierarchy ───────────────────────────────────────────────────────────
+const ROLE_LEVEL = { superadmin: 4, admin: 3, moderator: 2, member: 1 };
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function notifyNewRoom(roomId, memberIds, extra = {}) {
@@ -463,10 +466,25 @@ app.delete("/api/rooms/:roomId", requireAuth, async (req, res) => {
     return res.status(403).json({ error: "Forbidden" });
   }
 
+  const room = await queries.getRoomById.get(roomId);
   const allMembers = await queries.getRoomMembers.all(roomId);
   const otherMembers = allMembers.filter((m) => m.id !== req.user.id);
 
-  if (otherMembers.length <= 1) {
+  const isChannel = room?.type === "channel" || room?.type === "private_channel";
+
+  if (isChannel) {
+    const myRole = await queries.getMemberRole.get(roomId, req.user.id);
+    if (myRole === "superadmin") {
+      // Superadmin deletes the channel for everyone
+      await queries.deleteRoom.run(roomId);
+      notifyMembers(otherMembers, "room:deleted", { roomId });
+    } else {
+      await queries.removeMember.run(roomId, req.user.id);
+      io.to(`room:${roomId}`).emit("channel:member_left", {
+        roomId, userId: req.user.id, username: req.user.username,
+      });
+    }
+  } else if (otherMembers.length <= 1) {
     // 2-person room (DM or group) — delete entirely for all
     await queries.deleteRoom.run(roomId);
     notifyMembers(otherMembers, "room:deleted", { roomId });
@@ -480,6 +498,122 @@ app.delete("/api/rooms/:roomId", requireAuth, async (req, res) => {
     });
   }
 
+  res.json({ ok: true });
+});
+
+// ─── REST: Channels ────────────────────────────────────────────────────────────
+
+const VALID_SLUG = /^[a-z0-9]([a-z0-9-]{0,48}[a-z0-9])?$/;
+
+app.post("/api/channels", requireAuth, async (req, res) => {
+  const { name, slug, description, isPrivate } = req.body ?? {};
+  if (!name?.trim()) return res.status(400).json({ error: "Channel name required" });
+  if (!slug?.trim()) return res.status(400).json({ error: "Channel address required" });
+  const cleanSlug = slug.trim().toLowerCase();
+  if (!VALID_SLUG.test(cleanSlug)) {
+    return res.status(400).json({ error: "Address must be lowercase letters, numbers, and dashes (e.g. my-channel)" });
+  }
+
+  const existing = await queries.getChannelBySlug.get(cleanSlug);
+  if (existing) return res.status(409).json({ error: "Channel address already taken" });
+
+  const { lastInsertRowid: roomId } = await queries.createChannel.run(
+    name.trim(), cleanSlug, description?.trim() || null, !!isPrivate,
+  );
+  await queries.addMemberWithRole.run(roomId, req.user.id, "superadmin");
+
+  notifyNewRoom(roomId, [req.user.id]);
+  res.status(201).json({ roomId });
+});
+
+app.post("/api/channels/join", requireAuth, async (req, res) => {
+  const { slug } = req.body ?? {};
+  if (!slug?.trim()) return res.status(400).json({ error: "Channel address required" });
+  const cleanSlug = slug.trim().toLowerCase().replace(/^#/, "");
+
+  const channel = await queries.getChannelBySlug.get(cleanSlug);
+  if (!channel) return res.status(404).json({ error: "Channel not found" });
+  if (channel.type === "private_channel") {
+    return res.status(403).json({ error: "This is a private channel — you need an invitation to join" });
+  }
+
+  const alreadyMember = await queries.isMember.get(channel.id, req.user.id);
+  if (alreadyMember) return res.json({ roomId: channel.id });
+
+  await queries.addMemberWithRole.run(channel.id, req.user.id, "member");
+
+  online.get(req.user.id)?.forEach((sid) => {
+    io.sockets.sockets.get(sid)?.join(`room:${channel.id}`);
+  });
+  io.to(`room:${channel.id}`).emit("channel:member_joined", {
+    roomId: channel.id, userId: req.user.id, username: req.user.username,
+  });
+  notifyNewRoom(channel.id, [req.user.id]);
+  res.json({ roomId: channel.id });
+});
+
+app.get("/api/channels/lookup/:slug", requireAuth, async (req, res) => {
+  const cleanSlug = req.params.slug.toLowerCase().replace(/^#/, "");
+  const channel = await queries.getChannelBySlug.get(cleanSlug);
+  if (!channel) return res.status(404).json({ error: "Channel not found" });
+  const memberCount = await queries.memberCount.get(channel.id);
+  const isMember = !!(await queries.isMember.get(channel.id, req.user.id));
+  res.json({ ...channel, memberCount: memberCount.cnt, isMember });
+});
+
+app.patch("/api/channels/:roomId/members/:userId/role", requireAuth, async (req, res) => {
+  const roomId = Number(req.params.roomId);
+  const targetId = Number(req.params.userId);
+  const { role } = req.body ?? {};
+
+  if (!role || !["admin", "moderator", "member"].includes(role)) {
+    return res.status(400).json({ error: "Role must be admin, moderator, or member" });
+  }
+
+  const myRole = await queries.getMemberRole.get(roomId, req.user.id);
+  if (!myRole) return res.status(403).json({ error: "Not a member" });
+
+  const targetRole = await queries.getMemberRole.get(roomId, targetId);
+  if (!targetRole) return res.status(404).json({ error: "User is not a member" });
+  if (targetRole === "superadmin") return res.status(403).json({ error: "Cannot change the channel owner's role" });
+  if (ROLE_LEVEL[myRole] <= ROLE_LEVEL[targetRole]) return res.status(403).json({ error: "Insufficient permissions" });
+  if (ROLE_LEVEL[myRole] <= ROLE_LEVEL[role]) return res.status(403).json({ error: "Cannot assign a role equal to or higher than yours" });
+
+  await queries.setMemberRole.run(roomId, targetId, role);
+  io.to(`room:${roomId}`).emit("channel:role_changed", {
+    roomId, userId: targetId, role, changedBy: req.user.username,
+  });
+  res.json({ ok: true });
+});
+
+app.delete("/api/channels/:roomId/members/:userId", requireAuth, async (req, res) => {
+  const roomId = Number(req.params.roomId);
+  const targetId = Number(req.params.userId);
+
+  const myRole = await queries.getMemberRole.get(roomId, req.user.id);
+  if (!myRole) return res.status(403).json({ error: "Not a member" });
+
+  const targetRole = await queries.getMemberRole.get(roomId, targetId);
+  if (!targetRole) return res.status(404).json({ error: "User is not a member" });
+  if (targetRole === "superadmin") return res.status(403).json({ error: "Cannot kick the channel owner" });
+  if (ROLE_LEVEL[myRole] <= ROLE_LEVEL[targetRole]) return res.status(403).json({ error: "Insufficient permissions" });
+
+  await queries.removeMember.run(roomId, targetId);
+
+  // Force-remove the kicked user's sockets from the room
+  online.get(targetId)?.forEach((sid) => {
+    io.sockets.sockets.get(sid)?.leave(`room:${roomId}`);
+  });
+
+  io.to(`room:${roomId}`).emit("channel:member_kicked", {
+    roomId, kickedUserId: targetId, kickedBy: req.user.username,
+  });
+  // Also notify the kicked user's sockets (already left the room so won't get the broadcast)
+  online.get(targetId)?.forEach((sid) => {
+    io.sockets.sockets.get(sid)?.emit("channel:member_kicked", {
+      roomId, kickedUserId: targetId, kickedBy: req.user.username,
+    });
+  });
   res.json({ ok: true });
 });
 

@@ -29,21 +29,30 @@ export async function initDb() {
       expires_at    BIGINT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS rooms (
-      id         SERIAL PRIMARY KEY,
-      name       TEXT,
-      is_group   SMALLINT DEFAULT 0,
-      created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
+      id          SERIAL PRIMARY KEY,
+      name        TEXT,
+      is_group    SMALLINT DEFAULT 0,
+      type        TEXT DEFAULT 'room',
+      slug        TEXT,
+      description TEXT,
+      created_at  BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
     );
+    ALTER TABLE rooms ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'room';
+    ALTER TABLE rooms ADD COLUMN IF NOT EXISTS slug TEXT;
+    ALTER TABLE rooms ADD COLUMN IF NOT EXISTS description TEXT;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_rooms_slug ON rooms(slug) WHERE slug IS NOT NULL;
     CREATE TABLE IF NOT EXISTS room_members (
       room_id   INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
       user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       joined_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT,
       is_new    SMALLINT DEFAULT 0,
       added_by  TEXT,
+      role      TEXT DEFAULT 'member',
       PRIMARY KEY (room_id, user_id)
     );
     ALTER TABLE room_members ADD COLUMN IF NOT EXISTS is_new SMALLINT DEFAULT 0;
     ALTER TABLE room_members ADD COLUMN IF NOT EXISTS added_by TEXT;
+    ALTER TABLE room_members ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'member';
     CREATE TABLE IF NOT EXISTS messages (
       id         SERIAL PRIMARY KEY,
       room_id    INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
@@ -165,7 +174,8 @@ export const queries = {
 
   getUserRooms: {
     all: (uid) =>
-      q(`SELECT r.id, r.name, r.is_group, rm.is_new, rm.added_by,
+      q(`SELECT r.id, r.name, r.is_group, r.type, r.slug, r.description,
+                rm.is_new, rm.added_by, rm.role,
                 m.text AS last_message, m.created_at AS last_message_at,
                 mu.id AS other_user_id, mu.username AS other_username
          FROM rooms r
@@ -222,9 +232,45 @@ export const queries = {
 
   getRoomMembers: {
     all: (roomId) =>
-      q(`SELECT u.id, u.username, u.avatar FROM users u
+      q(`SELECT u.id, u.username, u.avatar, rm.role FROM users u
          JOIN room_members rm ON rm.user_id = u.id
          WHERE rm.room_id = $1 ORDER BY u.username ASC`, [roomId]).then(r => r.rows),
+  },
+
+  getRoomById: {
+    get: (roomId) =>
+      q("SELECT id, name, is_group, type, slug, description FROM rooms WHERE id = $1", [roomId])
+        .then(r => r.rows[0] ?? null),
+  },
+
+  createChannel: {
+    run: (name, slug, description, isPrivate) =>
+      q("INSERT INTO rooms (name, slug, description, is_group, type) VALUES ($1, $2, $3, 1, $4) RETURNING id",
+        [name, slug, description || null, isPrivate ? 'private_channel' : 'channel'])
+        .then(r => ({ lastInsertRowid: r.rows[0].id })),
+  },
+
+  getChannelBySlug: {
+    get: (slug) =>
+      q("SELECT id, name, slug, description, type, created_at FROM rooms WHERE slug = $1", [slug])
+        .then(r => r.rows[0] ?? null),
+  },
+
+  getMemberRole: {
+    get: (roomId, userId) =>
+      q("SELECT role FROM room_members WHERE room_id = $1 AND user_id = $2", [roomId, userId])
+        .then(r => r.rows[0]?.role ?? null),
+  },
+
+  setMemberRole: {
+    run: (roomId, userId, role) =>
+      q("UPDATE room_members SET role = $1 WHERE room_id = $2 AND user_id = $3", [role, roomId, userId]),
+  },
+
+  addMemberWithRole: {
+    run: (roomId, userId, role) =>
+      q("INSERT INTO room_members (room_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT (room_id, user_id) DO NOTHING",
+        [roomId, userId, role]),
   },
 };
 
