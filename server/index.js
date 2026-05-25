@@ -665,16 +665,29 @@ app.post("/api/channels/:roomId/members", requireAuth, async (req, res) => {
 
 app.patch("/api/channels/:roomId", requireAuth, async (req, res) => {
   const roomId = Number(req.params.roomId);
-  const { name, description } = req.body ?? {};
+  const { name, description, slug } = req.body ?? {};
   if (!name?.trim()) return res.status(400).json({ error: "Name is required" });
 
   const myRole = await queries.getMemberRole.get(roomId, req.user.id);
   if (!myRole) return res.status(403).json({ error: "Not a member" });
   if (ROLE_LEVEL[myRole] < ROLE_LEVEL.admin) return res.status(403).json({ error: "Only admins and owners can edit the channel" });
 
-  await queries.updateRoom.run(roomId, name.trim(), description?.trim() || null);
+  let cleanSlug = null;
+  if (slug !== undefined && myRole === "owner") {
+    cleanSlug = slug.trim().toLowerCase();
+    if (!VALID_SLUG.test(cleanSlug)) {
+      return res.status(400).json({ error: "Address must be lowercase letters, numbers, and dashes (e.g. my-channel)" });
+    }
+    const existing = await queries.getChannelBySlug.get(cleanSlug);
+    if (existing && existing.id !== roomId) {
+      return res.status(409).json({ error: "Channel address already taken" });
+    }
+  }
+
+  await queries.updateRoom.run(roomId, name.trim(), description?.trim() || null, cleanSlug);
   io.to(`room:${roomId}`).emit("channel:updated", {
     roomId, name: name.trim(), description: description?.trim() || null,
+    ...(cleanSlug !== null && { slug: cleanSlug }),
   });
   res.json({ ok: true });
 });

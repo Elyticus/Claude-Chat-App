@@ -91,8 +91,8 @@ export const api = {
   addChannelMember: (roomId, userId) =>
     request("POST", `/channels/${roomId}/members`, { userId }),
 
-  editChannel: (roomId, name, description) =>
-    request("PATCH", `/channels/${roomId}`, { name, description }),
+  editChannel: (roomId, name, description, slug) =>
+    request("PATCH", `/channels/${roomId}`, { name, description, ...(slug !== undefined && { slug }) }),
 
   muteChannelMember: (roomId, userId, duration) =>
     request("PATCH", `/channels/${roomId}/members/${userId}/mute`, { duration }),

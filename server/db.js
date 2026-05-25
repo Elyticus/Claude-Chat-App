@@ -254,8 +254,8 @@ export const queries = {
   },
 
   updateRoom: {
-    run: (roomId, name, description) =>
-      q("UPDATE rooms SET name = $1, description = $2 WHERE id = $3", [name, description ?? null, roomId]),
+    run: (roomId, name, description, slug = null) =>
+      q("UPDATE rooms SET name = $1, description = $2, slug = COALESCE($3, slug) WHERE id = $4", [name, description ?? null, slug, roomId]),
   },
 
   getMuted: {

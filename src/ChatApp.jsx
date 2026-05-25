@@ -2076,18 +2076,28 @@ function ConfirmModal({
 
 // ─── Edit Channel Modal ───────────────────────────────────────────────────────
 
-function EditChannelModal({ initialName, initialDescription, onSave, onClose, isDark }) {
+function EditChannelModal({ initialName, initialDescription, initialSlug, myRole, onSave, onClose, isDark }) {
   const [name, setName]               = useState(initialName);
   const [description, setDescription] = useState(initialDescription);
+  const [slug, setSlug]               = useState(initialSlug || "");
+  const [slugManual, setSlugManual]   = useState(false);
   const [saving, setSaving]           = useState(false);
   const [err, setErr]                 = useState("");
+
+  const isOwner = myRole === "owner";
+
+  function handleNameChange(val) {
+    setName(val);
+    setErr("");
+    if (isOwner && !slugManual) setSlug(toSlug(val));
+  }
 
   async function submit(e) {
     e.preventDefault();
     if (!name.trim()) { setErr("Name is required"); return; }
     setSaving(true);
     try {
-      await onSave(name.trim(), description.trim());
+      await onSave(name.trim(), description.trim(), isOwner ? slug : undefined);
     } catch (ex) {
       setErr(ex.message || "Failed to save");
     } finally {
@@ -2116,10 +2126,26 @@ function EditChannelModal({ initialName, initialDescription, onSave, onClose, is
               className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
               style={{ background: isDark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.05)", color: isDark ? "#eef2ff" : "#0f172a", border: `1px solid ${isDark ? darkBorder : lightBorderMid}` }}
               value={name}
-              onChange={(e) => { setName(e.target.value); setErr(""); }}
+              onChange={(e) => handleNameChange(e.target.value)}
               maxLength={80}
             />
           </div>
+          {isOwner && (
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: isDark ? "rgba(238,242,255,0.5)" : "#64748b" }}>Channel Address</label>
+              <div className="flex items-center rounded-xl overflow-hidden" style={{ background: isDark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.05)", border: `1px solid ${isDark ? darkBorder : lightBorderMid}` }}>
+                <span className="pl-3 text-sm select-none" style={{ color: isDark ? "rgba(238,242,255,0.35)" : "#94a3b8" }}>#</span>
+                <input
+                  className="flex-1 px-2 py-2.5 text-sm outline-none bg-transparent"
+                  style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+                  value={slug}
+                  onChange={(e) => { setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")); setSlugManual(true); setErr(""); }}
+                  maxLength={50}
+                  placeholder="channel-address"
+                />
+              </div>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium mb-1.5" style={{ color: isDark ? "rgba(238,242,255,0.5)" : "#64748b" }}>Description</label>
             <textarea
@@ -2200,7 +2226,7 @@ function GroupMembersPanel({
     if (myRole === "owner") {
       if (current === "member")    return "moderator";
       if (current === "moderator") return "admin";
-      if (current === "admin")     return "moderator";
+      if (current === "admin")     return "member";
     } else if (myRole === "admin") {
       if (current === "member")    return "moderator";
       if (current === "moderator") return "member";
@@ -2342,15 +2368,20 @@ function GroupMembersPanel({
                 {/* Action buttons row */}
                 {isActing && showActions && !isMutePick && (
                   <div className="flex flex-wrap gap-1.5 px-3 pb-2.5" style={{ background: isDark ? "rgba(99,102,241,0.04)" : "rgba(99,102,241,0.03)" }}>
-                    {showManage && promote && (
-                      <button
-                        onClick={() => { onRoleChange(m.id, promote); setActionTarget(null); }}
-                        className="flex-1 text-[11px] font-semibold py-1.5 rounded-lg transition-all"
-                        style={{ background: isDark ? "rgba(99,102,241,0.12)" : "rgba(99,102,241,0.08)", color: isDark ? "#a5b4fc" : "#4f46e5" }}
-                      >
-                        → {promote.charAt(0).toUpperCase() + promote.slice(1)}
-                      </button>
-                    )}
+                    {showManage && promote && (() => {
+                      const isDemotion = ROLE_LEVEL[promote] < ROLE_LEVEL[m.role];
+                      return (
+                        <button
+                          onClick={() => { onRoleChange(m.id, promote); setActionTarget(null); }}
+                          className="flex-1 text-[11px] font-semibold py-1.5 rounded-lg transition-all"
+                          style={isDemotion
+                            ? { background: isDark ? "rgba(239,68,68,0.12)" : "rgba(239,68,68,0.08)", color: isDark ? "#fca5a5" : "#dc2626" }
+                            : { background: isDark ? "rgba(99,102,241,0.12)" : "rgba(99,102,241,0.08)", color: isDark ? "#a5b4fc" : "#4f46e5" }}
+                        >
+                          {isDemotion ? "↓" : "→"} {promote.charAt(0).toUpperCase() + promote.slice(1)}
+                        </button>
+                      );
+                    })()}
                     {canTransfer && (
                       <button
                         onClick={() => { onTransferOwnership(m.id, m.username); setActionTarget(null); onClose(); }}
@@ -2768,8 +2799,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       }));
     });
 
-    s.on("channel:updated", ({ roomId, name, description }) => {
-      setRooms((prev) => prev.map((r) => r.id === roomId ? { ...r, name, description } : r));
+    s.on("channel:updated", ({ roomId, name, description, slug }) => {
+      setRooms((prev) => prev.map((r) => r.id === roomId ? { ...r, name, description, ...(slug !== undefined && { slug }) } : r));
     });
 
     s.on("channel:added", ({ room }) => {
@@ -3178,13 +3209,13 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     });
   }
 
-  async function handleEditChannel(name, description) {
+  async function handleEditChannel(name, description, slug) {
     if (!displayRoomId) return;
     try {
-      await api.editChannel(displayRoomId, name, description);
+      await api.editChannel(displayRoomId, name, description, slug);
       setEditChannelModal(null);
     } catch (err) {
-      console.error(err);
+      throw err;
     }
   }
 
@@ -3486,7 +3517,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                   {
                     icon: <Pencil size={16} />,
                     active: false,
-                    onClick: () => setEditChannelModal({ name: activeRoom.name || "", description: activeRoom.description || "" }),
+                    onClick: () => setEditChannelModal({ name: activeRoom.name || "", description: activeRoom.description || "", slug: activeRoom.slug || "" }),
                     title: "Edit channel",
                     show: !!isActiveChannel && ROLE_LEVEL[myActiveRole] >= ROLE_LEVEL.admin,
                   },
@@ -4047,6 +4078,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         <EditChannelModal
           initialName={editChannelModal.name}
           initialDescription={editChannelModal.description}
+          initialSlug={editChannelModal.slug}
+          myRole={myActiveRole}
           onSave={handleEditChannel}
           onClose={() => setEditChannelModal(null)}
           isDark={isDark}
