@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle } from "lucide-react";
 import { api } from "../lib/api.js";
 
 export default function AuthScreen({ onAuth }) {
@@ -328,11 +327,9 @@ export default function AuthScreen({ onAuth }) {
                     "linear-gradient(135deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.06) 50%, transparent 100%)",
                 }}
               />
-              <MessageCircle
-                size={24}
-                className="text-white relative z-10"
-                strokeWidth={1.8}
-              />
+              <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-white relative z-10">
+                <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>
+              </svg>
             </div>
             <h1
               className="text-2xl font-bold tracking-tight"
