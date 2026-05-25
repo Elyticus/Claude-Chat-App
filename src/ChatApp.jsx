@@ -2061,7 +2061,9 @@ function GroupMembersPanel({
   function canAct(targetRole) {
     if (!myRole || !isChannel) return false;
     return (
-      ROLE_LEVEL[myRole] > ROLE_LEVEL[targetRole] && targetRole !== "owner"
+      ROLE_LEVEL[myRole] >= ROLE_LEVEL.admin &&
+      ROLE_LEVEL[myRole] > ROLE_LEVEL[targetRole] &&
+      targetRole !== "owner"
     );
   }
 
