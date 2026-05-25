@@ -54,6 +54,7 @@ export async function initDb() {
     ALTER TABLE room_members ADD COLUMN IF NOT EXISTS added_by TEXT;
     ALTER TABLE room_members ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'member';
     ALTER TABLE room_members ADD COLUMN IF NOT EXISTS muted_until BIGINT;
+    ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_system SMALLINT DEFAULT 0;
     CREATE TABLE IF NOT EXISTS pinned_messages (
       id         SERIAL PRIMARY KEY,
       room_id    INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
@@ -204,7 +205,7 @@ export const queries = {
       const params = before ? [roomId, before] : [roomId];
       const cursor = before ? "AND m.created_at < $2" : "";
       return q(
-        `SELECT m.id, m.text, m.reaction, m.created_at, u.id AS user_id, u.username
+        `SELECT m.id, m.text, m.reaction, m.created_at, m.is_system AS system, u.id AS user_id, u.username
          FROM messages m JOIN users u ON u.id = m.user_id
          WHERE m.room_id = $1 ${cursor}
          ORDER BY m.created_at DESC LIMIT 51`,
@@ -219,8 +220,8 @@ export const queries = {
   isMember:      { get: (roomId, userId) => q("SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2", [roomId, userId]).then(r => r.rows[0] ?? null) },
 
   insertMessage: {
-    run: (roomId, userId, text) =>
-      q("INSERT INTO messages (room_id, user_id, text) VALUES ($1, $2, $3) RETURNING id", [roomId, userId, text])
+    run: (roomId, userId, text, isSystem = false) =>
+      q("INSERT INTO messages (room_id, user_id, text, is_system) VALUES ($1, $2, $3, $4) RETURNING id", [roomId, userId, text, isSystem ? 1 : 0])
         .then(r => ({ lastInsertRowid: r.rows[0].id })),
   },
 

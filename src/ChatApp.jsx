@@ -18,6 +18,7 @@ import {
   Trash2,
   Users,
   Copy,
+  Check,
   Hash,
   Globe,
   Lock,
@@ -2467,6 +2468,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const [confirmModal, setConfirmModal] = useState(null);
   const [pinnedMessages, setPinnedMessages] = useState({});
   const [editChannelModal, setEditChannelModal] = useState(null);
+  const [copiedSlug, setCopiedSlug] = useState(false);
   const [inputError, setInputError] = useState("");
   const [hasMoreMessages, setHasMoreMessages] = useState({});
   const [loadingMore, setLoadingMore] = useState({});
@@ -3482,6 +3484,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                       <TypingIndicator names={typingNames} isDark={isDark} />
                     ) : (
                       <span
+                        className="truncate block"
                         style={{
                           color: activeRoomOnline
                             ? "#34d399"
@@ -3491,7 +3494,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                         }}
                       >
                         {isActiveChannel
-                          ? activeRoom.name || "Channel"
+                          ? activeRoom.description || activeRoom.name || "Channel"
                           : activeRoom.is_group
                             ? "Group chat"
                             : activeRoomOnline
@@ -3522,14 +3525,16 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                     show: !!isActiveChannel && ROLE_LEVEL[myActiveRole] >= ROLE_LEVEL.admin,
                   },
                   {
-                    icon: <Copy size={16} />,
-                    active: false,
+                    icon: copiedSlug ? <Check size={16} /> : <Copy size={16} />,
+                    active: copiedSlug,
                     onClick: () => {
                       navigator.clipboard
                         .writeText(`#${activeRoom.slug}`)
                         .catch(console.error);
+                      setCopiedSlug(true);
+                      setTimeout(() => setCopiedSlug(false), 2000);
                     },
-                    title: `Copy channel address (#${activeRoom.slug})`,
+                    title: copiedSlug ? "Copied!" : `Copy channel address (#${activeRoom.slug})`,
                     show: !!isActiveChannel,
                   },
                   {

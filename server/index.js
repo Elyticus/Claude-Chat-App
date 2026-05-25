@@ -541,6 +541,7 @@ app.post("/api/channels/join", requireAuth, async (req, res) => {
   if (alreadyMember) return res.json({ roomId: channel.id });
 
   await queries.addMemberWithRole.run(channel.id, req.user.id, "member");
+  await queries.insertMessage.run(channel.id, req.user.id, `${req.user.username} joined the channel`, true);
 
   online.get(req.user.id)?.forEach((sid) => {
     io.sockets.sockets.get(sid)?.join(`room:${channel.id}`);
@@ -655,6 +656,7 @@ app.post("/api/channels/:roomId/members", requireAuth, async (req, res) => {
     queries.getRoomById.get(roomId),
     queries.getUserById.get(userId),
   ]);
+  await queries.insertMessage.run(roomId, userId, `${addedUser?.username} joined the channel`, true);
   io.to(`room:${roomId}`).emit("channel:member_joined", {
     roomId, userId, username: addedUser?.username, addedBy: req.user.username,
   });

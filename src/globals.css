@@ -65,6 +65,7 @@ body {
 
 a, button, [role="button"] {
   touch-action: manipulation;
+  cursor: pointer;
 }
 
 @media (max-width: 767px) {
