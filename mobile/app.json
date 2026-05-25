@@ -11,6 +11,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#0f172a"
     },
+    "newArchEnabled": false,
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": false,
@@ -26,11 +27,8 @@
       "versionCode": 1
     },
     "extra": {
-      "apiUrl": "https://your-server.com/api",
-      "socketUrl": "https://your-server.com",
-      "eas": {
-        "projectId": "YOUR_EAS_PROJECT_ID"
-      }
+      "apiUrl": "http://192.168.100.144:4000/api",
+      "socketUrl": "http://192.168.100.144:4000"
     },
     "plugins": ["expo-secure-store"]
   }

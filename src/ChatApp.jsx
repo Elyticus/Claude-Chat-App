@@ -119,8 +119,8 @@ function toSlug(name) {
 function roleBadge(role, isDark) {
   const config = {
     owner: {
-      bg: isDark ? "rgba(60,52,137,0.22)" : "#EEEDFE",
-      color: isDark ? "#a09ae8" : "#3C3489",
+      bg: isDark ? "rgba(251,191,36,0.15)" : "#FEF9C3",
+      color: isDark ? "#fbbf24" : "#92400e",
       Icon: Crown,
     },
     admin: {
