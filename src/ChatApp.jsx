@@ -3511,7 +3511,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                     onClick: () => setEditChannelModal({ name: activeRoom.name || "", description: activeRoom.description || "", slug: activeRoom.slug || "" }),
                     title: "Edit channel",
                     show: !!isActiveChannel && ROLE_LEVEL[myActiveRole] >= ROLE_LEVEL.admin,
-                    mobileHidden: true,
                   },
                   {
                     icon: copiedSlug ? <Check size={16} /> : <Copy size={16} />,
@@ -3525,7 +3524,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                     },
                     title: copiedSlug ? "Copied!" : `Copy channel address (#${activeRoom.slug})`,
                     show: !!isActiveChannel,
-                    mobileHidden: true,
                   },
                   {
                     icon: <Users size={16} />,
@@ -3554,7 +3552,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                       onClick={btn.onClick}
                       title={btn.title}
                       aria-label={btn.title}
-                      className={`w-9 h-9 sm:w-11 sm:h-11 rounded-full items-center justify-center transition-all shrink-0 ${btn.mobileHidden ? "hidden sm:flex" : "flex"}`}
+                      className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all shrink-0"
                       style={{
                         background: btn.active
                           ? isDark
