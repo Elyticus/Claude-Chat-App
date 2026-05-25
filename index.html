@@ -11,21 +11,24 @@
     <meta property="og:description" content="Real-time messaging for you and your contacts." />
     <meta property="og:type" content="website" />
     <title>Chatloop</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- Async font load: rel=preload triggers early fetch; onload swaps to stylesheet so it never blocks render -->
-    <link
-      rel="preload"
-      as="style"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      onload="this.onload=null;this.rel='stylesheet'"
-    />
-    <noscript>
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    </noscript>
+    <!-- Critical CSS inlined so the splash renders before any external stylesheet loads -->
+    <style>
+      *,*::before,*::after{box-sizing:border-box}
+      html{height:100%;overflow:clip}
+      body{margin:0;height:100%;overflow:hidden;background:#070d1c;color:#eef2ff;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+      #root{height:100%}
+      #splash{position:fixed;inset:0;z-index:99999;background:#070d1c;display:flex;align-items:center;justify-content:center;gap:12px}
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Static splash: visible the instant HTML parses, giving Lighthouse an early FCP.
+         React removes #splash via useEffect once it has mounted and rendered the real UI. -->
+    <div id="root">
+      <div id="splash" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+        <span style="color:#eef2ff;font-size:1.5rem;font-weight:700">Chatloop<span style="color:#818cf8">.</span></span>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

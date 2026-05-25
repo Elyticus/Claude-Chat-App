@@ -1,9 +1,13 @@
-import { useState, lazy, Suspense } from "react";
+import { useState, lazy, Suspense, useEffect } from "react";
 import AuthScreen from "./components/AuthScreen.jsx";
 
 const ChatApp = lazy(() => import("./ChatApp.jsx"));
 
 export default function App() {
+  useEffect(() => {
+    document.getElementById("splash")?.remove();
+  }, []);
+
   const [authData, setAuthData] = useState(() => {
     try {
       const token = localStorage.getItem("chatloop_token");
