@@ -997,8 +997,13 @@ function ContextMenu({
   onDelete,
   currentUserId,
   isDark,
+  isChannel,
+  myRole,
 }) {
   const isOwn = Number(msg.user_id) === Number(currentUserId);
+  const canDelete =
+    isOwn ||
+    (isChannel && ROLE_LEVEL[myRole] >= ROLE_LEVEL.moderator && !isOwn);
   const cardW = 260;
 
   // On mobile: center horizontally. On desktop: follow cursor.
@@ -1137,8 +1142,8 @@ function ContextMenu({
             Copy
           </button>
 
-          {/* Delete — own messages only */}
-          {isOwn && (
+          {/* Delete — own messages, or any message for moderator+ in channels */}
+          {canDelete && (
             <>
               {divider}
               <button
@@ -2071,7 +2076,7 @@ function GroupMembersPanel({
     if (myRole === "owner") {
       if (current === "member") return "moderator";
       if (current === "moderator") return "admin";
-      if (current === "admin") return "member";
+      if (current === "admin") return "moderator";
     } else if (myRole === "admin") {
       if (current === "member") return "moderator";
       if (current === "moderator") return "member";
@@ -3714,6 +3719,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           onDelete={handleDeleteMessage}
           currentUserId={currentUser.id}
           isDark={isDark}
+          isChannel={!!isActiveChannel}
+          myRole={myActiveRole}
         />
       )}
 
