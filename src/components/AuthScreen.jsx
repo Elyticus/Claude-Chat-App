@@ -208,7 +208,7 @@ export default function AuthScreen({ onAuth }) {
   };
 
   const digitInputs = (
-    <div className="flex gap-2 justify-center">
+    <div className="flex gap-1.5">
       {codeDigits.map((d, i) => (
         <input
           key={i}
@@ -220,7 +220,7 @@ export default function AuthScreen({ onAuth }) {
           onChange={(e) => handleDigitChange(i, e.target.value)}
           onKeyDown={(e) => handleDigitKeyDown(i, e)}
           onPaste={handleDigitPaste}
-          className="w-11 h-13 text-center text-[#eef2ff] text-xl font-bold rounded-xl outline-none cursor-text bg-popover border border-indigo-500/15"
+          className="flex-1 min-w-0 h-11 text-center text-[#eef2ff] text-lg font-bold rounded-xl outline-none cursor-text bg-popover border border-indigo-500/15"
           {...focusProps}
         />
       ))}
