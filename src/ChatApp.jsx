@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from "react";
 import {
   MessageCircle,
   LogOut,
@@ -59,6 +59,24 @@ function formatFullTime(ts) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function dayKey(ts) {
+  if (!ts) return "";
+  const d = new Date(ts * 1000);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+function formatDateSeparator(ts) {
+  const date = new Date(ts * 1000);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const msgDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.round((today - msgDay) / 86_400_000);
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return date.toLocaleDateString([], { weekday: "long" });
+  return date.toLocaleDateString([], { day: "numeric", month: "long", year: "numeric" });
 }
 
 const REACTIONS = ["🔥", "🙌", "❤️", "😀", "😝", "👍"];
@@ -2668,35 +2686,53 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                         </div>
                       )}
 
-                    {displayedMessages.map((msg) => {
+                    {displayedMessages.map((msg, index) => {
+                      const prev = displayedMessages[index - 1];
+                      const showSeparator = !!msg.created_at && (
+                        !prev || dayKey(msg.created_at) !== dayKey(prev.created_at)
+                      );
+                      const dateSeparator = showSeparator && (
+                        <div className="flex justify-center py-3">
+                          <span
+                            className="text-[11px] px-3 py-1 rounded-full select-none"
+                            style={{
+                              background: isDark ? "rgba(99,102,241,0.08)" : "rgba(0,0,0,0.06)",
+                              color: isDark ? "rgba(165,180,252,0.55)" : "#64748b",
+                            }}
+                          >
+                            {formatDateSeparator(msg.created_at)}
+                          </span>
+                        </div>
+                      );
                       if (msg.system) {
                         return (
-                          <div
-                            key={msg.id}
-                            className="flex justify-center py-1"
-                          >
-                            <span
-                              className="text-xs px-3 py-1 rounded-full"
-                              style={{
-                                background: isDark
-                                  ? "rgba(99,102,241,0.08)"
-                                  : "rgba(99,102,241,0.06)",
-                                color: isDark
-                                  ? "rgba(165,180,252,0.5)"
-                                  : "#6366f1",
-                                border: `1px solid ${isDark ? "rgba(99,102,241,0.1)" : "rgba(99,102,241,0.12)"}`,
-                              }}
-                            >
-                              {msg.text}
-                            </span>
-                          </div>
+                          <Fragment key={msg.id}>
+                            {dateSeparator}
+                            <div className="flex justify-center py-1">
+                              <span
+                                className="text-xs px-3 py-1 rounded-full"
+                                style={{
+                                  background: isDark
+                                    ? "rgba(99,102,241,0.08)"
+                                    : "rgba(99,102,241,0.06)",
+                                  color: isDark
+                                    ? "rgba(165,180,252,0.5)"
+                                    : "#6366f1",
+                                  border: `1px solid ${isDark ? "rgba(99,102,241,0.1)" : "rgba(99,102,241,0.12)"}`,
+                                }}
+                              >
+                                {msg.text}
+                              </span>
+                            </div>
+                          </Fragment>
                         );
                       }
                       const isMine = msg.user_id === currentUser.id;
                       const isTemp = !!msg.temp;
                       return (
+                        <Fragment key={msg.id}>
+                        {dateSeparator}
                         <div
-                          key={msg.id}
                           className={`relative flex w-full items-end gap-2 animate-fade-in-up ${isMine ? "flex-row-reverse" : "flex-row"} ${msg.reaction ? "mb-3 z-1" : ""}`}
                           onContextMenu={(e) =>
                             !isTemp && handleContextMenu(e, msg)
@@ -2801,6 +2837,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                             </div>
                           </div>
                         </div>
+                        </Fragment>
                       );
                     })}
                     <div ref={messagesEndRef} />
