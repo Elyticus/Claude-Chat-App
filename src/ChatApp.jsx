@@ -2735,7 +2735,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       }
     });
 
-    s.on("channel:role_changed", ({ roomId, userId, role }) => {
+    s.on("channel:role_changed", ({ roomId, userId, role, changedBy, channelName }) => {
       setGroupMembersPanel((prev) =>
         prev?.roomId === roomId
           ? {
@@ -2751,6 +2751,19 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           r.id === roomId && userId === currentUser.id ? { ...r, role } : r,
         ),
       );
+      if (
+        userId === currentUser.id &&
+        typeof Notification !== "undefined" &&
+        Notification.permission === "granted"
+      ) {
+        const roleName = role.charAt(0).toUpperCase() + role.slice(1);
+        const article = /^[aeiou]/i.test(role) ? "an" : "a";
+        new Notification(`Your role in #${channelName} changed`, {
+          body: changedBy
+            ? `${changedBy} made you ${article} ${roleName}`
+            : `You are now ${article} ${roleName}`,
+        });
+      }
     });
 
     s.on("channel:member_joined", ({ roomId, username }) => {
@@ -3212,6 +3225,20 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       onConfirm: async () => {
         try {
           await api.setMemberRole(displayRoomId, userId, "owner");
+          // Immediately revoke owner-level UI access; socket confirms the rest
+          setRooms((prev) =>
+            prev.map((r) => r.id === displayRoomId ? { ...r, role: "admin" } : r),
+          );
+          setGroupMembersPanel((prev) =>
+            prev?.roomId === displayRoomId
+              ? {
+                  ...prev,
+                  members: prev.members.map((m) =>
+                    m.id === currentUser.id ? { ...m, role: "admin" } : m,
+                  ),
+                }
+              : prev,
+          );
         } catch (err) {
           console.error(err);
         }
