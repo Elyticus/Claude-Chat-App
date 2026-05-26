@@ -709,7 +709,7 @@ function OrbitalHub({
           onClick={() => setShowContactsList(false)}
         >
           <div
-            className="absolute bottom-0 left-0 right-0 rounded-t-3xl flex flex-col overflow-hidden animate-slide-up"
+            className="absolute bottom-0 left-0 right-0 flex flex-col overflow-hidden animate-slide-up"
             style={{
               height: "100dvh",
               background: isDark ? darkBg1 : lightBg1,
