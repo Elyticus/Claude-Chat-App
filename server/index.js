@@ -479,9 +479,22 @@ app.delete("/api/rooms/:roomId", requireAuth, async (req, res) => {
       await queries.deleteRoom.run(roomId);
       notifyMembers(otherMembers, "room:deleted", { roomId });
     } else {
+      const sysText = `${req.user.username} left the channel`;
+      const { lastInsertRowid: msgId } = await queries.insertMessage.run(roomId, req.user.id, sysText, true);
       await queries.removeMember.run(roomId, req.user.id);
       io.to(`room:${roomId}`).emit("channel:member_left", {
-        roomId, userId: req.user.id, username: req.user.username, channelName: room?.name || "",
+        roomId,
+        userId: req.user.id,
+        username: req.user.username,
+        channelName: room?.name || "",
+        systemMessage: {
+          id: msgId,
+          text: sysText,
+          system: true,
+          created_at: Math.floor(Date.now() / 1000),
+          user_id: req.user.id,
+          username: req.user.username,
+        },
       });
     }
   } else if (otherMembers.length <= 1) {

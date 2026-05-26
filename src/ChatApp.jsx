@@ -609,9 +609,9 @@ function OrbitalHub({
           <span
             className="absolute -bottom-1 -left-1 min-w-4 h-4 rounded-full z-20 flex items-center justify-center text-[9px] font-bold text-white px-0.5"
             style={{
-              background: "linear-gradient(135deg,#6366f1,#818cf8)",
+              background: "linear-gradient(135deg,#22c55e,#4ade80)",
               border: `2px solid ${isDark ? darkBg0 : lightBg0}`,
-              boxShadow: "0 0 8px rgba(99,102,241,0.7)",
+              boxShadow: "0 0 8px rgba(74,222,128,0.7)",
             }}
           >
             {channelNotifs.length > 9 ? "9+" : channelNotifs.length}
@@ -849,69 +849,106 @@ function OrbitalHub({
               </div>
             )}
 
-            {/* Channel notifications bar — always visible */}
-            <div
-              className="border-b shrink-0"
-              style={{ borderColor: isDark ? darkBorder : lightBorderMid }}
-            >
+            {/* Channel notifications bar — only shown when there are notifications */}
+            {channelNotifs.length > 0 && (
               <div
-                className="flex items-center justify-between px-5 py-2"
-                style={{ background: isDark ? "rgba(99,102,241,0.06)" : "rgba(238,242,255,0.6)" }}
+                className="border-b shrink-0"
+                style={{ borderColor: isDark ? darkBorder : lightBorderMid }}
               >
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0" />
-                  <span
-                    className="text-[11px] uppercase tracking-widest font-semibold"
-                    style={{ color: isDark ? "rgba(165,180,252,0.8)" : "#4338ca" }}
-                  >
-                    Channel Activity{channelNotifs.length > 0 ? ` (${channelNotifs.length})` : ""}
-                  </span>
-                </div>
-                {channelNotifs.length > 0 && (
+                <div
+                  className="flex items-center justify-between px-5 py-2"
+                  style={{
+                    background: isDark
+                      ? "rgba(74,222,128,0.06)"
+                      : "rgba(240,253,244,0.6)",
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-green-400 shrink-0" />
+                    <span
+                      className="text-[11px] uppercase tracking-widest font-semibold"
+                      style={{
+                        color: isDark ? "rgba(134,239,172,0.8)" : "#15803d",
+                      }}
+                    >
+                      Channel Activity ({channelNotifs.length})
+                    </span>
+                  </div>
                   <button
                     onClick={onClearChannelNotifs}
                     className="text-[11px] font-medium"
-                    style={{ color: isDark ? "rgba(165,180,252,0.6)" : "#6366f1" }}
+                    style={{
+                      color: isDark ? "rgba(134,239,172,0.6)" : "#16a34a",
+                    }}
                   >
                     Clear all
                   </button>
-                )}
-              </div>
-              {channelNotifs.length === 0 ? (
-                <div
-                  className="px-5 py-3 text-xs"
-                  style={{ color: isDark ? "rgba(238,242,255,0.3)" : "#94a3b8" }}
-                >
-                  No recent activity
                 </div>
-              ) : (
                 <div style={{ maxHeight: "200px", overflowY: "auto" }}>
                   {channelNotifs.map((n) => {
                     const dotColor =
-                      n.type === "kick" ? "#f87171"
-                      : n.type === "mute" ? "#fb923c"
-                      : n.type === "unmute" || n.type === "added" ? "#4ade80"
-                      : n.type === "leave" ? "#94a3b8"
-                      : n.type === "role" ? "#a78bfa"
-                      : "#60a5fa";
+                      n.type === "kick"
+                        ? "#f87171"
+                        : n.type === "mute"
+                          ? "#fb923c"
+                          : n.type === "unmute" || n.type === "added"
+                            ? "#4ade80"
+                            : n.type === "leave"
+                              ? "#94a3b8"
+                              : n.type === "role"
+                                ? "#a78bfa"
+                                : "#4ade80";
+                    // eslint-disable-next-line react-hooks/purity
                     const secsAgo = Math.floor((Date.now() - n.ts) / 1000);
-                    const timeStr = secsAgo < 60 ? "just now" : secsAgo < 3600 ? `${Math.floor(secsAgo / 60)}m ago` : `${Math.floor(secsAgo / 3600)}h ago`;
+                    const timeStr =
+                      secsAgo < 60
+                        ? "just now"
+                        : secsAgo < 3600
+                          ? `${Math.floor(secsAgo / 60)}m ago`
+                          : `${Math.floor(secsAgo / 3600)}h ago`;
                     return (
                       <div
                         key={n.id}
                         className="flex items-start gap-2.5 px-4 py-2"
-                        style={{ background: isDark ? "rgba(99,102,241,0.04)" : "rgba(238,242,255,0.4)" }}
+                        style={{
+                          background: isDark
+                            ? "rgba(74,222,128,0.04)"
+                            : "rgba(240,253,244,0.4)",
+                        }}
                       >
-                        <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: dotColor }} />
-                        <span className="flex-1 text-xs leading-relaxed" style={{ color: isDark ? "rgba(238,242,255,0.75)" : "#334155" }}>
+                        <span
+                          className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
+                          style={{ background: dotColor }}
+                        />
+                        <span
+                          className="flex-1 text-xs leading-relaxed"
+                          style={{
+                            color: isDark
+                              ? "rgba(238,242,255,0.75)"
+                              : "#334155",
+                          }}
+                        >
                           {n.message}
                         </span>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="text-[10px]" style={{ color: isDark ? "rgba(238,242,255,0.3)" : "#94a3b8" }}>{timeStr}</span>
+                          <span
+                            className="text-[10px]"
+                            style={{
+                              color: isDark
+                                ? "rgba(238,242,255,0.3)"
+                                : "#94a3b8",
+                            }}
+                          >
+                            {timeStr}
+                          </span>
                           <button
                             onClick={() => onDismissChannelNotif(n.id)}
                             className="text-[10px] leading-none"
-                            style={{ color: isDark ? "rgba(238,242,255,0.3)" : "#94a3b8" }}
+                            style={{
+                              color: isDark
+                                ? "rgba(238,242,255,0.3)"
+                                : "#94a3b8",
+                            }}
                           >
                             ✕
                           </button>
@@ -920,8 +957,8 @@ function OrbitalHub({
                     );
                   })}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Room list */}
             <div className="flex-1 min-h-0 overflow-y-auto py-2">
@@ -1025,7 +1062,10 @@ function OrbitalHub({
                             )}
                           </div>
                           {room.role_notification ? (
-                            <div className="text-xs truncate mt-0.5" style={{ color: "#4ade80" }}>
+                            <div
+                              className="text-xs truncate mt-0.5"
+                              style={{ color: "#4ade80" }}
+                            >
                               {room.role_notification}
                             </div>
                           ) : !!room.is_group && !!room.is_new ? (
@@ -1061,7 +1101,9 @@ function OrbitalHub({
                           {room.role_notification ? (
                             <span
                               className="w-2 h-2 rounded-full bg-green-400"
-                              style={{ boxShadow: "0 0 6px rgba(74,222,128,0.9)" }}
+                              style={{
+                                boxShadow: "0 0 6px rgba(74,222,128,0.9)",
+                              }}
                             />
                           ) : !!room.is_group && !!room.is_new ? (
                             <span className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.9)]" />
@@ -1097,9 +1139,10 @@ function ContextMenu({
   isChannel,
   myRole,
 }) {
-  const isOwn    = Number(msg.user_id) === Number(currentUserId);
-  const canPin   = isChannel && ROLE_LEVEL[myRole] >= ROLE_LEVEL.moderator;
-  const canDelete = isOwn || (isChannel && ROLE_LEVEL[myRole] >= ROLE_LEVEL.moderator);
+  const isOwn = Number(msg.user_id) === Number(currentUserId);
+  const canPin = isChannel && ROLE_LEVEL[myRole] >= ROLE_LEVEL.moderator;
+  const canDelete =
+    isOwn || (isChannel && ROLE_LEVEL[myRole] >= ROLE_LEVEL.moderator);
   const cardW = 260;
 
   // On mobile: center horizontally. On desktop: follow cursor.
@@ -1249,8 +1292,14 @@ function ContextMenu({
                 }}
                 className="w-full flex items-center gap-3 px-4 py-3.5 text-sm transition-all"
                 style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = isDark ? "rgba(99,102,241,0.08)" : "rgba(0,0,0,0.04)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = ""; }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = isDark
+                    ? "rgba(99,102,241,0.08)"
+                    : "rgba(0,0,0,0.04)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "";
+                }}
               >
                 <Pin size={17} style={{ opacity: 0.55 }} />
                 {isPinned ? "Unpin" : "Pin"}
@@ -2165,13 +2214,21 @@ function ConfirmModal({
 
 // ─── Edit Channel Modal ───────────────────────────────────────────────────────
 
-function EditChannelModal({ initialName, initialDescription, initialSlug, myRole, onSave, onClose, isDark }) {
-  const [name, setName]               = useState(initialName);
+function EditChannelModal({
+  initialName,
+  initialDescription,
+  initialSlug,
+  myRole,
+  onSave,
+  onClose,
+  isDark,
+}) {
+  const [name, setName] = useState(initialName);
   const [description, setDescription] = useState(initialDescription);
-  const [slug, setSlug]               = useState(initialSlug || "");
-  const [slugManual, setSlugManual]   = useState(false);
-  const [saving, setSaving]           = useState(false);
-  const [err, setErr]                 = useState("");
+  const [slug, setSlug] = useState(initialSlug || "");
+  const [slugManual, setSlugManual] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
 
   const canEditSlug = myRole === "owner" || myRole === "admin";
 
@@ -2183,10 +2240,17 @@ function EditChannelModal({ initialName, initialDescription, initialSlug, myRole
 
   async function submit(e) {
     e.preventDefault();
-    if (!name.trim()) { setErr("Name is required"); return; }
+    if (!name.trim()) {
+      setErr("Name is required");
+      return;
+    }
     setSaving(true);
     try {
-      await onSave(name.trim(), description.trim(), canEditSlug ? slug : undefined);
+      await onSave(
+        name.trim(),
+        description.trim(),
+        canEditSlug ? slug : undefined,
+      );
     } catch (ex) {
       setErr(ex.message || "Failed to save");
     } finally {
@@ -2196,24 +2260,59 @@ function EditChannelModal({ initialName, initialDescription, initialSlug, myRole
 
   return (
     <div className="fixed inset-0 z-500 flex items-center justify-center p-4">
-      <div className="absolute inset-0" style={{ background: "rgba(7,13,28,0.80)", backdropFilter: "blur(8px)" }} onClick={onClose} />
+      <div
+        className="absolute inset-0"
+        style={{
+          background: "rgba(7,13,28,0.80)",
+          backdropFilter: "blur(8px)",
+        }}
+        onClick={onClose}
+      />
       <form
         onSubmit={submit}
         className="relative w-full max-w-sm rounded-2xl overflow-hidden animate-scale-in"
-        style={{ background: isDark ? darkBg1 : lightBg1, border: `1px solid ${isDark ? darkBorderMid : lightBorderMid}`, boxShadow: "0 32px 80px rgba(0,0,0,0.5)" }}
+        style={{
+          background: isDark ? darkBg1 : lightBg1,
+          border: `1px solid ${isDark ? darkBorderMid : lightBorderMid}`,
+          boxShadow: "0 32px 80px rgba(0,0,0,0.5)",
+        }}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: isDark ? darkBorder : lightBorderMid }}>
-          <span className="font-semibold text-sm" style={{ color: isDark ? "#eef2ff" : "#0f172a" }}>Edit Channel</span>
-          <button type="button" onClick={onClose} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ color: isDark ? "rgba(238,242,255,0.4)" : "#64748b" }}>
+        <div
+          className="flex items-center justify-between px-5 py-4 border-b"
+          style={{ borderColor: isDark ? darkBorder : lightBorderMid }}
+        >
+          <span
+            className="font-semibold text-sm"
+            style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+          >
+            Edit Channel
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-9 h-9 rounded-full flex items-center justify-center"
+            style={{ color: isDark ? "rgba(238,242,255,0.4)" : "#64748b" }}
+          >
             <X size={16} />
           </button>
         </div>
         <div className="px-5 py-4 space-y-3">
           <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: isDark ? "rgba(238,242,255,0.5)" : "#64748b" }}>Channel Name</label>
+            <label
+              className="block text-xs font-medium mb-1.5"
+              style={{ color: isDark ? "rgba(238,242,255,0.5)" : "#64748b" }}
+            >
+              Channel Name
+            </label>
             <input
               className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-              style={{ background: isDark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.05)", color: isDark ? "#eef2ff" : "#0f172a", border: `1px solid ${isDark ? darkBorder : lightBorderMid}` }}
+              style={{
+                background: isDark
+                  ? "rgba(99,102,241,0.08)"
+                  : "rgba(99,102,241,0.05)",
+                color: isDark ? "#eef2ff" : "#0f172a",
+                border: `1px solid ${isDark ? darkBorder : lightBorderMid}`,
+              }}
               value={name}
               onChange={(e) => handleNameChange(e.target.value)}
               maxLength={80}
@@ -2221,14 +2320,40 @@ function EditChannelModal({ initialName, initialDescription, initialSlug, myRole
           </div>
           {canEditSlug && (
             <div>
-              <label className="block text-xs font-medium mb-1.5" style={{ color: isDark ? "rgba(238,242,255,0.5)" : "#64748b" }}>Channel Address</label>
-              <div className="flex items-center rounded-xl overflow-hidden" style={{ background: isDark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.05)", border: `1px solid ${isDark ? darkBorder : lightBorderMid}` }}>
-                <span className="pl-3 text-sm select-none" style={{ color: isDark ? "rgba(238,242,255,0.35)" : "#94a3b8" }}>#</span>
+              <label
+                className="block text-xs font-medium mb-1.5"
+                style={{ color: isDark ? "rgba(238,242,255,0.5)" : "#64748b" }}
+              >
+                Channel Address
+              </label>
+              <div
+                className="flex items-center rounded-xl overflow-hidden"
+                style={{
+                  background: isDark
+                    ? "rgba(99,102,241,0.08)"
+                    : "rgba(99,102,241,0.05)",
+                  border: `1px solid ${isDark ? darkBorder : lightBorderMid}`,
+                }}
+              >
+                <span
+                  className="pl-3 text-sm select-none"
+                  style={{
+                    color: isDark ? "rgba(238,242,255,0.35)" : "#94a3b8",
+                  }}
+                >
+                  #
+                </span>
                 <input
                   className="flex-1 px-2 py-2.5 text-sm outline-none bg-transparent"
                   style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
                   value={slug}
-                  onChange={(e) => { setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")); setSlugManual(true); setErr(""); }}
+                  onChange={(e) => {
+                    setSlug(
+                      e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
+                    );
+                    setSlugManual(true);
+                    setErr("");
+                  }}
                   maxLength={50}
                   placeholder="channel-address"
                 />
@@ -2236,23 +2361,53 @@ function EditChannelModal({ initialName, initialDescription, initialSlug, myRole
             </div>
           )}
           <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: isDark ? "rgba(238,242,255,0.5)" : "#64748b" }}>Description</label>
+            <label
+              className="block text-xs font-medium mb-1.5"
+              style={{ color: isDark ? "rgba(238,242,255,0.5)" : "#64748b" }}
+            >
+              Description
+            </label>
             <textarea
               className="w-full px-3 py-2.5 rounded-xl text-sm outline-none resize-none"
-              style={{ background: isDark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.05)", color: isDark ? "#eef2ff" : "#0f172a", border: `1px solid ${isDark ? darkBorder : lightBorderMid}` }}
+              style={{
+                background: isDark
+                  ? "rgba(99,102,241,0.08)"
+                  : "rgba(99,102,241,0.05)",
+                color: isDark ? "#eef2ff" : "#0f172a",
+                border: `1px solid ${isDark ? darkBorder : lightBorderMid}`,
+              }}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
               maxLength={280}
             />
           </div>
-          {err && <p className="text-xs" style={{ color: "#f87171" }}>{err}</p>}
+          {err && (
+            <p className="text-xs" style={{ color: "#f87171" }}>
+              {err}
+            </p>
+          )}
         </div>
         <div className="flex gap-2.5 px-5 pb-5">
-          <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all" style={{ background: isDark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.06)", color: isDark ? "rgba(238,242,255,0.6)" : "#64748b" }}>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all"
+            style={{
+              background: isDark
+                ? "rgba(99,102,241,0.08)"
+                : "rgba(99,102,241,0.06)",
+              color: isDark ? "rgba(238,242,255,0.6)" : "#64748b",
+            }}
+          >
             Cancel
           </button>
-          <button type="submit" disabled={saving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50" style={{ background: "rgba(99,102,241,0.85)", color: "#fff" }}>
+          <button
+            type="submit"
+            disabled={saving}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
+            style={{ background: "rgba(99,102,241,0.85)", color: "#fff" }}
+          >
             {saving ? "Saving…" : "Save"}
           </button>
         </div>
@@ -2264,10 +2419,10 @@ function EditChannelModal({ initialName, initialDescription, initialSlug, myRole
 // ─── Group Members Panel ──────────────────────────────────────────────────────
 
 const MUTE_DURATIONS = [
-  { label: "5m",  seconds: 300 },
+  { label: "5m", seconds: 300 },
   { label: "30m", seconds: 1800 },
-  { label: "1h",  seconds: 3600 },
-  { label: "8h",  seconds: 28800 },
+  { label: "1h", seconds: 3600 },
+  { label: "8h", seconds: 28800 },
   { label: "24h", seconds: 86400 },
 ];
 
@@ -2288,10 +2443,10 @@ function GroupMembersPanel({
   allUsers,
 }) {
   const [actionTarget, setActionTarget] = useState(null);
-  const [muteTarget, setMuteTarget]     = useState(null);
-  const [showAdd, setShowAdd]           = useState(false);
-  const [addSearch, setAddSearch]       = useState("");
-  const [nowSec]                        = useState(() => Math.floor(Date.now() / 1000));
+  const [muteTarget, setMuteTarget] = useState(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [addSearch, setAddSearch] = useState("");
+  const [nowSec] = useState(() => Math.floor(Date.now() / 1000));
 
   function canManage(targetRole) {
     if (!myRole || !isChannel) return false;
@@ -2313,34 +2468,46 @@ function GroupMembersPanel({
 
   function nextRole(current) {
     if (myRole === "owner") {
-      if (current === "member")    return "moderator";
+      if (current === "member") return "moderator";
       if (current === "moderator") return "admin";
-      if (current === "admin")     return "member";
+      if (current === "admin") return "member";
     } else if (myRole === "admin") {
-      if (current === "member")    return "moderator";
+      if (current === "member") return "moderator";
       if (current === "moderator") return "member";
     }
     return null;
   }
 
   const sortedMembers = isChannel
-    ? [...members].sort((a, b) => (ROLE_LEVEL[b.role] || 0) - (ROLE_LEVEL[a.role] || 0))
+    ? [...members].sort(
+        (a, b) => (ROLE_LEVEL[b.role] || 0) - (ROLE_LEVEL[a.role] || 0),
+      )
     : members;
 
   const memberIdSet = new Set(members.map((m) => m.id));
   const addableUsers = (allUsers || [])
     .filter((u) => !memberIdSet.has(u.id) && u.id !== currentUserId)
-    .filter((u) => !addSearch || u.username.toLowerCase().includes(addSearch.toLowerCase()))
+    .filter(
+      (u) =>
+        !addSearch ||
+        u.username.toLowerCase().includes(addSearch.toLowerCase()),
+    )
     .slice(0, 8);
 
   const btnBase = { color: isDark ? "rgba(165,180,252,0.5)" : "#94a3b8" };
-  const btnActive = { background: isDark ? "rgba(99,102,241,0.15)" : "rgba(99,102,241,0.08)", color: isDark ? "#a5b4fc" : "#6366f1" };
+  const btnActive = {
+    background: isDark ? "rgba(99,102,241,0.15)" : "rgba(99,102,241,0.08)",
+    color: isDark ? "#a5b4fc" : "#6366f1",
+  };
 
   return (
     <div className="fixed inset-0 z-500 flex items-center justify-center p-4">
       <div
         className="absolute inset-0"
-        style={{ background: isDark ? "rgba(7,13,28,0.88)" : "rgba(15,23,42,0.25)", backdropFilter: "blur(8px)" }}
+        style={{
+          background: isDark ? "rgba(7,13,28,0.88)" : "rgba(15,23,42,0.25)",
+          backdropFilter: "blur(8px)",
+        }}
         onClick={onClose}
       />
       <div
@@ -2351,18 +2518,29 @@ function GroupMembersPanel({
         style={{
           background: isDark ? darkBg1 : lightBg1,
           border: `1px solid ${isDark ? darkBorderMid : lightBorderMid}`,
-          boxShadow: isDark ? "0 32px 80px rgba(0,0,0,0.7)" : "0 32px 80px rgba(99,102,241,0.12)",
+          boxShadow: isDark
+            ? "0 32px 80px rgba(0,0,0,0.7)"
+            : "0 32px 80px rgba(99,102,241,0.12)",
         }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3.5 border-b shrink-0" style={{ borderColor: isDark ? darkBorder : lightBorderMid }}>
-          <span className="font-semibold text-sm" style={{ color: isDark ? "#eef2ff" : "#0f172a" }}>
+        <div
+          className="flex items-center justify-between px-4 py-3.5 border-b shrink-0"
+          style={{ borderColor: isDark ? darkBorder : lightBorderMid }}
+        >
+          <span
+            className="font-semibold text-sm"
+            style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+          >
             {isChannel ? "Channel Members" : "Members"} ({members.length})
           </span>
           <div className="flex items-center gap-1">
             {isChannel && ROLE_LEVEL[myRole] >= ROLE_LEVEL.admin && (
               <button
-                onClick={() => { setShowAdd((v) => !v); setAddSearch(""); }}
+                onClick={() => {
+                  setShowAdd((v) => !v);
+                  setAddSearch("");
+                }}
                 title="Add member"
                 className="w-9 h-9 rounded-full flex items-center justify-center transition-all"
                 style={showAdd ? btnActive : btnBase}
@@ -2370,7 +2548,12 @@ function GroupMembersPanel({
                 <UserPlus size={15} />
               </button>
             )}
-            <button onClick={onClose} aria-label="Close" className="w-9 h-9 rounded-full flex items-center justify-center transition-all" style={btnBase}>
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              className="w-9 h-9 rounded-full flex items-center justify-center transition-all"
+              style={btnBase}
+            >
               <X size={16} />
             </button>
           </div>
@@ -2378,32 +2561,66 @@ function GroupMembersPanel({
 
         {/* Add member search (admin+) */}
         {showAdd && isChannel && ROLE_LEVEL[myRole] >= ROLE_LEVEL.admin && (
-          <div className="px-3 pt-2.5 pb-2 border-b shrink-0" style={{ borderColor: isDark ? darkBorder : lightBorderMid }}>
+          <div
+            className="px-3 pt-2.5 pb-2 border-b shrink-0"
+            style={{ borderColor: isDark ? darkBorder : lightBorderMid }}
+          >
             <input
               className="w-full px-3 py-2 rounded-xl text-sm outline-none"
-              style={{ background: isDark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.05)", color: isDark ? "#eef2ff" : "#0f172a", border: `1px solid ${isDark ? darkBorder : lightBorderMid}` }}
+              style={{
+                background: isDark
+                  ? "rgba(99,102,241,0.08)"
+                  : "rgba(99,102,241,0.05)",
+                color: isDark ? "#eef2ff" : "#0f172a",
+                border: `1px solid ${isDark ? darkBorder : lightBorderMid}`,
+              }}
               placeholder="Search users to add…"
               value={addSearch}
               onChange={(e) => setAddSearch(e.target.value)}
             />
             <div className="mt-1.5 max-h-36 overflow-y-auto space-y-0.5">
               {addableUsers.length === 0 ? (
-                <p className="text-xs px-2 py-2" style={{ color: isDark ? "rgba(238,242,255,0.3)" : "#94a3b8" }}>
-                  {addSearch ? "No users found" : "All users are already members"}
-                </p>
-              ) : addableUsers.map((u) => (
-                <button
-                  key={u.id}
-                  onClick={() => { onAddMember(u.id); setShowAdd(false); setAddSearch(""); }}
-                  className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-left transition-all"
-                  style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = isDark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.06)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = ""; }}
+                <p
+                  className="text-xs px-2 py-2"
+                  style={{
+                    color: isDark ? "rgba(238,242,255,0.3)" : "#94a3b8",
+                  }}
                 >
-                  <Avatar userId={u.id} username={u.username} size={28} online={onlineIds.has(u.id)} avatar={avatarMap[u.id]} />
-                  <span className="truncate">{u.username}</span>
-                </button>
-              ))}
+                  {addSearch
+                    ? "No users found"
+                    : "All users are already members"}
+                </p>
+              ) : (
+                addableUsers.map((u) => (
+                  <button
+                    key={u.id}
+                    onClick={() => {
+                      onAddMember(u.id);
+                      setShowAdd(false);
+                      setAddSearch("");
+                    }}
+                    className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-left transition-all"
+                    style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = isDark
+                        ? "rgba(99,102,241,0.08)"
+                        : "rgba(99,102,241,0.06)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "";
+                    }}
+                  >
+                    <Avatar
+                      userId={u.id}
+                      username={u.username}
+                      size={28}
+                      online={onlineIds.has(u.id)}
+                      avatar={avatarMap[u.id]}
+                    />
+                    <span className="truncate">{u.username}</span>
+                  </button>
+                ))
+              )}
             </div>
           </div>
         )}
@@ -2411,40 +2628,69 @@ function GroupMembersPanel({
         {/* Member list */}
         <div className="flex-1 min-h-0 overflow-y-auto py-2 px-3 space-y-0.5">
           {sortedMembers.map((m) => {
-            const isOnline     = onlineIds.has(m.id);
-            const isMe         = m.id === currentUserId;
-            const isMuted      = m.muted_until && m.muted_until > nowSec;
-            const showManage   = isChannel && !isMe && canManage(m.role);
-            const showMuteBtn  = isChannel && !isMe && canMuteTarget(m.role);
-            const showActions  = showManage || showMuteBtn;
-            const isActing     = actionTarget === m.id;
-            const isMutePick   = muteTarget === m.id;
-            const promote      = nextRole(m.role);
-            const canTransfer  = myRole === "owner" && m.role === "admin";
+            const isOnline = onlineIds.has(m.id);
+            const isMe = m.id === currentUserId;
+            const isMuted = m.muted_until && m.muted_until > nowSec;
+            const showManage = isChannel && !isMe && canManage(m.role);
+            const showMuteBtn = isChannel && !isMe && canMuteTarget(m.role);
+            const showActions = showManage || showMuteBtn;
+            const isActing = actionTarget === m.id;
+            const isMutePick = muteTarget === m.id;
+            const promote = nextRole(m.role);
+            const canTransfer = myRole === "owner" && m.role === "admin";
 
             return (
               <div key={m.id} className="rounded-xl overflow-hidden">
                 {/* Member row */}
                 <div
                   className="flex items-center gap-3 px-3 py-2.5 transition-all"
-                  onMouseEnter={(e) => { e.currentTarget.style.background = isDark ? "rgba(99,102,241,0.06)" : "rgba(99,102,241,0.04)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = ""; }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = isDark
+                      ? "rgba(99,102,241,0.06)"
+                      : "rgba(99,102,241,0.04)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "";
+                  }}
                 >
-                  <Avatar userId={m.id} username={m.username} size={38} online={isOnline} avatar={avatarMap[m.id]} />
+                  <Avatar
+                    userId={m.id}
+                    username={m.username}
+                    size={38}
+                    online={isOnline}
+                    avatar={avatarMap[m.id]}
+                  />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-sm font-medium truncate" style={{ color: isDark ? "#eef2ff" : "#0f172a" }}>
+                      <span
+                        className="text-sm font-medium truncate"
+                        style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+                      >
                         {m.username}
-                        {isMe && <span className="ml-1 opacity-40 text-xs">(you)</span>}
+                        {isMe && (
+                          <span className="ml-1 opacity-40 text-xs">(you)</span>
+                        )}
                       </span>
                       {isChannel && roleBadge(m.role, isDark)}
-                      {isMuted && <VolumeX size={10} style={{ color: "#f87171", flexShrink: 0 }} />}
+                      {isMuted && (
+                        <VolumeX
+                          size={10}
+                          style={{ color: "#f87171", flexShrink: 0 }}
+                        />
+                      )}
                     </div>
-                    {isOnline && <div className="text-xs text-emerald-400 font-medium">Online</div>}
+                    {isOnline && (
+                      <div className="text-xs text-emerald-400 font-medium">
+                        Online
+                      </div>
+                    )}
                   </div>
                   {showActions && (
                     <button
-                      onClick={() => { setActionTarget(isActing ? null : m.id); setMuteTarget(null); }}
+                      onClick={() => {
+                        setActionTarget(isActing ? null : m.id);
+                        setMuteTarget(null);
+                      }}
                       className="w-7 h-7 rounded-lg flex items-center justify-center text-xs shrink-0 transition-all"
                       style={{ ...btnBase, ...(isActing ? btnActive : {}) }}
                       title="Manage member"
@@ -2456,46 +2702,104 @@ function GroupMembersPanel({
 
                 {/* Action buttons row */}
                 {isActing && showActions && !isMutePick && (
-                  <div className="flex flex-wrap gap-1.5 px-3 pb-2.5" style={{ background: isDark ? "rgba(99,102,241,0.04)" : "rgba(99,102,241,0.03)" }}>
-                    {showManage && promote && (() => {
-                      const isDemotion = ROLE_LEVEL[promote] < ROLE_LEVEL[m.role];
-                      return (
-                        <button
-                          onClick={() => { onRoleChange(m.id, promote); setActionTarget(null); }}
-                          className="flex-1 text-[11px] font-semibold py-1.5 rounded-lg transition-all"
-                          style={isDemotion
-                            ? { background: isDark ? "rgba(239,68,68,0.12)" : "rgba(239,68,68,0.08)", color: isDark ? "#fca5a5" : "#dc2626" }
-                            : { background: isDark ? "rgba(99,102,241,0.12)" : "rgba(99,102,241,0.08)", color: isDark ? "#a5b4fc" : "#4f46e5" }}
-                        >
-                          {isDemotion ? "↓" : "→"} {promote.charAt(0).toUpperCase() + promote.slice(1)}
-                        </button>
-                      );
-                    })()}
+                  <div
+                    className="flex flex-wrap gap-1.5 px-3 pb-2.5"
+                    style={{
+                      background: isDark
+                        ? "rgba(99,102,241,0.04)"
+                        : "rgba(99,102,241,0.03)",
+                    }}
+                  >
+                    {showManage &&
+                      promote &&
+                      (() => {
+                        const isDemotion =
+                          ROLE_LEVEL[promote] < ROLE_LEVEL[m.role];
+                        return (
+                          <button
+                            onClick={() => {
+                              onRoleChange(m.id, promote);
+                              setActionTarget(null);
+                            }}
+                            className="flex-1 text-[11px] font-semibold py-1.5 rounded-lg transition-all"
+                            style={
+                              isDemotion
+                                ? {
+                                    background: isDark
+                                      ? "rgba(239,68,68,0.12)"
+                                      : "rgba(239,68,68,0.08)",
+                                    color: isDark ? "#fca5a5" : "#dc2626",
+                                  }
+                                : {
+                                    background: isDark
+                                      ? "rgba(99,102,241,0.12)"
+                                      : "rgba(99,102,241,0.08)",
+                                    color: isDark ? "#a5b4fc" : "#4f46e5",
+                                  }
+                            }
+                          >
+                            {isDemotion ? "↓" : "→"}{" "}
+                            {promote.charAt(0).toUpperCase() + promote.slice(1)}
+                          </button>
+                        );
+                      })()}
                     {canTransfer && (
                       <button
-                        onClick={() => { onTransferOwnership(m.id, m.username); setActionTarget(null); onClose(); }}
+                        onClick={() => {
+                          onTransferOwnership(m.id, m.username);
+                          setActionTarget(null);
+                          onClose();
+                        }}
                         className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg transition-all"
-                        style={{ background: "rgba(251,191,36,0.12)", color: "#fbbf24" }}
+                        style={{
+                          background: "rgba(251,191,36,0.12)",
+                          color: "#fbbf24",
+                        }}
                       >
                         <Crown size={10} /> Owner
                       </button>
                     )}
                     {showMuteBtn && (
                       <button
-                        onClick={() => isMuted ? onMute(m.id, 0) : setMuteTarget(m.id)}
+                        onClick={() =>
+                          isMuted ? onMute(m.id, 0) : setMuteTarget(m.id)
+                        }
                         className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg transition-all"
-                        style={isMuted
-                          ? { background: "rgba(34,197,94,0.10)", color: "#4ade80" }
-                          : { background: "rgba(251,191,36,0.10)", color: "#fbbf24" }}
+                        style={
+                          isMuted
+                            ? {
+                                background: "rgba(34,197,94,0.10)",
+                                color: "#4ade80",
+                              }
+                            : {
+                                background: "rgba(251,191,36,0.10)",
+                                color: "#fbbf24",
+                              }
+                        }
                       >
-                        {isMuted ? <><Volume2 size={10} /> Unmute</> : <><VolumeX size={10} /> Mute</>}
+                        {isMuted ? (
+                          <>
+                            <Volume2 size={10} /> Unmute
+                          </>
+                        ) : (
+                          <>
+                            <VolumeX size={10} /> Mute
+                          </>
+                        )}
                       </button>
                     )}
                     {showManage && (
                       <button
-                        onClick={() => { onKick(m.id); setActionTarget(null); onClose(); }}
+                        onClick={() => {
+                          onKick(m.id);
+                          setActionTarget(null);
+                          onClose();
+                        }}
                         className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg transition-all"
-                        style={{ background: "rgba(239,68,68,0.10)", color: "#f87171" }}
+                        style={{
+                          background: "rgba(239,68,68,0.10)",
+                          color: "#f87171",
+                        }}
                       >
                         <UserMinus size={10} /> Kick
                       </button>
@@ -2505,13 +2809,27 @@ function GroupMembersPanel({
 
                 {/* Mute duration picker */}
                 {isMutePick && (
-                  <div className="flex flex-wrap gap-1.5 px-3 pb-2.5" style={{ background: isDark ? "rgba(251,191,36,0.04)" : "rgba(251,191,36,0.03)" }}>
+                  <div
+                    className="flex flex-wrap gap-1.5 px-3 pb-2.5"
+                    style={{
+                      background: isDark
+                        ? "rgba(251,191,36,0.04)"
+                        : "rgba(251,191,36,0.03)",
+                    }}
+                  >
                     {MUTE_DURATIONS.map(({ label, seconds }) => (
                       <button
                         key={label}
-                        onClick={() => { onMute(m.id, seconds); setMuteTarget(null); setActionTarget(null); }}
+                        onClick={() => {
+                          onMute(m.id, seconds);
+                          setMuteTarget(null);
+                          setActionTarget(null);
+                        }}
                         className="text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all"
-                        style={{ background: "rgba(251,191,36,0.12)", color: "#fbbf24" }}
+                        style={{
+                          background: "rgba(251,191,36,0.12)",
+                          color: "#fbbf24",
+                        }}
                       >
                         {label}
                       </button>
@@ -2519,7 +2837,9 @@ function GroupMembersPanel({
                     <button
                       onClick={() => setMuteTarget(null)}
                       className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg"
-                      style={{ color: isDark ? "rgba(238,242,255,0.35)" : "#94a3b8" }}
+                      style={{
+                        color: isDark ? "rgba(238,242,255,0.35)" : "#94a3b8",
+                      }}
                     >
                       Cancel
                     </button>
@@ -2566,12 +2886,17 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   function addToast(message) {
     const id = Date.now() + Math.random();
     setToasts((prev) => [...prev, { id, message }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 5000);
+    setTimeout(
+      () => setToasts((prev) => prev.filter((t) => t.id !== id)),
+      5000,
+    );
   }
 
-  function addChannelNotif(message, type = "info") {
+  function addChannelNotif(message, type = "info", roomId = null) {
     const id = Date.now() + Math.random();
-    setChannelNotifs((prev) => [{ id, message, type, ts: Date.now() }, ...prev].slice(0, 50));
+    setChannelNotifs((prev) =>
+      [{ id, message, type, roomId, ts: Date.now() }, ...prev].slice(0, 50),
+    );
   }
 
   function toggleTheme() {
@@ -2594,8 +2919,12 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const longPressTimerRef = useRef(null);
   const addToastRef = useRef(addToast);
   const addChannelNotifRef = useRef(addChannelNotif);
-  useEffect(() => { addToastRef.current = addToast; });
-  useEffect(() => { addChannelNotifRef.current = addChannelNotif; });
+  useEffect(() => {
+    addToastRef.current = addToast;
+  });
+  useEffect(() => {
+    addChannelNotifRef.current = addChannelNotif;
+  });
 
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId;
@@ -2809,146 +3138,199 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       }
     });
 
-    s.on("channel:member_kicked", ({ roomId, kickedUserId, kickedUsername, kickedBy, channelName }) => {
-      if (kickedUserId === currentUser.id) {
-        loadedRoomsRef.current.delete(roomId);
-        setRooms((prev) => prev.filter((r) => r.id !== roomId));
-        if (activeRoomIdRef.current === roomId) {
-          setActiveRoomId(null);
-          setTimeout(() => setDisplayRoomId(null), 200);
+    s.on(
+      "channel:member_kicked",
+      ({ roomId, kickedUserId, kickedUsername, kickedBy, channelName }) => {
+        if (kickedUserId === currentUser.id) {
+          loadedRoomsRef.current.delete(roomId);
+          setRooms((prev) => prev.filter((r) => r.id !== roomId));
+          if (activeRoomIdRef.current === roomId) {
+            setActiveRoomId(null);
+            setTimeout(() => setDisplayRoomId(null), 200);
+          }
+          addToastRef.current(
+            `You were removed from #${channelName} by ${kickedBy}`,
+          );
+          addChannelNotifRef.current(
+            `You were removed from #${channelName} by ${kickedBy}`,
+            "kick",
+            roomId,
+          );
+        } else {
+          setMessages((prev) => ({
+            ...prev,
+            [roomId]: [
+              ...(prev[roomId] || []),
+              {
+                id: `sys_${Date.now()}`,
+                text: `${kickedUsername || "A member"} was removed from the channel`,
+                system: true,
+                created_at: Math.floor(Date.now() / 1000),
+              },
+            ],
+          }));
+          setGroupMembersPanel((prev) =>
+            prev?.roomId === roomId
+              ? {
+                  ...prev,
+                  members: prev.members.filter((m) => m.id !== kickedUserId),
+                }
+              : prev,
+          );
+          addToastRef.current(
+            `${kickedUsername} was removed from #${channelName}`,
+          );
+          addChannelNotifRef.current(
+            `${kickedUsername} was removed from #${channelName} by ${kickedBy}`,
+            "kick",
+            roomId,
+          );
         }
-        addToastRef.current(`You were removed from #${channelName} by ${kickedBy}`);
-        addChannelNotifRef.current(`You were removed from #${channelName} by ${kickedBy}`, "kick");
-      } else {
+      },
+    );
+
+    s.on(
+      "channel:role_changed",
+      ({ roomId, userId, role, changedBy, channelName, transferredTo }) => {
+        setGroupMembersPanel((prev) =>
+          prev?.roomId === roomId
+            ? {
+                ...prev,
+                members: prev.members.map((m) =>
+                  m.id === userId ? { ...m, role } : m,
+                ),
+              }
+            : prev,
+        );
+
+        if (userId === currentUser.id) {
+          const roleName = role.charAt(0).toUpperCase() + role.slice(1);
+          const article = /^[aeiou]/i.test(role) ? "an" : "a";
+          const isOwnTransfer = !!(
+            transferredTo && changedBy === currentUser.username
+          );
+
+          // Text stored in rooms state for the sidebar indicator
+          const notifText = isOwnTransfer
+            ? `You transferred ownership to ${transferredTo}`
+            : role === "owner"
+              ? `${changedBy} made you the Owner`
+              : `${changedBy} made you ${article} ${roleName}`;
+
+          setRooms((prev) =>
+            prev.map((r) =>
+              r.id === roomId
+                ? { ...r, role, role_notification: notifText }
+                : r,
+            ),
+          );
+
+          const desktopTitle = isOwnTransfer
+            ? `You made ${transferredTo} the Owner of #${channelName}`
+            : `Your role in #${channelName} changed`;
+          const desktopBody = isOwnTransfer
+            ? `You are now an Admin`
+            : changedBy
+              ? `${changedBy} made you ${article} ${roleName}`
+              : `You are now ${article} ${roleName}`;
+          const toastMsg = isOwnTransfer
+            ? `You made ${transferredTo} the Owner of #${channelName}`
+            : changedBy
+              ? `${changedBy} made you ${article} ${roleName} in #${channelName}`
+              : `You are now ${article} ${roleName} in #${channelName}`;
+
+          if (
+            typeof Notification !== "undefined" &&
+            Notification.permission === "granted"
+          ) {
+            new Notification(desktopTitle, { body: desktopBody });
+          }
+          addToastRef.current(toastMsg);
+          addChannelNotifRef.current(toastMsg, "role", roomId);
+        }
+      },
+    );
+
+    s.on(
+      "channel:member_joined",
+      ({ roomId, username, channelName, addedBy }) => {
         setMessages((prev) => ({
           ...prev,
           [roomId]: [
             ...(prev[roomId] || []),
             {
               id: `sys_${Date.now()}`,
-              text: `${kickedUsername || "A member"} was removed from the channel`,
+              text: addedBy
+                ? `${username} was added by ${addedBy}`
+                : `${username} joined the channel`,
               system: true,
               created_at: Math.floor(Date.now() / 1000),
             },
           ],
         }));
-        setGroupMembersPanel((prev) =>
-          prev?.roomId === roomId
-            ? { ...prev, members: prev.members.filter((m) => m.id !== kickedUserId) }
-            : prev,
-        );
-        addToastRef.current(`${kickedUsername} was removed from #${channelName}`);
-        addChannelNotifRef.current(`${kickedUsername} was removed from #${channelName} by ${kickedBy}`, "kick");
-      }
-    });
+        const name = channelName ? `#${channelName}` : "the channel";
+        const msg = addedBy
+          ? `${username} was added to ${name} by ${addedBy}`
+          : `${username} joined ${name}`;
+        addToastRef.current(msg);
+        addChannelNotifRef.current(msg, "join", roomId);
+      },
+    );
 
-    s.on("channel:role_changed", ({ roomId, userId, role, changedBy, channelName, transferredTo }) => {
-      setGroupMembersPanel((prev) =>
-        prev?.roomId === roomId
-          ? {
-              ...prev,
-              members: prev.members.map((m) =>
-                m.id === userId ? { ...m, role } : m,
-              ),
-            }
-          : prev,
-      );
-
-      if (userId === currentUser.id) {
-        const roleName = role.charAt(0).toUpperCase() + role.slice(1);
-        const article = /^[aeiou]/i.test(role) ? "an" : "a";
-        const isOwnTransfer = !!(transferredTo && changedBy === currentUser.username);
-
-        // Text stored in rooms state for the sidebar indicator
-        const notifText = isOwnTransfer
-          ? `You transferred ownership to ${transferredTo}`
-          : role === "owner"
-            ? `${changedBy} made you the Owner`
-            : `${changedBy} made you ${article} ${roleName}`;
-
-        setRooms((prev) =>
-          prev.map((r) =>
-            r.id === roomId ? { ...r, role, role_notification: notifText } : r,
-          ),
-        );
-
-        const desktopTitle = isOwnTransfer
-          ? `You made ${transferredTo} the Owner of #${channelName}`
-          : `Your role in #${channelName} changed`;
-        const desktopBody = isOwnTransfer
-          ? `You are now an Admin`
-          : changedBy
-            ? `${changedBy} made you ${article} ${roleName}`
-            : `You are now ${article} ${roleName}`;
-        const toastMsg = isOwnTransfer
-          ? `You made ${transferredTo} the Owner of #${channelName}`
-          : changedBy
-            ? `${changedBy} made you ${article} ${roleName} in #${channelName}`
-            : `You are now ${article} ${roleName} in #${channelName}`;
-
-        if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-          new Notification(desktopTitle, { body: desktopBody });
-        }
-        addToastRef.current(toastMsg);
-        addChannelNotifRef.current(toastMsg, "role");
-      }
-    });
-
-    s.on("channel:member_joined", ({ roomId, username, channelName, addedBy }) => {
+    s.on("channel:member_left", ({ roomId, userId, username, channelName, systemMessage }) => {
+      const msgEntry = systemMessage ?? {
+        id: `sys_${Date.now()}`,
+        text: `${username} left the channel`,
+        system: true,
+        created_at: Math.floor(Date.now() / 1000),
+      };
       setMessages((prev) => ({
         ...prev,
-        [roomId]: [
-          ...(prev[roomId] || []),
-          {
-            id: `sys_${Date.now()}`,
-            text: addedBy ? `${username} was added by ${addedBy}` : `${username} joined the channel`,
-            system: true,
-            created_at: Math.floor(Date.now() / 1000),
-          },
-        ],
-      }));
-      const name = channelName ? `#${channelName}` : "the channel";
-      const msg = addedBy
-        ? `${username} was added to ${name} by ${addedBy}`
-        : `${username} joined ${name}`;
-      addToastRef.current(msg);
-      addChannelNotifRef.current(msg, "join");
-    });
-
-    s.on("channel:member_left", ({ roomId, userId, username, channelName }) => {
-      setMessages((prev) => ({
-        ...prev,
-        [roomId]: [
-          ...(prev[roomId] || []),
-          { id: `sys_${Date.now()}`, text: `${username} left the channel`, system: true, created_at: Math.floor(Date.now() / 1000) },
-        ],
+        [roomId]: [...(prev[roomId] || []), msgEntry],
       }));
       if (userId !== currentUser.id) {
         const msg = `${username} left #${channelName}`;
         addToastRef.current(msg);
-        addChannelNotifRef.current(msg, "leave");
+        addChannelNotifRef.current(msg, "leave", roomId);
       }
     });
 
-    s.on("channel:member_muted", ({ roomId, userId, mutedUntil, mutedBy, targetUsername, channelName }) => {
-      setGroupMembersPanel((prev) =>
-        prev?.roomId === roomId
-          ? { ...prev, members: prev.members.map((m) => m.id === userId ? { ...m, muted_until: mutedUntil } : m) }
-          : prev,
-      );
-      const isUnmute = !mutedUntil;
-      const name = channelName ? `#${channelName}` : "the channel";
-      let msg;
-      if (userId === currentUser.id) {
-        msg = isUnmute ? `You were unmuted in ${name}` : `You were muted in ${name} by ${mutedBy}`;
-      } else {
-        msg = isUnmute
-          ? `${targetUsername} was unmuted in ${name}`
-          : `${targetUsername} was muted in ${name} by ${mutedBy}`;
-      }
-      addToastRef.current(msg);
-      addChannelNotifRef.current(msg, isUnmute ? "unmute" : "mute");
-    });
+    s.on(
+      "channel:member_muted",
+      ({
+        roomId,
+        userId,
+        mutedUntil,
+        mutedBy,
+        targetUsername,
+        channelName,
+      }) => {
+        setGroupMembersPanel((prev) =>
+          prev?.roomId === roomId
+            ? {
+                ...prev,
+                members: prev.members.map((m) =>
+                  m.id === userId ? { ...m, muted_until: mutedUntil } : m,
+                ),
+              }
+            : prev,
+        );
+        const isUnmute = !mutedUntil;
+        const name = channelName ? `#${channelName}` : "the channel";
+        let msg;
+        if (userId === currentUser.id) {
+          msg = isUnmute
+            ? `You were unmuted in ${name}`
+            : `You were muted in ${name} by ${mutedBy}`;
+        } else {
+          msg = isUnmute
+            ? `${targetUsername} was unmuted in ${name}`
+            : `${targetUsername} was muted in ${name} by ${mutedBy}`;
+        }
+        addToastRef.current(msg);
+        addChannelNotifRef.current(msg, isUnmute ? "unmute" : "mute", roomId);
+      },
+    );
 
     s.on("channel:message_pinned", ({ roomId, pinned }) => {
       setPinnedMessages((prev) => ({
@@ -2960,25 +3342,36 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     s.on("channel:message_unpinned", ({ roomId, messageId }) => {
       setPinnedMessages((prev) => ({
         ...prev,
-        [roomId]: (prev[roomId] || []).filter((p) => p.message_id !== messageId),
+        [roomId]: (prev[roomId] || []).filter(
+          (p) => p.message_id !== messageId,
+        ),
       }));
     });
 
     s.on("channel:updated", ({ roomId, name, description, slug }) => {
-      setRooms((prev) => prev.map((r) => r.id === roomId ? { ...r, name, description, ...(slug !== undefined && { slug }) } : r));
+      setRooms((prev) =>
+        prev.map((r) =>
+          r.id === roomId
+            ? { ...r, name, description, ...(slug !== undefined && { slug }) }
+            : r,
+        ),
+      );
     });
 
     s.on("channel:added", ({ room, addedBy }) => {
       if (room) api.getRooms().then(setRooms).catch(console.error);
       if (addedBy && addedBy !== currentUser.username) {
-        if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+        if (
+          typeof Notification !== "undefined" &&
+          Notification.permission === "granted"
+        ) {
           new Notification(`Added to "#${room?.name}"`, {
             body: `${addedBy} added you to this channel`,
           });
         }
         const msg = `${addedBy} added you to #${room?.name}`;
         addToastRef.current(msg);
-        addChannelNotifRef.current(msg, "added");
+        addChannelNotifRef.current(msg, "added", room?.id);
       }
     });
 
@@ -3318,7 +3711,12 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
   async function handleCreateChannel(name, slug, description, isPrivate) {
     setShowNewChat(false);
-    const { roomId } = await api.createChannel(name, slug, description, isPrivate);
+    const { roomId } = await api.createChannel(
+      name,
+      slug,
+      description,
+      isPrivate,
+    );
     selectRoom(roomId);
     api.getRooms().then(setRooms).catch(console.error);
   }
@@ -3350,7 +3748,12 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       await api.setMemberRole(displayRoomId, userId, role);
       setGroupMembersPanel((prev) =>
         prev?.roomId === displayRoomId
-          ? { ...prev, members: prev.members.map((m) => m.id === userId ? { ...m, role } : m) }
+          ? {
+              ...prev,
+              members: prev.members.map((m) =>
+                m.id === userId ? { ...m, role } : m,
+              ),
+            }
           : prev,
       );
     } catch (err) {
@@ -3362,10 +3765,17 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     if (!displayRoomId) return;
     try {
       await api.muteChannelMember(displayRoomId, userId, duration);
-      const mutedUntil = duration ? Math.floor(Date.now() / 1000) + duration : null;
+      const mutedUntil = duration
+        ? Math.floor(Date.now() / 1000) + duration
+        : null;
       setGroupMembersPanel((prev) =>
         prev?.roomId === displayRoomId
-          ? { ...prev, members: prev.members.map((m) => m.id === userId ? { ...m, muted_until: mutedUntil } : m) }
+          ? {
+              ...prev,
+              members: prev.members.map((m) =>
+                m.id === userId ? { ...m, muted_until: mutedUntil } : m,
+              ),
+            }
           : prev,
       );
     } catch (err) {
@@ -3378,7 +3788,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     try {
       await api.addChannelMember(displayRoomId, userId);
       const members = await api.getRoomMembers(displayRoomId);
-      setGroupMembersPanel((prev) => prev ? { ...prev, members } : prev);
+      setGroupMembersPanel((prev) => (prev ? { ...prev, members } : prev));
     } catch (err) {
       console.error(err);
     }
@@ -3394,7 +3804,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           await api.setMemberRole(displayRoomId, userId, "owner");
           // Immediately revoke owner-level UI access; socket confirms the rest
           setRooms((prev) =>
-            prev.map((r) => r.id === displayRoomId ? { ...r, role: "admin" } : r),
+            prev.map((r) =>
+              r.id === displayRoomId ? { ...r, role: "admin" } : r,
+            ),
           );
           setGroupMembersPanel((prev) =>
             prev?.roomId === displayRoomId
@@ -3416,12 +3828,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
   async function handleEditChannel(name, description, slug) {
     if (!displayRoomId) return;
-    try {
-      await api.editChannel(displayRoomId, name, description, slug);
-      setEditChannelModal(null);
-    } catch (err) {
-      throw err;
-    }
+    await api.editChannel(displayRoomId, name, description, slug);
+    setEditChannelModal(null);
   }
 
   async function handlePinMessage(messageId) {
@@ -3463,14 +3871,18 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         r.id === roomId ? { ...r, is_new: 0, role_notification: null } : r,
       ),
     );
+    setChannelNotifs((prev) => prev.filter((n) => n.roomId !== roomId));
     setShowMsgSearch(false);
     setMsgSearch("");
     stopTyping();
     localStorage.setItem("chatloop_active_room", String(roomId));
     const room = rooms.find((r) => r.id === roomId);
     if (room?.type === "channel" || room?.type === "private_channel") {
-      api.getPinnedMessages(roomId)
-        .then((pins) => setPinnedMessages((prev) => ({ ...prev, [roomId]: pins })))
+      api
+        .getPinnedMessages(roomId)
+        .then((pins) =>
+          setPinnedMessages((prev) => ({ ...prev, [roomId]: pins })),
+        )
         .catch(console.error);
     }
   }
@@ -3566,7 +3978,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         myAvatar={myAvatar}
         onAvatarClick={() => avatarFileRef.current?.click()}
         channelNotifs={channelNotifs}
-        onDismissChannelNotif={(id) => setChannelNotifs((prev) => prev.filter((x) => x.id !== id))}
+        onDismissChannelNotif={(id) =>
+          setChannelNotifs((prev) => prev.filter((x) => x.id !== id))
+        }
         onClearChannelNotifs={() => setChannelNotifs([])}
       />
       <input
@@ -3691,7 +4105,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                         }}
                       >
                         {isActiveChannel
-                          ? activeRoom.description || activeRoom.name || "Channel"
+                          ? activeRoom.description ||
+                            activeRoom.name ||
+                            "Channel"
                           : activeRoom.is_group
                             ? "Group chat"
                             : activeRoomOnline
@@ -3717,9 +4133,16 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                   {
                     icon: <Pencil size={16} />,
                     active: false,
-                    onClick: () => setEditChannelModal({ name: activeRoom.name || "", description: activeRoom.description || "", slug: activeRoom.slug || "" }),
+                    onClick: () =>
+                      setEditChannelModal({
+                        name: activeRoom.name || "",
+                        description: activeRoom.description || "",
+                        slug: activeRoom.slug || "",
+                      }),
                     title: "Edit channel",
-                    show: !!isActiveChannel && ROLE_LEVEL[myActiveRole] >= ROLE_LEVEL.admin,
+                    show:
+                      !!isActiveChannel &&
+                      ROLE_LEVEL[myActiveRole] >= ROLE_LEVEL.admin,
                   },
                   {
                     icon: copiedSlug ? <Check size={16} /> : <Copy size={16} />,
@@ -3731,7 +4154,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                       setCopiedSlug(true);
                       setTimeout(() => setCopiedSlug(false), 2000);
                     },
-                    title: copiedSlug ? "Copied!" : `Copy channel address (#${activeRoom.slug})`,
+                    title: copiedSlug
+                      ? "Copied!"
+                      : `Copy channel address (#${activeRoom.slug})`,
                     show: !!isActiveChannel,
                   },
                   {
@@ -3849,31 +4274,53 @@ export default function ChatApp({ token, currentUser, onLogout }) {
               )}
 
               {/* Pinned message banner (channels only) */}
-              {isActiveChannel && (pinnedMessages[displayRoomId] || []).length > 0 && (() => {
-                const latest = pinnedMessages[displayRoomId][0];
-                return (
-                  <div
-                    className="flex items-center gap-2.5 px-4 py-2 border-b shrink-0"
-                    style={{ borderColor: isDark ? darkBorder : lightBorderMid, background: isDark ? "rgba(251,191,36,0.05)" : "rgba(251,191,36,0.06)" }}
-                  >
-                    <Pin size={12} style={{ color: "#fbbf24", flexShrink: 0 }} />
-                    <p className="flex-1 text-xs truncate" style={{ color: isDark ? "rgba(238,242,255,0.7)" : "#475569" }}>
-                      <span className="font-semibold" style={{ color: isDark ? "#fbbf24" : "#b45309" }}>Pinned: </span>
-                      {latest.text}
-                    </p>
-                    {ROLE_LEVEL[myActiveRole] >= ROLE_LEVEL.moderator && (
-                      <button
-                        onClick={() => handleUnpinMessage(latest.message_id)}
-                        className="shrink-0 transition-all"
-                        style={{ color: isDark ? "rgba(238,242,255,0.3)" : "#94a3b8" }}
-                        title="Unpin"
+              {isActiveChannel &&
+                (pinnedMessages[displayRoomId] || []).length > 0 &&
+                (() => {
+                  const latest = pinnedMessages[displayRoomId][0];
+                  return (
+                    <div
+                      className="flex items-center gap-2.5 px-4 py-2 border-b shrink-0"
+                      style={{
+                        borderColor: isDark ? darkBorder : lightBorderMid,
+                        background: isDark
+                          ? "rgba(251,191,36,0.05)"
+                          : "rgba(251,191,36,0.06)",
+                      }}
+                    >
+                      <Pin
+                        size={12}
+                        style={{ color: "#fbbf24", flexShrink: 0 }}
+                      />
+                      <p
+                        className="flex-1 text-xs truncate"
+                        style={{
+                          color: isDark ? "rgba(238,242,255,0.7)" : "#475569",
+                        }}
                       >
-                        <X size={12} />
-                      </button>
-                    )}
-                  </div>
-                );
-              })()}
+                        <span
+                          className="font-semibold"
+                          style={{ color: isDark ? "#fbbf24" : "#b45309" }}
+                        >
+                          Pinned:{" "}
+                        </span>
+                        {latest.text}
+                      </p>
+                      {ROLE_LEVEL[myActiveRole] >= ROLE_LEVEL.moderator && (
+                        <button
+                          onClick={() => handleUnpinMessage(latest.message_id)}
+                          className="shrink-0 transition-all"
+                          style={{
+                            color: isDark ? "rgba(238,242,255,0.3)" : "#94a3b8",
+                          }}
+                          title="Unpin"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
 
               {/* Messages — layered: dot-grid texture + fade edges + scroll area */}
               <div
@@ -4131,9 +4578,17 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
               {/* Mute / input error */}
               {inputError && (
-                <div className="px-4 py-1.5 shrink-0 flex items-center gap-2" style={{ background: "rgba(239,68,68,0.08)" }}>
-                  <VolumeX size={12} style={{ color: "#f87171", flexShrink: 0 }} />
-                  <span className="text-xs" style={{ color: "#f87171" }}>{inputError}</span>
+                <div
+                  className="px-4 py-1.5 shrink-0 flex items-center gap-2"
+                  style={{ background: "rgba(239,68,68,0.08)" }}
+                >
+                  <VolumeX
+                    size={12}
+                    style={{ color: "#f87171", flexShrink: 0 }}
+                  />
+                  <span className="text-xs" style={{ color: "#f87171" }}>
+                    {inputError}
+                  </span>
                 </div>
               )}
 
@@ -4267,7 +4722,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           onDelete={handleDeleteMessage}
           onPin={handlePinMessage}
           onUnpin={handleUnpinMessage}
-          isPinned={(pinnedMessages[displayRoomId] || []).some((p) => p.message_id === contextMenu.msg.id)}
+          isPinned={(pinnedMessages[displayRoomId] || []).some(
+            (p) => p.message_id === contextMenu.msg.id,
+          )}
           currentUserId={currentUser.id}
           isDark={isDark}
           isChannel={!!isActiveChannel}
@@ -4303,7 +4760,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       {/* In-app toast notifications */}
       {toasts.length > 0 && (
         <div
-          className="fixed bottom-6 right-4 z-[600] flex flex-col gap-2"
+          className="fixed bottom-6 right-4 z-600 flex flex-col gap-2"
           style={{ maxWidth: "320px", pointerEvents: "none" }}
         >
           {toasts.map((t) => (
@@ -4312,7 +4769,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
               className="animate-slide-in-right flex items-start gap-3 rounded-xl px-4 py-3 text-sm font-medium shadow-2xl"
               style={{
                 pointerEvents: "auto",
-                background: isDark ? "rgba(22,20,44,0.97)" : "rgba(255,255,255,0.98)",
+                background: isDark
+                  ? "rgba(22,20,44,0.97)"
+                  : "rgba(255,255,255,0.98)",
                 border: `1px solid ${isDark ? "rgba(99,102,241,0.3)" : "rgba(99,102,241,0.2)"}`,
                 borderLeft: "3px solid #6366f1",
                 color: isDark ? "#e0e7ff" : "#1e1b4b",
@@ -4320,7 +4779,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             >
               <span className="flex-1 leading-snug">{t.message}</span>
               <button
-                onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
+                onClick={() =>
+                  setToasts((prev) => prev.filter((x) => x.id !== t.id))
+                }
                 className="shrink-0 mt-0.5 opacity-40 hover:opacity-80 transition-opacity"
                 style={{ color: isDark ? "#a5b4fc" : "#6366f1" }}
               >
