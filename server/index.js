@@ -548,6 +548,7 @@ app.post("/api/channels/join", requireAuth, async (req, res) => {
   });
   io.to(`room:${channel.id}`).emit("channel:member_joined", {
     roomId: channel.id, userId: req.user.id, username: req.user.username,
+    channelName: channel.name || "",
   });
   notifyNewRoom(channel.id, [req.user.id]);
   res.json({ roomId: channel.id });
@@ -641,14 +642,19 @@ app.delete("/api/channels/:roomId/members/:userId", requireAuth, async (req, res
     io.sockets.sockets.get(sid)?.leave(`room:${roomId}`);
   });
 
-  io.to(`room:${roomId}`).emit("channel:member_kicked", {
-    roomId, kickedUserId: targetId, kickedBy: req.user.username,
-  });
+  const [kickedUser, kickRoom] = await Promise.all([
+    queries.getUserById.get(targetId),
+    queries.getRoomById.get(roomId),
+  ]);
+  const kickPayload = {
+    roomId, kickedUserId: targetId, kickedUsername: kickedUser?.username,
+    kickedBy: req.user.username, channelName: kickRoom?.name || "",
+  };
+
+  io.to(`room:${roomId}`).emit("channel:member_kicked", kickPayload);
   // Also notify the kicked user's sockets (already left the room so won't get the broadcast)
   online.get(targetId)?.forEach((sid) => {
-    io.sockets.sockets.get(sid)?.emit("channel:member_kicked", {
-      roomId, kickedUserId: targetId, kickedBy: req.user.username,
-    });
+    io.sockets.sockets.get(sid)?.emit("channel:member_kicked", kickPayload);
   });
   res.json({ ok: true });
 });
@@ -682,6 +688,7 @@ app.post("/api/channels/:roomId/members", requireAuth, async (req, res) => {
   await queries.insertMessage.run(roomId, userId, `${addedUser?.username} joined the channel`, true);
   io.to(`room:${roomId}`).emit("channel:member_joined", {
     roomId, userId, username: addedUser?.username, addedBy: req.user.username,
+    channelName: room?.name || "",
   });
   online.get(userId)?.forEach((sid) => {
     io.sockets.sockets.get(sid)?.emit("channel:added", { room, addedBy: req.user.username });
@@ -736,10 +743,15 @@ app.patch("/api/channels/:roomId/members/:userId/mute", requireAuth, async (req,
   if (ROLE_LEVEL[myRole] <= ROLE_LEVEL[targetRole]) return res.status(403).json({ error: "Insufficient permissions" });
 
   const mutedUntil = duration > 0 ? Math.floor(Date.now() / 1000) + Number(duration) : null;
-  await queries.setMuted.run(roomId, targetId, mutedUntil);
+  const [, muteTarget, muteRoom] = await Promise.all([
+    queries.setMuted.run(roomId, targetId, mutedUntil),
+    queries.getUserById.get(targetId),
+    queries.getRoomById.get(roomId),
+  ]);
 
   io.to(`room:${roomId}`).emit("channel:member_muted", {
     roomId, userId: targetId, mutedUntil, mutedBy: req.user.username,
+    targetUsername: muteTarget?.username, channelName: muteRoom?.name || "",
   });
   res.json({ ok: true, mutedUntil });
 });

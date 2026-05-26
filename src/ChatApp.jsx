@@ -834,6 +834,69 @@ function OrbitalHub({
               </div>
             )}
 
+            {/* Channel notifications bar */}
+            {channelNotifs.length > 0 && (
+              <div
+                className="border-b shrink-0"
+                style={{ borderColor: isDark ? darkBorder : lightBorderMid, maxHeight: "200px", overflowY: "auto" }}
+              >
+                <div
+                  className="flex items-center justify-between px-5 py-2 sticky top-0"
+                  style={{ background: isDark ? "rgba(16,24,48,0.97)" : "rgba(248,250,255,0.97)" }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0" />
+                    <span
+                      className="text-[11px] uppercase tracking-widest font-semibold"
+                      style={{ color: isDark ? "rgba(165,180,252,0.8)" : "#4338ca" }}
+                    >
+                      Notifications ({channelNotifs.length})
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setChannelNotifs([])}
+                    className="text-[11px] font-medium"
+                    style={{ color: isDark ? "rgba(165,180,252,0.6)" : "#6366f1" }}
+                  >
+                    Clear all
+                  </button>
+                </div>
+                {channelNotifs.map((n) => {
+                  const dotColor =
+                    n.type === "kick" ? "#f87171"
+                    : n.type === "mute" ? "#fb923c"
+                    : n.type === "unmute" ? "#34d399"
+                    : n.type === "leave" ? "#94a3b8"
+                    : n.type === "role" ? "#a78bfa"
+                    : "#60a5fa";
+                  const secsAgo = Math.floor((Date.now() - n.ts) / 1000);
+                  const timeStr = secsAgo < 60 ? "just now" : secsAgo < 3600 ? `${Math.floor(secsAgo / 60)}m ago` : `${Math.floor(secsAgo / 3600)}h ago`;
+                  return (
+                    <div
+                      key={n.id}
+                      className="flex items-start gap-2.5 px-4 py-2"
+                      style={{ background: isDark ? "rgba(99,102,241,0.04)" : "rgba(238,242,255,0.5)" }}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: dotColor }} />
+                      <span className="flex-1 text-xs leading-relaxed" style={{ color: isDark ? "rgba(238,242,255,0.75)" : "#334155" }}>
+                        {n.message}
+                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-[10px]" style={{ color: isDark ? "rgba(238,242,255,0.3)" : "#94a3b8" }}>{timeStr}</span>
+                        <button
+                          onClick={() => setChannelNotifs((prev) => prev.filter((x) => x.id !== n.id))}
+                          className="text-[10px] leading-none"
+                          style={{ color: isDark ? "rgba(238,242,255,0.3)" : "#94a3b8" }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Room list */}
             <div className="flex-1 min-h-0 overflow-y-auto py-2">
               {rooms.length === 0 ? (
@@ -2472,11 +2535,17 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const [hasMoreMessages, setHasMoreMessages] = useState({});
   const [loadingMore, setLoadingMore] = useState({});
   const [toasts, setToasts] = useState([]);
+  const [channelNotifs, setChannelNotifs] = useState([]);
 
   function addToast(message) {
     const id = Date.now() + Math.random();
     setToasts((prev) => [...prev, { id, message }]);
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 5000);
+  }
+
+  function addChannelNotif(message, type = "info") {
+    const id = Date.now() + Math.random();
+    setChannelNotifs((prev) => [{ id, message, type, ts: Date.now() }, ...prev].slice(0, 50));
   }
 
   function toggleTheme() {
@@ -2710,7 +2779,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       }
     });
 
-    s.on("channel:member_kicked", ({ roomId, kickedUserId }) => {
+    s.on("channel:member_kicked", ({ roomId, kickedUserId, kickedUsername, kickedBy, channelName }) => {
       if (kickedUserId === currentUser.id) {
         loadedRoomsRef.current.delete(roomId);
         setRooms((prev) => prev.filter((r) => r.id !== roomId));
@@ -2718,6 +2787,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           setActiveRoomId(null);
           setTimeout(() => setDisplayRoomId(null), 200);
         }
+        addToast(`You were removed from #${channelName} by ${kickedBy}`);
+        addChannelNotif(`You were removed from #${channelName} by ${kickedBy}`, "kick");
       } else {
         setMessages((prev) => ({
           ...prev,
@@ -2725,7 +2796,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             ...(prev[roomId] || []),
             {
               id: `sys_${Date.now()}`,
-              text: `A member was removed from the channel`,
+              text: `${kickedUsername || "A member"} was removed from the channel`,
               system: true,
               created_at: Math.floor(Date.now() / 1000),
             },
@@ -2733,12 +2804,11 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         }));
         setGroupMembersPanel((prev) =>
           prev?.roomId === roomId
-            ? {
-                ...prev,
-                members: prev.members.filter((m) => m.id !== kickedUserId),
-              }
+            ? { ...prev, members: prev.members.filter((m) => m.id !== kickedUserId) }
             : prev,
         );
+        addToast(`${kickedUsername} was removed from #${channelName}`);
+        addChannelNotif(`${kickedUsername} was removed from #${channelName} by ${kickedBy}`, "kick");
       }
     });
 
@@ -2790,22 +2860,29 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           new Notification(desktopTitle, { body: desktopBody });
         }
         addToast(toastMsg);
+        addChannelNotif(toastMsg, "role");
       }
     });
 
-    s.on("channel:member_joined", ({ roomId, username }) => {
+    s.on("channel:member_joined", ({ roomId, username, channelName, addedBy }) => {
       setMessages((prev) => ({
         ...prev,
         [roomId]: [
           ...(prev[roomId] || []),
           {
             id: `sys_${Date.now()}`,
-            text: `${username} joined the channel`,
+            text: addedBy ? `${username} was added by ${addedBy}` : `${username} joined the channel`,
             system: true,
             created_at: Math.floor(Date.now() / 1000),
           },
         ],
       }));
+      const name = channelName ? `#${channelName}` : "the channel";
+      const msg = addedBy
+        ? `${username} was added to ${name} by ${addedBy}`
+        : `${username} joined ${name}`;
+      addToast(msg);
+      addChannelNotif(msg, "join");
     });
 
     s.on("channel:member_left", ({ roomId, userId, username, channelName }) => {
@@ -2817,16 +2894,30 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         ],
       }));
       if (userId !== currentUser.id) {
-        addToast(`${username} left #${channelName}`);
+        const msg = `${username} left #${channelName}`;
+        addToast(msg);
+        addChannelNotif(msg, "leave");
       }
     });
 
-    s.on("channel:member_muted", ({ roomId, userId, mutedUntil }) => {
+    s.on("channel:member_muted", ({ roomId, userId, mutedUntil, mutedBy, targetUsername, channelName }) => {
       setGroupMembersPanel((prev) =>
         prev?.roomId === roomId
           ? { ...prev, members: prev.members.map((m) => m.id === userId ? { ...m, muted_until: mutedUntil } : m) }
           : prev,
       );
+      const isUnmute = !mutedUntil;
+      const name = channelName ? `#${channelName}` : "the channel";
+      let msg;
+      if (userId === currentUser.id) {
+        msg = isUnmute ? `You were unmuted in ${name}` : `You were muted in ${name} by ${mutedBy}`;
+      } else {
+        msg = isUnmute
+          ? `${targetUsername} was unmuted in ${name}`
+          : `${targetUsername} was muted in ${name} by ${mutedBy}`;
+      }
+      addToast(msg);
+      addChannelNotif(msg, isUnmute ? "unmute" : "mute");
     });
 
     s.on("channel:message_pinned", ({ roomId, pinned }) => {
@@ -2855,7 +2946,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             body: `${addedBy} added you to this channel`,
           });
         }
-        addToast(`${addedBy} added you to #${room?.name}`);
+        const msg = `${addedBy} added you to #${room?.name}`;
+        addToast(msg);
+        addChannelNotif(msg, "join");
       }
     });
 
