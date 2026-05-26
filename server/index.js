@@ -701,7 +701,7 @@ app.patch("/api/channels/:roomId", requireAuth, async (req, res) => {
   if (ROLE_LEVEL[myRole] < ROLE_LEVEL.admin) return res.status(403).json({ error: "Only admins and owners can edit the channel" });
 
   let cleanSlug = null;
-  if (slug !== undefined && myRole === "owner") {
+  if (slug !== undefined && ROLE_LEVEL[myRole] >= ROLE_LEVEL.admin) {
     cleanSlug = slug.trim().toLowerCase();
     if (!VALID_SLUG.test(cleanSlug)) {
       return res.status(400).json({ error: "Address must be lowercase letters, numbers, and dashes (e.g. my-channel)" });

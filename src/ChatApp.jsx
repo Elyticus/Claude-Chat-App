@@ -936,7 +936,7 @@ function OrbitalHub({
                             )}
                           </div>
                           {room.role_notification ? (
-                            <div className="text-xs truncate mt-0.5" style={{ color: "#a5b4fc" }}>
+                            <div className="text-xs truncate mt-0.5" style={{ color: "#4ade80" }}>
                               {room.role_notification}
                             </div>
                           ) : !!room.is_group && !!room.is_new ? (
@@ -971,21 +971,12 @@ function OrbitalHub({
                           )}
                           {room.role_notification ? (
                             <span
-                              className="w-2 h-2 rounded-full bg-indigo-400"
-                              style={{ boxShadow: "0 0 6px rgba(129,140,248,0.9)" }}
+                              className="w-2 h-2 rounded-full bg-green-400"
+                              style={{ boxShadow: "0 0 6px rgba(74,222,128,0.9)" }}
                             />
                           ) : !!room.is_group && !!room.is_new ? (
                             <span className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.9)]" />
-                          ) : (
-                            isRecent && (
-                              <span
-                                className="w-1.5 h-1.5 rounded-full bg-indigo-400"
-                                style={{
-                                  boxShadow: "0 0 4px rgba(129,140,248,0.7)",
-                                }}
-                              />
-                            )
-                          )}
+                          ) : null}
                         </div>
                       </button>
                     );
@@ -2093,12 +2084,12 @@ function EditChannelModal({ initialName, initialDescription, initialSlug, myRole
   const [saving, setSaving]           = useState(false);
   const [err, setErr]                 = useState("");
 
-  const isOwner = myRole === "owner";
+  const canEditSlug = myRole === "owner" || myRole === "admin";
 
   function handleNameChange(val) {
     setName(val);
     setErr("");
-    if (isOwner && !slugManual) setSlug(toSlug(val));
+    if (canEditSlug && !slugManual) setSlug(toSlug(val));
   }
 
   async function submit(e) {
@@ -2106,7 +2097,7 @@ function EditChannelModal({ initialName, initialDescription, initialSlug, myRole
     if (!name.trim()) { setErr("Name is required"); return; }
     setSaving(true);
     try {
-      await onSave(name.trim(), description.trim(), isOwner ? slug : undefined);
+      await onSave(name.trim(), description.trim(), canEditSlug ? slug : undefined);
     } catch (ex) {
       setErr(ex.message || "Failed to save");
     } finally {
@@ -2139,7 +2130,7 @@ function EditChannelModal({ initialName, initialDescription, initialSlug, myRole
               maxLength={80}
             />
           </div>
-          {isOwner && (
+          {canEditSlug && (
             <div>
               <label className="block text-xs font-medium mb-1.5" style={{ color: isDark ? "rgba(238,242,255,0.5)" : "#64748b" }}>Channel Address</label>
               <div className="flex items-center rounded-xl overflow-hidden" style={{ background: isDark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.05)", border: `1px solid ${isDark ? darkBorder : lightBorderMid}` }}>
