@@ -3307,6 +3307,11 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     if (!displayRoomId) return;
     try {
       await api.kickChannelMember(displayRoomId, userId);
+      setGroupMembersPanel((prev) =>
+        prev?.roomId === displayRoomId
+          ? { ...prev, members: prev.members.filter((m) => m.id !== userId) }
+          : prev,
+      );
     } catch (err) {
       console.error(err);
     }
@@ -3316,6 +3321,11 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     if (!displayRoomId) return;
     try {
       await api.setMemberRole(displayRoomId, userId, role);
+      setGroupMembersPanel((prev) =>
+        prev?.roomId === displayRoomId
+          ? { ...prev, members: prev.members.map((m) => m.id === userId ? { ...m, role } : m) }
+          : prev,
+      );
     } catch (err) {
       console.error(err);
     }
@@ -3325,6 +3335,12 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     if (!displayRoomId) return;
     try {
       await api.muteChannelMember(displayRoomId, userId, duration);
+      const mutedUntil = duration ? Math.floor(Date.now() / 1000) + duration : null;
+      setGroupMembersPanel((prev) =>
+        prev?.roomId === displayRoomId
+          ? { ...prev, members: prev.members.map((m) => m.id === userId ? { ...m, muted_until: mutedUntil } : m) }
+          : prev,
+      );
     } catch (err) {
       console.error(err);
     }
