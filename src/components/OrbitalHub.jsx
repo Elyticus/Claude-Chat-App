@@ -415,14 +415,6 @@ export function OrbitalHub({
             <div
               className={`relative w-12 h-12 transition-transform duration-200 ${hoveredId === room.id ? "scale-110" : ""}`}
             >
-              {/* Ring — always full opacity regardless of orbit depth */}
-              <div
-                className="absolute inset-0 rounded-full pointer-events-none transition-all duration-200"
-                style={{
-                  border: `2px solid ${hoveredId === room.id ? ringHover : ringNormal}`,
-                  boxShadow: hoveredId === room.id ? `0 0 16px ${glowHover}` : "none",
-                }}
-              />
               {/* Avatar fill — fades with orbit depth */}
               <div
                 className="w-full h-full rounded-full flex items-center justify-center text-white text-sm font-semibold"
@@ -436,6 +428,14 @@ export function OrbitalHub({
               >
                 {initials(displayName)}
               </div>
+              {/* Ring — rendered after fill so it sits on top; always full opacity */}
+              <div
+                className="absolute inset-0 rounded-full pointer-events-none transition-all duration-200"
+                style={{
+                  border: `2px solid ${hoveredId === room.id ? ringHover : ringNormal}`,
+                  boxShadow: hoveredId === room.id ? `0 0 16px ${glowHover}` : "none",
+                }}
+              />
               {isOnline && (
                 <span
                   className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-emerald-400 rounded-full"
