@@ -81,10 +81,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     setChannelNotifs((prev) =>
       [{ id, message, type, roomId, ts: Date.now() }, ...prev].slice(0, 50),
     );
-    setTimeout(
-      () => setChannelNotifs((prev) => prev.filter((n) => n.id !== id)),
-      8000,
-    );
   }
 
   function toggleTheme() {
@@ -422,6 +418,18 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           ) {
             new Notification(desktopTitle, { body: desktopBody });
           }
+          setMessages((prev) => ({
+            ...prev,
+            [roomId]: [
+              ...(prev[roomId] || []),
+              {
+                id: `sys_${Date.now()}`,
+                text: notifText,
+                system: true,
+                created_at: Math.floor(Date.now() / 1000),
+              },
+            ],
+          }));
           addChannelNotifRef.current(toastMsg, "role", roomId);
         }
       },
@@ -501,6 +509,21 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             ? `${targetUsername} was unmuted in ${name}`
             : `${targetUsername} was muted in ${name} by ${mutedBy}`;
         }
+        const sysText = isUnmute
+          ? `${userId === currentUser.id ? "You were" : `${targetUsername} was`} unmuted`
+          : `${userId === currentUser.id ? "You were" : `${targetUsername} was`} muted by ${mutedBy}`;
+        setMessages((prev) => ({
+          ...prev,
+          [roomId]: [
+            ...(prev[roomId] || []),
+            {
+              id: `sys_${Date.now()}`,
+              text: sysText,
+              system: true,
+              created_at: Math.floor(Date.now() / 1000),
+            },
+          ],
+        }));
         addChannelNotifRef.current(msg, isUnmute ? "unmute" : "mute", roomId);
       },
     );
@@ -1149,9 +1172,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         myAvatar={myAvatar}
         onAvatarClick={() => avatarFileRef.current?.click()}
         channelNotifs={channelNotifs}
-        onDismissChannelNotif={(id) =>
-          setChannelNotifs((prev) => prev.filter((x) => x.id !== id))
-        }
         onClearChannelNotifs={() => setChannelNotifs([])}
       />
       <input

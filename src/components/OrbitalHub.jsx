@@ -31,7 +31,6 @@ export function OrbitalHub({
   myAvatar,
   onAvatarClick,
   channelNotifs,
-  onDismissChannelNotif,
   onClearChannelNotifs,
 }) {
   const isChannel = (r) => r.type === "channel" || r.type === "private_channel";
@@ -352,7 +351,6 @@ export function OrbitalHub({
             className="absolute -bottom-1 -left-1 min-w-4 h-4 rounded-full z-20 flex items-center justify-center text-[9px] font-bold text-white px-0.5"
             style={{
               background: "linear-gradient(135deg,#22c55e,#4ade80)",
-              border: `2px solid ${isDark ? darkBg0 : lightBg0}`,
               boxShadow: "0 0 8px rgba(74,222,128,0.7)",
             }}
           >
@@ -668,29 +666,16 @@ export function OrbitalHub({
                         >
                           {n.message}
                         </span>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <span
-                            className="text-[10px]"
-                            style={{
-                              color: isDark
-                                ? "rgba(238,242,255,0.3)"
-                                : "#94a3b8",
-                            }}
-                          >
-                            {timeStr}
-                          </span>
-                          <button
-                            onClick={() => onDismissChannelNotif(n.id)}
-                            className="text-[10px] leading-none"
-                            style={{
-                              color: isDark
-                                ? "rgba(134,239,172,0.5)"
-                                : "#16a34a",
-                            }}
-                          >
-                            ✕
-                          </button>
-                        </div>
+                        <span
+                          className="text-[10px] shrink-0"
+                          style={{
+                            color: isDark
+                              ? "rgba(238,242,255,0.3)"
+                              : "#94a3b8",
+                          }}
+                        >
+                          {timeStr}
+                        </span>
                       </div>
                     );
                   })}
