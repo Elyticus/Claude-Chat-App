@@ -393,7 +393,6 @@ export function OrbitalHub({
             style={{
               transform: `translate(${pos.x}px, ${pos.y}px)`,
               zIndex: pos.zIndex,
-              opacity: pos.opacity,
             }}
             onMouseEnter={() => setHoveredId(room.id)}
             onMouseLeave={() => setHoveredId(null)}
@@ -414,16 +413,29 @@ export function OrbitalHub({
               }}
             />
             <div
-              className={`relative w-12 h-12 rounded-full flex items-center justify-center text-white text-sm font-semibold transition-all duration-200 ${hoveredId === room.id ? "scale-110" : ""}`}
-              style={{
-                background: userBg(avatarId),
-                boxShadow:
-                  hoveredId === room.id
-                    ? `0 0 0 2px ${ringHover}, 0 0 20px ${glowHover}, 0 4px 16px ${isDark ? "rgba(0,0,0,0.5)" : "rgba(0,0,0,0.15)"}`
-                    : `0 0 0 2px ${ringNormal}, 0 4px 16px ${isDark ? "rgba(0,0,0,0.5)" : "rgba(0,0,0,0.08)"}`,
-              }}
+              className={`relative w-12 h-12 transition-transform duration-200 ${hoveredId === room.id ? "scale-110" : ""}`}
             >
-              {initials(displayName)}
+              {/* Ring — always full opacity regardless of orbit depth */}
+              <div
+                className="absolute inset-0 rounded-full pointer-events-none transition-all duration-200"
+                style={{
+                  border: `2px solid ${hoveredId === room.id ? ringHover : ringNormal}`,
+                  boxShadow: hoveredId === room.id ? `0 0 16px ${glowHover}` : "none",
+                }}
+              />
+              {/* Avatar fill — fades with orbit depth */}
+              <div
+                className="w-full h-full rounded-full flex items-center justify-center text-white text-sm font-semibold"
+                style={{
+                  background: userBg(avatarId),
+                  opacity: pos.opacity,
+                  boxShadow: isDark
+                    ? "0 4px 16px rgba(0,0,0,0.5)"
+                    : "0 4px 16px rgba(0,0,0,0.08)",
+                }}
+              >
+                {initials(displayName)}
+              </div>
               {isOnline && (
                 <span
                   className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-emerald-400 rounded-full"
@@ -447,14 +459,14 @@ export function OrbitalHub({
             </div>
             <span
               className="mt-2 text-[11px] font-semibold max-w-19 truncate text-center leading-tight"
-              style={{ color: isDark ? "rgba(238,242,255,0.9)" : "#1e293b" }}
+              style={{ color: isDark ? "rgba(238,242,255,0.9)" : "#1e293b", opacity: pos.opacity }}
             >
               {displayName}
             </span>
             {room.last_message_at && (
               <span
                 className="text-[10px] mt-0.5"
-                style={{ color: isDark ? "rgba(165,180,252,0.55)" : "#94a3b8" }}
+                style={{ color: isDark ? "rgba(165,180,252,0.55)" : "#94a3b8", opacity: pos.opacity }}
               >
                 {formatTime(room.last_message_at)}
               </span>
