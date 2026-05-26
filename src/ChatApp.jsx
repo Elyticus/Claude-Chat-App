@@ -2592,6 +2592,10 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const activeRoomIdRef = useRef(null);
   const closeTimerRef = useRef(null);
   const longPressTimerRef = useRef(null);
+  const addToastRef = useRef(addToast);
+  const addChannelNotifRef = useRef(addChannelNotif);
+  useEffect(() => { addToastRef.current = addToast; });
+  useEffect(() => { addChannelNotifRef.current = addChannelNotif; });
 
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId;
@@ -2813,8 +2817,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           setActiveRoomId(null);
           setTimeout(() => setDisplayRoomId(null), 200);
         }
-        addToast(`You were removed from #${channelName} by ${kickedBy}`);
-        addChannelNotif(`You were removed from #${channelName} by ${kickedBy}`, "kick");
+        addToastRef.current(`You were removed from #${channelName} by ${kickedBy}`);
+        addChannelNotifRef.current(`You were removed from #${channelName} by ${kickedBy}`, "kick");
       } else {
         setMessages((prev) => ({
           ...prev,
@@ -2833,8 +2837,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             ? { ...prev, members: prev.members.filter((m) => m.id !== kickedUserId) }
             : prev,
         );
-        addToast(`${kickedUsername} was removed from #${channelName}`);
-        addChannelNotif(`${kickedUsername} was removed from #${channelName} by ${kickedBy}`, "kick");
+        addToastRef.current(`${kickedUsername} was removed from #${channelName}`);
+        addChannelNotifRef.current(`${kickedUsername} was removed from #${channelName} by ${kickedBy}`, "kick");
       }
     });
 
@@ -2885,8 +2889,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         if (typeof Notification !== "undefined" && Notification.permission === "granted") {
           new Notification(desktopTitle, { body: desktopBody });
         }
-        addToast(toastMsg);
-        addChannelNotif(toastMsg, "role");
+        addToastRef.current(toastMsg);
+        addChannelNotifRef.current(toastMsg, "role");
       }
     });
 
@@ -2907,8 +2911,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       const msg = addedBy
         ? `${username} was added to ${name} by ${addedBy}`
         : `${username} joined ${name}`;
-      addToast(msg);
-      addChannelNotif(msg, "join");
+      addToastRef.current(msg);
+      addChannelNotifRef.current(msg, "join");
     });
 
     s.on("channel:member_left", ({ roomId, userId, username, channelName }) => {
@@ -2921,8 +2925,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       }));
       if (userId !== currentUser.id) {
         const msg = `${username} left #${channelName}`;
-        addToast(msg);
-        addChannelNotif(msg, "leave");
+        addToastRef.current(msg);
+        addChannelNotifRef.current(msg, "leave");
       }
     });
 
@@ -2942,8 +2946,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           ? `${targetUsername} was unmuted in ${name}`
           : `${targetUsername} was muted in ${name} by ${mutedBy}`;
       }
-      addToast(msg);
-      addChannelNotif(msg, isUnmute ? "unmute" : "mute");
+      addToastRef.current(msg);
+      addChannelNotifRef.current(msg, isUnmute ? "unmute" : "mute");
     });
 
     s.on("channel:message_pinned", ({ roomId, pinned }) => {
@@ -2973,8 +2977,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           });
         }
         const msg = `${addedBy} added you to #${room?.name}`;
-        addToast(msg);
-        addChannelNotif(msg, "added");
+        addToastRef.current(msg);
+        addChannelNotifRef.current(msg, "added");
       }
     });
 
