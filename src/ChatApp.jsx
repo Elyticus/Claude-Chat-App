@@ -2804,8 +2804,18 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       setRooms((prev) => prev.map((r) => r.id === roomId ? { ...r, name, description, ...(slug !== undefined && { slug }) } : r));
     });
 
-    s.on("channel:added", ({ room }) => {
+    s.on("channel:added", ({ room, addedBy }) => {
       if (room) api.getRooms().then(setRooms).catch(console.error);
+      if (
+        addedBy &&
+        addedBy !== currentUser.username &&
+        typeof Notification !== "undefined" &&
+        Notification.permission === "granted"
+      ) {
+        new Notification(`Added to "#${room?.name}"`, {
+          body: `${addedBy} added you to this channel`,
+        });
+      }
     });
 
     return () => {

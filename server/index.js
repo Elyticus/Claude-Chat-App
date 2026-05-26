@@ -647,6 +647,7 @@ app.post("/api/channels/:roomId/members", requireAuth, async (req, res) => {
   }
 
   await queries.addMemberWithRole.run(roomId, userId, "member");
+  await queries.setRoomNew.run(roomId, userId, req.user.username);
 
   online.get(userId)?.forEach((sid) => {
     io.sockets.sockets.get(sid)?.join(`room:${roomId}`);
@@ -661,7 +662,7 @@ app.post("/api/channels/:roomId/members", requireAuth, async (req, res) => {
     roomId, userId, username: addedUser?.username, addedBy: req.user.username,
   });
   online.get(userId)?.forEach((sid) => {
-    io.sockets.sockets.get(sid)?.emit("channel:added", { room });
+    io.sockets.sockets.get(sid)?.emit("channel:added", { room, addedBy: req.user.username });
   });
   res.json({ ok: true });
 });
