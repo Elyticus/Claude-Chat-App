@@ -35,7 +35,16 @@ export default function App() {
   }
 
   return (
-    <Suspense fallback={<div style={{ height: "100%", background: "#070d1c" }} />}>
+    <Suspense fallback={
+      <div style={{ height: "100%", background: "#070d1c", display: "flex", alignItems: "center", justifyContent: "center", gap: "12px" }}>
+        <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+        </svg>
+        <span style={{ color: "#eef2ff", fontSize: "1.5rem", fontWeight: 700 }}>
+          Chatloop<span style={{ color: "#818cf8" }}>.</span>
+        </span>
+      </div>
+    }>
       <ChatApp
         token={authData.token}
         currentUser={authData.user}

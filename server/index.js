@@ -481,7 +481,7 @@ app.delete("/api/rooms/:roomId", requireAuth, async (req, res) => {
     } else {
       await queries.removeMember.run(roomId, req.user.id);
       io.to(`room:${roomId}`).emit("channel:member_left", {
-        roomId, userId: req.user.id, username: req.user.username,
+        roomId, userId: req.user.id, username: req.user.username, channelName: room?.name || "",
       });
     }
   } else if (otherMembers.length <= 1) {

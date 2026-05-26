@@ -2808,7 +2808,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       }));
     });
 
-    s.on("channel:member_left", ({ roomId, username }) => {
+    s.on("channel:member_left", ({ roomId, userId, username, channelName }) => {
       setMessages((prev) => ({
         ...prev,
         [roomId]: [
@@ -2816,6 +2816,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           { id: `sys_${Date.now()}`, text: `${username} left the channel`, system: true, created_at: Math.floor(Date.now() / 1000) },
         ],
       }));
+      if (userId !== currentUser.id) {
+        addToast(`${username} left #${channelName}`);
+      }
     });
 
     s.on("channel:member_muted", ({ roomId, userId, mutedUntil }) => {
