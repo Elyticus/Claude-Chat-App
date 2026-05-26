@@ -30,9 +30,16 @@ export function OrbitalHub({
   avatarMap,
   myAvatar,
   onAvatarClick,
-  channelNotifsCount,
+  channelNotifs,
+  onDismissChannelNotif,
+  onClearChannelNotifs,
 }) {
-  const hasGroupNotif = rooms.some((r) => !!r.is_group && !!r.is_new);
+  const isChannel = (r) => r.type === "channel" || r.type === "private_channel";
+  // Yellow badge: only plain groups (non-channel) that are new
+  const hasGroupNewNotif = rooms.some((r) => !!r.is_group && !!r.is_new && !isChannel(r));
+  // Green badge: channel socket activity notifs
+  const channelNotifsCount = channelNotifs.length;
+
   const [rotationAngle, setRotationAngle] = useState(0);
   const [hoveredId, setHoveredId] = useState(null);
   const [containerSize, setContainerSize] = useState(() => ({
@@ -329,8 +336,8 @@ export function OrbitalHub({
             {pendingCount > 9 ? "9+" : pendingCount}
           </span>
         )}
-        {/* Group notification — yellow */}
-        {hasGroupNotif && (
+        {/* Group notification — yellow (plain groups only, not channels) */}
+        {hasGroupNewNotif && (
           <span
             className="absolute -bottom-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full z-20 animate-pulse"
             style={{
@@ -357,8 +364,7 @@ export function OrbitalHub({
       {/* Room nodes */}
       {orbitRooms.map((room, index) => {
         const pos = getNodePosition(index, orbitRooms.length);
-        const isRoomChannel =
-          room.type === "channel" || room.type === "private_channel";
+        const isRoomChannel = isChannel(room);
         const displayName = isRoomChannel
           ? room.name || `#${room.slug}`
           : room.is_group
@@ -505,7 +511,7 @@ export function OrbitalHub({
               </div>
             </div>
 
-            {/* Pending requests */}
+            {/* Pending friend requests — yellow */}
             {pendingUsers.length > 0 && (
               <div
                 className="border-b shrink-0"
@@ -581,6 +587,117 @@ export function OrbitalHub({
               </div>
             )}
 
+            {/* Channel Activity — green, auto-dismissed per notif or when opening the channel */}
+            {channelNotifsCount > 0 && (
+              <div
+                className="border-b shrink-0"
+                style={{ borderColor: isDark ? darkBorder : lightBorderMid }}
+              >
+                <div
+                  className="flex items-center justify-between px-5 py-2"
+                  style={{
+                    background: isDark
+                      ? "rgba(74,222,128,0.06)"
+                      : "rgba(240,253,244,0.7)",
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-green-400 shrink-0" />
+                    <span
+                      className="text-[11px] uppercase tracking-widest font-semibold"
+                      style={{
+                        color: isDark ? "rgba(134,239,172,0.8)" : "#15803d",
+                      }}
+                    >
+                      Channel Activity ({channelNotifsCount})
+                    </span>
+                  </div>
+                  <button
+                    onClick={onClearChannelNotifs}
+                    className="text-[11px] font-medium"
+                    style={{
+                      color: isDark ? "rgba(134,239,172,0.6)" : "#16a34a",
+                    }}
+                  >
+                    Clear all
+                  </button>
+                </div>
+                <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+                  {channelNotifs.map((n) => {
+                    const dotColor =
+                      n.type === "kick"
+                        ? "#f87171"
+                        : n.type === "mute"
+                          ? "#fb923c"
+                          : n.type === "unmute" || n.type === "added"
+                            ? "#4ade80"
+                            : n.type === "leave"
+                              ? "#94a3b8"
+                              : n.type === "role"
+                                ? "#a78bfa"
+                                : "#4ade80";
+                    // eslint-disable-next-line react-hooks/purity
+                    const secsAgo = Math.floor((Date.now() - n.ts) / 1000);
+                    const timeStr =
+                      secsAgo < 60
+                        ? "just now"
+                        : secsAgo < 3600
+                          ? `${Math.floor(secsAgo / 60)}m ago`
+                          : `${Math.floor(secsAgo / 3600)}h ago`;
+                    return (
+                      <div
+                        key={n.id}
+                        className="flex items-start gap-2.5 px-4 py-2"
+                        style={{
+                          background: isDark
+                            ? "rgba(74,222,128,0.03)"
+                            : "rgba(240,253,244,0.4)",
+                        }}
+                      >
+                        <span
+                          className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
+                          style={{ background: dotColor }}
+                        />
+                        <span
+                          className="flex-1 text-xs leading-relaxed"
+                          style={{
+                            color: isDark
+                              ? "rgba(238,242,255,0.75)"
+                              : "#334155",
+                          }}
+                        >
+                          {n.message}
+                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span
+                            className="text-[10px]"
+                            style={{
+                              color: isDark
+                                ? "rgba(238,242,255,0.3)"
+                                : "#94a3b8",
+                            }}
+                          >
+                            {timeStr}
+                          </span>
+                          <button
+                            onClick={() => onDismissChannelNotif(n.id)}
+                            className="text-[10px] leading-none"
+                            style={{
+                              color: isDark
+                                ? "rgba(134,239,172,0.5)"
+                                : "#16a34a",
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Room list */}
             <div className="flex-1 min-h-0 overflow-y-auto py-2">
               {rooms.length === 0 ? (
@@ -595,9 +712,7 @@ export function OrbitalHub({
               ) : (
                 <div className="space-y-0.5 px-2">
                   {rooms.map((room) => {
-                    const isRoomChannel =
-                      room.type === "channel" ||
-                      room.type === "private_channel";
+                    const isRoomChannel = isChannel(room);
                     const displayName = isRoomChannel
                       ? room.name || `#${room.slug}`
                       : room.is_group
@@ -612,6 +727,9 @@ export function OrbitalHub({
                     const isRecent =
                       room.last_message_at &&
                       nowMs / 1000 - room.last_message_at < 86400;
+                    // is_new on a channel → green; on a plain group → yellow
+                    const isNewChannel = isRoomChannel && !!room.is_new;
+                    const isNewGroup = !isRoomChannel && !!room.is_group && !!room.is_new;
 
                     return (
                       <button
@@ -687,7 +805,11 @@ export function OrbitalHub({
                             >
                               {room.role_notification}
                             </div>
-                          ) : !!room.is_group && !!room.is_new ? (
+                          ) : isNewChannel ? (
+                            <div className="text-xs truncate mt-0.5 text-green-400/90">
+                              You were added by {room.added_by}
+                            </div>
+                          ) : isNewGroup ? (
                             <div className="text-xs truncate mt-0.5 text-yellow-400/90">
                               You were added by {room.added_by}
                             </div>
@@ -720,11 +842,14 @@ export function OrbitalHub({
                           {room.role_notification ? (
                             <span
                               className="w-2 h-2 rounded-full bg-green-400"
-                              style={{
-                                boxShadow: "0 0 6px rgba(74,222,128,0.9)",
-                              }}
+                              style={{ boxShadow: "0 0 6px rgba(74,222,128,0.9)" }}
                             />
-                          ) : !!room.is_group && !!room.is_new ? (
+                          ) : isNewChannel ? (
+                            <span
+                              className="w-2 h-2 rounded-full bg-green-400"
+                              style={{ boxShadow: "0 0 6px rgba(74,222,128,0.9)" }}
+                            />
+                          ) : isNewGroup ? (
                             <span className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.9)]" />
                           ) : null}
                         </div>

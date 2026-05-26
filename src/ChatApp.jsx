@@ -74,17 +74,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const [inputError, setInputError] = useState("");
   const [hasMoreMessages, setHasMoreMessages] = useState({});
   const [loadingMore, setLoadingMore] = useState({});
-  const [toasts, setToasts] = useState([]);
   const [channelNotifs, setChannelNotifs] = useState([]);
-
-  function addToast(message) {
-    const id = Date.now() + Math.random();
-    setToasts((prev) => [...prev, { id, message }]);
-    setTimeout(
-      () => setToasts((prev) => prev.filter((t) => t.id !== id)),
-      5000,
-    );
-  }
 
   function addChannelNotif(message, type = "info", roomId = null) {
     const id = Date.now() + Math.random();
@@ -115,11 +105,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const activeRoomIdRef = useRef(null);
   const closeTimerRef = useRef(null);
   const longPressTimerRef = useRef(null);
-  const addToastRef = useRef(addToast);
   const addChannelNotifRef = useRef(addChannelNotif);
-  useEffect(() => {
-    addToastRef.current = addToast;
-  });
   useEffect(() => {
     addChannelNotifRef.current = addChannelNotif;
   });
@@ -346,9 +332,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             setActiveRoomId(null);
             setTimeout(() => setDisplayRoomId(null), 200);
           }
-          addToastRef.current(
-            `You were removed from #${channelName} by ${kickedBy}`,
-          );
           addChannelNotifRef.current(
             `You were removed from #${channelName} by ${kickedBy}`,
             "kick",
@@ -374,9 +357,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                   members: prev.members.filter((m) => m.id !== kickedUserId),
                 }
               : prev,
-          );
-          addToastRef.current(
-            `${kickedUsername} was removed from #${channelName}`,
           );
           addChannelNotifRef.current(
             `${kickedUsername} was removed from #${channelName} by ${kickedBy}`,
@@ -442,7 +422,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           ) {
             new Notification(desktopTitle, { body: desktopBody });
           }
-          addToastRef.current(toastMsg);
           addChannelNotifRef.current(toastMsg, "role", roomId);
         }
       },
@@ -469,7 +448,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         const msg = addedBy
           ? `${username} was added to ${name} by ${addedBy}`
           : `${username} joined ${name}`;
-        addToastRef.current(msg);
         addChannelNotifRef.current(msg, "join", roomId);
       },
     );
@@ -487,7 +465,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       }));
       if (userId !== currentUser.id) {
         const msg = `${username} left #${channelName}`;
-        addToastRef.current(msg);
         addChannelNotifRef.current(msg, "leave", roomId);
       }
     });
@@ -524,7 +501,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             ? `${targetUsername} was unmuted in ${name}`
             : `${targetUsername} was muted in ${name} by ${mutedBy}`;
         }
-        addToastRef.current(msg);
         addChannelNotifRef.current(msg, isUnmute ? "unmute" : "mute", roomId);
       },
     );
@@ -567,7 +543,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           });
         }
         const msg = `${addedBy} added you to #${room?.name}`;
-        addToastRef.current(msg);
         addChannelNotifRef.current(msg, "added", room?.id);
       }
     });
@@ -1173,7 +1148,11 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         avatarMap={avatarMap}
         myAvatar={myAvatar}
         onAvatarClick={() => avatarFileRef.current?.click()}
-        channelNotifsCount={channelNotifs.length}
+        channelNotifs={channelNotifs}
+        onDismissChannelNotif={(id) =>
+          setChannelNotifs((prev) => prev.filter((x) => x.id !== id))
+        }
+        onClearChannelNotifs={() => setChannelNotifs([])}
       />
       <input
         ref={avatarFileRef}
@@ -1945,93 +1924,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         />
       )}
 
-      {/* In-app toast notifications — right side */}
-      {toasts.length > 0 && (
-        <div
-          className="fixed bottom-6 right-4 z-600 flex flex-col gap-2"
-          style={{ maxWidth: "320px", pointerEvents: "none" }}
-        >
-          {toasts.map((t) => (
-            <div
-              key={t.id}
-              className="animate-slide-in-right flex items-start gap-3 rounded-xl px-4 py-3 text-sm font-medium shadow-2xl"
-              style={{
-                pointerEvents: "auto",
-                background: isDark
-                  ? "rgba(22,20,44,0.97)"
-                  : "rgba(255,255,255,0.98)",
-                border: `1px solid ${isDark ? "rgba(99,102,241,0.3)" : "rgba(99,102,241,0.2)"}`,
-                borderLeft: "3px solid #6366f1",
-                color: isDark ? "#e0e7ff" : "#1e1b4b",
-              }}
-            >
-              <span className="flex-1 leading-snug">{t.message}</span>
-              <button
-                onClick={() =>
-                  setToasts((prev) => prev.filter((x) => x.id !== t.id))
-                }
-                className="shrink-0 mt-0.5 opacity-40 hover:opacity-80 transition-opacity"
-                style={{ color: isDark ? "#a5b4fc" : "#6366f1" }}
-              >
-                <X size={13} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Channel notification popups — bottom-left, green, auto-dismiss after 8s */}
-      {channelNotifs.length > 0 && (
-        <div
-          className="fixed bottom-6 left-4 z-600 flex flex-col-reverse gap-2"
-          style={{ maxWidth: "320px", pointerEvents: "none" }}
-        >
-          {channelNotifs.slice(0, 5).map((n) => {
-            const dotColor =
-              n.type === "kick"
-                ? "#f87171"
-                : n.type === "mute"
-                  ? "#fb923c"
-                  : n.type === "unmute" || n.type === "added"
-                    ? "#4ade80"
-                    : n.type === "leave"
-                      ? "#94a3b8"
-                      : n.type === "role"
-                        ? "#a78bfa"
-                        : "#4ade80";
-            return (
-              <div
-                key={n.id}
-                className="animate-slide-in-left flex items-start gap-3 rounded-xl px-4 py-3 text-sm font-medium shadow-2xl"
-                style={{
-                  pointerEvents: "auto",
-                  background: isDark
-                    ? "rgba(10,22,20,0.97)"
-                    : "rgba(240,253,244,0.98)",
-                  border: `1px solid ${isDark ? "rgba(74,222,128,0.25)" : "rgba(74,222,128,0.35)"}`,
-                  borderLeft: "3px solid #4ade80",
-                  color: isDark ? "#d1fae5" : "#064e3b",
-                }}
-              >
-                <span
-                  className="w-2 h-2 rounded-full mt-1 shrink-0"
-                  style={{ background: dotColor }}
-                />
-                <span className="flex-1 leading-snug">{n.message}</span>
-                <button
-                  onClick={() =>
-                    setChannelNotifs((prev) => prev.filter((x) => x.id !== n.id))
-                  }
-                  className="shrink-0 mt-0.5 opacity-40 hover:opacity-80 transition-opacity"
-                  style={{ color: isDark ? "#4ade80" : "#059669" }}
-                >
-                  <X size={13} />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }
