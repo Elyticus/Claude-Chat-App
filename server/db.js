@@ -55,6 +55,14 @@ export async function initDb() {
     ALTER TABLE room_members ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'member';
     ALTER TABLE room_members ADD COLUMN IF NOT EXISTS muted_until BIGINT;
     ALTER TABLE room_members ADD COLUMN IF NOT EXISTS role_notification TEXT;
+    CREATE TABLE IF NOT EXISTS messages (
+      id         SERIAL PRIMARY KEY,
+      room_id    INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      text       TEXT NOT NULL,
+      reaction   TEXT,
+      created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
+    );
     ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_system SMALLINT DEFAULT 0;
     CREATE TABLE IF NOT EXISTS pinned_messages (
       id         SERIAL PRIMARY KEY,
@@ -63,14 +71,6 @@ export async function initDb() {
       pinned_by  INTEGER NOT NULL REFERENCES users(id),
       pinned_at  BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT,
       UNIQUE (room_id, message_id)
-    );
-    CREATE TABLE IF NOT EXISTS messages (
-      id         SERIAL PRIMARY KEY,
-      room_id    INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
-      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      text       TEXT NOT NULL,
-      reaction   TEXT,
-      created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
     );
     CREATE TABLE IF NOT EXISTS contacts (
       user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
