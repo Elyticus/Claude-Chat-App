@@ -294,6 +294,9 @@ function OrbitalHub({
   avatarMap,
   myAvatar,
   onAvatarClick,
+  channelNotifs,
+  onDismissChannelNotif,
+  onClearChannelNotifs,
 }) {
   const hasGroupNotif = rooms.some((r) => !!r.is_group && !!r.is_new);
   const [rotationAngle, setRotationAngle] = useState(0);
@@ -854,7 +857,7 @@ function OrbitalHub({
                     </span>
                   </div>
                   <button
-                    onClick={() => setChannelNotifs([])}
+                    onClick={onClearChannelNotifs}
                     className="text-[11px] font-medium"
                     style={{ color: isDark ? "rgba(165,180,252,0.6)" : "#6366f1" }}
                   >
@@ -884,7 +887,7 @@ function OrbitalHub({
                       <div className="flex items-center gap-1.5 shrink-0">
                         <span className="text-[10px]" style={{ color: isDark ? "rgba(238,242,255,0.3)" : "#94a3b8" }}>{timeStr}</span>
                         <button
-                          onClick={() => setChannelNotifs((prev) => prev.filter((x) => x.id !== n.id))}
+                          onClick={() => onDismissChannelNotif(n.id)}
                           className="text-[10px] leading-none"
                           style={{ color: isDark ? "rgba(238,242,255,0.3)" : "#94a3b8" }}
                         >
@@ -3519,6 +3522,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         avatarMap={avatarMap}
         myAvatar={myAvatar}
         onAvatarClick={() => avatarFileRef.current?.click()}
+        channelNotifs={channelNotifs}
+        onDismissChannelNotif={(id) => setChannelNotifs((prev) => prev.filter((x) => x.id !== id))}
+        onClearChannelNotifs={() => setChannelNotifs([])}
       />
       <input
         ref={avatarFileRef}
