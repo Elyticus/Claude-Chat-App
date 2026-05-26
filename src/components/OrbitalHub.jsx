@@ -463,14 +463,6 @@ export function OrbitalHub({
             >
               {displayName}
             </span>
-            {room.last_message_at && (
-              <span
-                className="text-[10px] mt-0.5"
-                style={{ color: isDark ? "rgba(165,180,252,0.55)" : "#94a3b8", opacity: pos.opacity }}
-              >
-                {formatTime(room.last_message_at)}
-              </span>
-            )}
           </div>
         );
       })}
