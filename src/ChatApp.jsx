@@ -2799,10 +2799,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           new Notification(desktopTitle, { body: desktopBody });
         }
         addToast(toastMsg);
-      } else {
-        setRooms((prev) =>
-          prev.map((r) => r.id === roomId ? { ...r, role } : r),
-        );
       }
     });
 
