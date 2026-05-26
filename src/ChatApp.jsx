@@ -2471,6 +2471,13 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const [inputError, setInputError] = useState("");
   const [hasMoreMessages, setHasMoreMessages] = useState({});
   const [loadingMore, setLoadingMore] = useState({});
+  const [toasts, setToasts] = useState([]);
+
+  function addToast(message) {
+    const id = Date.now() + Math.random();
+    setToasts((prev) => [...prev, { id, message }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 5000);
+  }
 
   function toggleTheme() {
     setIsDark((prev) => {
@@ -2735,7 +2742,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       }
     });
 
-    s.on("channel:role_changed", ({ roomId, userId, role, changedBy, channelName }) => {
+    s.on("channel:role_changed", ({ roomId, userId, role, changedBy, channelName, transferredTo }) => {
       setGroupMembersPanel((prev) =>
         prev?.roomId === roomId
           ? {
@@ -2751,18 +2758,28 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           r.id === roomId && userId === currentUser.id ? { ...r, role } : r,
         ),
       );
-      if (
-        userId === currentUser.id &&
-        typeof Notification !== "undefined" &&
-        Notification.permission === "granted"
-      ) {
+      if (userId === currentUser.id) {
         const roleName = role.charAt(0).toUpperCase() + role.slice(1);
         const article = /^[aeiou]/i.test(role) ? "an" : "a";
-        new Notification(`Your role in #${channelName} changed`, {
-          body: changedBy
+        // When you transferred ownership you become admin — say what YOU did, not what happened to you
+        const isOwnTransfer = transferredTo && changedBy === currentUser.username;
+        const desktopTitle = isOwnTransfer
+          ? `You made ${transferredTo} the Owner of #${channelName}`
+          : `Your role in #${channelName} changed`;
+        const desktopBody = isOwnTransfer
+          ? `You are now an Admin`
+          : changedBy
             ? `${changedBy} made you ${article} ${roleName}`
-            : `You are now ${article} ${roleName}`,
-        });
+            : `You are now ${article} ${roleName}`;
+        const toastMsg = isOwnTransfer
+          ? `You made ${transferredTo} the Owner of #${channelName}`
+          : changedBy
+            ? `${changedBy} made you ${article} ${roleName} in #${channelName}`
+            : `You are now ${article} ${roleName} in #${channelName}`;
+        if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+          new Notification(desktopTitle, { body: desktopBody });
+        }
+        addToast(toastMsg);
       }
     });
 
@@ -2819,15 +2836,13 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
     s.on("channel:added", ({ room, addedBy }) => {
       if (room) api.getRooms().then(setRooms).catch(console.error);
-      if (
-        addedBy &&
-        addedBy !== currentUser.username &&
-        typeof Notification !== "undefined" &&
-        Notification.permission === "granted"
-      ) {
-        new Notification(`Added to "#${room?.name}"`, {
-          body: `${addedBy} added you to this channel`,
-        });
+      if (addedBy && addedBy !== currentUser.username) {
+        if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+          new Notification(`Added to "#${room?.name}"`, {
+            body: `${addedBy} added you to this channel`,
+          });
+        }
+        addToast(`${addedBy} added you to #${room?.name}`);
       }
     });
 
@@ -4126,6 +4141,37 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           onClose={() => setConfirmModal(null)}
           isDark={isDark}
         />
+      )}
+
+      {/* In-app toast notifications */}
+      {toasts.length > 0 && (
+        <div
+          className="fixed bottom-6 right-4 z-[600] flex flex-col gap-2"
+          style={{ maxWidth: "320px", pointerEvents: "none" }}
+        >
+          {toasts.map((t) => (
+            <div
+              key={t.id}
+              className="animate-slide-in-right flex items-start gap-3 rounded-xl px-4 py-3 text-sm font-medium shadow-2xl"
+              style={{
+                pointerEvents: "auto",
+                background: isDark ? "rgba(22,20,44,0.97)" : "rgba(255,255,255,0.98)",
+                border: `1px solid ${isDark ? "rgba(99,102,241,0.3)" : "rgba(99,102,241,0.2)"}`,
+                borderLeft: "3px solid #6366f1",
+                color: isDark ? "#e0e7ff" : "#1e1b4b",
+              }}
+            >
+              <span className="flex-1 leading-snug">{t.message}</span>
+              <button
+                onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
+                className="shrink-0 mt-0.5 opacity-40 hover:opacity-80 transition-opacity"
+                style={{ color: isDark ? "#a5b4fc" : "#6366f1" }}
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

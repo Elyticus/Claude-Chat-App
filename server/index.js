@@ -587,8 +587,9 @@ app.patch("/api/channels/:roomId/members/:userId/role", requireAuth, async (req,
     await queries.setMemberRole.run(roomId, req.user.id, "admin");
   }
 
-  const [room] = await Promise.all([
+  const [room, targetUser] = await Promise.all([
     queries.getRoomById.get(roomId),
+    queries.getUserById.get(targetId),
     queries.setMemberRole.run(roomId, targetId, role),
   ]);
   const channelName = room?.name || "";
@@ -599,6 +600,7 @@ app.patch("/api/channels/:roomId/members/:userId/role", requireAuth, async (req,
   if (role === "owner") {
     io.to(`room:${roomId}`).emit("channel:role_changed", {
       roomId, userId: req.user.id, role: "admin", changedBy: req.user.username, channelName,
+      transferredTo: targetUser?.username,
     });
   }
   res.json({ ok: true });
