@@ -3907,7 +3907,11 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                               )}
                               <div className="relative">
                                 <div
-                                  className={`px-4 py-2.5 text-sm leading-relaxed wrap-break-word ${isTemp ? "opacity-50" : ""}`}
+                                  className={`px-4 py-2.5 text-sm leading-relaxed wrap-break-word ${
+                                    isMine
+                                      ? "rounded-2xl rounded-br-sm"
+                                      : "rounded-2xl rounded-bl-sm"
+                                  } ${isTemp ? "opacity-50" : ""}`}
                                   style={
                                     isMine
                                       ? {
