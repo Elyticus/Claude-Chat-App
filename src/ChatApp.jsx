@@ -890,7 +890,7 @@ function OrbitalHub({
                     const dotColor =
                       n.type === "kick" ? "#f87171"
                       : n.type === "mute" ? "#fb923c"
-                      : n.type === "unmute" ? "#34d399"
+                      : n.type === "unmute" || n.type === "added" ? "#4ade80"
                       : n.type === "leave" ? "#94a3b8"
                       : n.type === "role" ? "#a78bfa"
                       : "#60a5fa";
@@ -2974,7 +2974,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         }
         const msg = `${addedBy} added you to #${room?.name}`;
         addToast(msg);
-        addChannelNotif(msg, "join");
+        addChannelNotif(msg, "added");
       }
     });
 
