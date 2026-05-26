@@ -340,7 +340,6 @@ export function OrbitalHub({
           <span
             className="absolute -bottom-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full z-20 animate-pulse"
             style={{
-              border: `2px solid ${isDark ? darkBg0 : lightBg0}`,
               boxShadow: "0 0 8px rgba(250,204,21,0.7)",
             }}
           />
@@ -371,6 +370,21 @@ export function OrbitalHub({
         const avatarId = room.is_group ? room.id : room.other_user_id;
         const isOnline = !room.is_group && onlineIds.has(room.other_user_id);
         const unread = unreadCounts[room.id] || 0;
+        const ringNormal = isRoomChannel
+          ? "rgba(74,222,128,0.55)"
+          : !!room.is_group
+            ? "rgba(250,204,21,0.55)"
+            : isDark ? "rgba(99,102,241,0.22)" : "rgba(99,102,241,0.18)";
+        const ringHover = isRoomChannel
+          ? "rgba(74,222,128,0.9)"
+          : !!room.is_group
+            ? "rgba(250,204,21,0.9)"
+            : isDark ? "rgba(99,102,241,0.5)" : "rgba(99,102,241,0.45)";
+        const glowHover = isRoomChannel
+          ? "rgba(74,222,128,0.4)"
+          : !!room.is_group
+            ? "rgba(250,204,21,0.4)"
+            : isDark ? "rgba(99,102,241,0.4)" : "rgba(99,102,241,0.3)";
 
         return (
           <div
@@ -405,12 +419,8 @@ export function OrbitalHub({
                 background: userBg(avatarId),
                 boxShadow:
                   hoveredId === room.id
-                    ? isDark
-                      ? "0 0 0 2px rgba(99,102,241,0.5), 0 0 20px rgba(99,102,241,0.4), 0 4px 16px rgba(0,0,0,0.5)"
-                      : "0 0 0 2px rgba(99,102,241,0.45), 0 0 20px rgba(99,102,241,0.3), 0 4px 16px rgba(99,102,241,0.2)"
-                    : isDark
-                      ? "0 0 0 2px rgba(99,102,241,0.22), 0 4px 16px rgba(0,0,0,0.5)"
-                      : "0 0 0 2px rgba(99,102,241,0.18), 0 4px 16px rgba(99,102,241,0.12)",
+                    ? `0 0 0 2px ${ringHover}, 0 0 20px ${glowHover}, 0 4px 16px ${isDark ? "rgba(0,0,0,0.5)" : "rgba(0,0,0,0.15)"}`
+                    : `0 0 0 2px ${ringNormal}, 0 4px 16px ${isDark ? "rgba(0,0,0,0.5)" : "rgba(0,0,0,0.08)"}`,
               }}
             >
               {initials(displayName)}
