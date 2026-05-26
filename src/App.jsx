@@ -3,9 +3,26 @@ import AuthScreen from "./components/AuthScreen.jsx";
 
 const ChatApp = lazy(() => import("./ChatApp.jsx"));
 
+const SPLASH_LOGO = (
+  <div style={{ height: "100%", background: "#070d1c", display: "flex", alignItems: "center", justifyContent: "center", gap: "12px" }}>
+    <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+    </svg>
+    <span style={{ color: "#eef2ff", fontSize: "1.5rem", fontWeight: 700 }}>
+      Chatloop<span style={{ color: "#818cf8" }}>.</span>
+    </span>
+  </div>
+);
+
 export default function App() {
+  const [ready, setReady] = useState(false);
+
   useEffect(() => {
-    document.getElementById("splash")?.remove();
+    const t = setTimeout(() => {
+      document.getElementById("splash")?.remove();
+      setReady(true);
+    }, 2000);
+    return () => clearTimeout(t);
   }, []);
 
   const [authData, setAuthData] = useState(() => {
@@ -30,21 +47,14 @@ export default function App() {
     setAuthData({ token: null, user: null });
   }
 
+  if (!ready) return null;
+
   if (!authData.token || !authData.user) {
     return <AuthScreen onAuth={handleAuth} />;
   }
 
   return (
-    <Suspense fallback={
-      <div style={{ height: "100%", background: "#070d1c", display: "flex", alignItems: "center", justifyContent: "center", gap: "12px" }}>
-        <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
-        </svg>
-        <span style={{ color: "#eef2ff", fontSize: "1.5rem", fontWeight: 700 }}>
-          Chatloop<span style={{ color: "#818cf8" }}>.</span>
-        </span>
-      </div>
-    }>
+    <Suspense fallback={SPLASH_LOGO}>
       <ChatApp
         token={authData.token}
         currentUser={authData.user}
