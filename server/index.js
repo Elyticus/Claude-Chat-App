@@ -594,6 +594,21 @@ app.patch("/api/channels/:roomId/members/:userId/role", requireAuth, async (req,
   ]);
   const channelName = room?.name || "";
 
+  // Persist role notification for the affected users so it survives a page reload
+  const roleName = role.charAt(0).toUpperCase() + role.slice(1);
+  const article  = /^[aeiou]/i.test(role) ? "an" : "a";
+  const targetNotif = role === "owner"
+    ? `${req.user.username} made you the Owner`
+    : `${req.user.username} made you ${article} ${roleName}`;
+  const notifWrites = [queries.setRoleNotification.run(roomId, targetId, targetNotif)];
+  if (role === "owner") {
+    notifWrites.push(queries.setRoleNotification.run(
+      roomId, req.user.id,
+      `You transferred ownership to ${targetUser?.username}`,
+    ));
+  }
+  await Promise.all(notifWrites);
+
   io.to(`room:${roomId}`).emit("channel:role_changed", {
     roomId, userId: targetId, role, changedBy: req.user.username, channelName,
   });

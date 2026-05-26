@@ -935,7 +935,11 @@ function OrbitalHub({
                               </span>
                             )}
                           </div>
-                          {!!room.is_group && !!room.is_new ? (
+                          {room.role_notification ? (
+                            <div className="text-xs truncate mt-0.5" style={{ color: "#a5b4fc" }}>
+                              {room.role_notification}
+                            </div>
+                          ) : !!room.is_group && !!room.is_new ? (
                             <div className="text-xs truncate mt-0.5 text-yellow-400/90">
                               You were added by {room.added_by}
                             </div>
@@ -965,7 +969,12 @@ function OrbitalHub({
                               {formatTime(room.last_message_at)}
                             </span>
                           )}
-                          {!!room.is_group && !!room.is_new ? (
+                          {room.role_notification ? (
+                            <span
+                              className="w-2 h-2 rounded-full bg-indigo-400"
+                              style={{ boxShadow: "0 0 6px rgba(129,140,248,0.9)" }}
+                            />
+                          ) : !!room.is_group && !!room.is_new ? (
                             <span className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.9)]" />
                           ) : (
                             isRecent && (
@@ -2753,16 +2762,25 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             }
           : prev,
       );
-      setRooms((prev) =>
-        prev.map((r) =>
-          r.id === roomId && userId === currentUser.id ? { ...r, role } : r,
-        ),
-      );
+
       if (userId === currentUser.id) {
         const roleName = role.charAt(0).toUpperCase() + role.slice(1);
         const article = /^[aeiou]/i.test(role) ? "an" : "a";
-        // When you transferred ownership you become admin — say what YOU did, not what happened to you
-        const isOwnTransfer = transferredTo && changedBy === currentUser.username;
+        const isOwnTransfer = !!(transferredTo && changedBy === currentUser.username);
+
+        // Text stored in rooms state for the sidebar indicator
+        const notifText = isOwnTransfer
+          ? `You transferred ownership to ${transferredTo}`
+          : role === "owner"
+            ? `${changedBy} made you the Owner`
+            : `${changedBy} made you ${article} ${roleName}`;
+
+        setRooms((prev) =>
+          prev.map((r) =>
+            r.id === roomId ? { ...r, role, role_notification: notifText } : r,
+          ),
+        );
+
         const desktopTitle = isOwnTransfer
           ? `You made ${transferredTo} the Owner of #${channelName}`
           : `Your role in #${channelName} changed`;
@@ -2776,10 +2794,15 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           : changedBy
             ? `${changedBy} made you ${article} ${roleName} in #${channelName}`
             : `You are now ${article} ${roleName} in #${channelName}`;
+
         if (typeof Notification !== "undefined" && Notification.permission === "granted") {
           new Notification(desktopTitle, { body: desktopBody });
         }
         addToast(toastMsg);
+      } else {
+        setRooms((prev) =>
+          prev.map((r) => r.id === roomId ? { ...r, role } : r),
+        );
       }
     });
 
@@ -3307,7 +3330,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     setActiveRoomId(roomId);
     setUnreadCounts((prev) => ({ ...prev, [roomId]: 0 }));
     setRooms((prev) =>
-      prev.map((r) => (r.id === roomId && r.is_new ? { ...r, is_new: 0 } : r)),
+      prev.map((r) =>
+        r.id === roomId ? { ...r, is_new: 0, role_notification: null } : r,
+      ),
     );
     setShowMsgSearch(false);
     setMsgSearch("");

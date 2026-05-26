@@ -54,6 +54,7 @@ export async function initDb() {
     ALTER TABLE room_members ADD COLUMN IF NOT EXISTS added_by TEXT;
     ALTER TABLE room_members ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'member';
     ALTER TABLE room_members ADD COLUMN IF NOT EXISTS muted_until BIGINT;
+    ALTER TABLE room_members ADD COLUMN IF NOT EXISTS role_notification TEXT;
     ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_system SMALLINT DEFAULT 0;
     CREATE TABLE IF NOT EXISTS pinned_messages (
       id         SERIAL PRIMARY KEY,
@@ -185,7 +186,7 @@ export const queries = {
   getUserRooms: {
     all: (uid) =>
       q(`SELECT r.id, r.name, r.is_group, r.type, r.slug, r.description,
-                rm.is_new, rm.added_by, rm.role,
+                rm.is_new, rm.added_by, rm.role, rm.role_notification,
                 m.text AS last_message, m.created_at AS last_message_at,
                 mu.id AS other_user_id, mu.username AS other_username
          FROM rooms r
@@ -238,8 +239,9 @@ export const queries = {
   memberCount:    { get: (roomId)         => q("SELECT COUNT(*)::INT AS cnt FROM room_members WHERE room_id = $1", [roomId]).then(r => r.rows[0]) },
   deleteRoom:     { run: (roomId)         => q("DELETE FROM rooms WHERE id = $1", [roomId]) },
   getUserRoomIds: { all: (userId)         => q("SELECT room_id FROM room_members WHERE user_id = $1", [userId]).then(r => r.rows) },
-  setRoomNew:   { run: (roomId, userId, addedBy) => q("UPDATE room_members SET is_new = 1, added_by = $3 WHERE room_id = $1 AND user_id = $2", [roomId, userId, addedBy]) },
-  markRoomSeen: { run: (roomId, userId) => q("UPDATE room_members SET is_new = 0 WHERE room_id = $1 AND user_id = $2", [roomId, userId]) },
+  setRoomNew:          { run: (roomId, userId, addedBy) => q("UPDATE room_members SET is_new = 1, added_by = $3 WHERE room_id = $1 AND user_id = $2", [roomId, userId, addedBy]) },
+  setRoleNotification: { run: (roomId, userId, text)    => q("UPDATE room_members SET role_notification = $3 WHERE room_id = $1 AND user_id = $2", [roomId, userId, text]) },
+  markRoomSeen:        { run: (roomId, userId)          => q("UPDATE room_members SET is_new = 0, role_notification = NULL WHERE room_id = $1 AND user_id = $2", [roomId, userId]) },
 
   getRoomMembers: {
     all: (roomId) =>
