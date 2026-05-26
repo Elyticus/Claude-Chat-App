@@ -605,6 +605,18 @@ function OrbitalHub({
             }}
           />
         )}
+        {channelNotifs.length > 0 && (
+          <span
+            className="absolute -bottom-1 -left-1 min-w-4 h-4 rounded-full z-20 flex items-center justify-center text-[9px] font-bold text-white px-0.5"
+            style={{
+              background: "linear-gradient(135deg,#6366f1,#818cf8)",
+              border: `2px solid ${isDark ? darkBg0 : lightBg0}`,
+              boxShadow: "0 0 8px rgba(99,102,241,0.7)",
+            }}
+          >
+            {channelNotifs.length > 9 ? "9+" : channelNotifs.length}
+          </span>
+        )}
       </button>
 
       {/* Room nodes */}
@@ -837,25 +849,25 @@ function OrbitalHub({
               </div>
             )}
 
-            {/* Channel notifications bar */}
-            {channelNotifs.length > 0 && (
+            {/* Channel notifications bar — always visible */}
+            <div
+              className="border-b shrink-0"
+              style={{ borderColor: isDark ? darkBorder : lightBorderMid }}
+            >
               <div
-                className="border-b shrink-0"
-                style={{ borderColor: isDark ? darkBorder : lightBorderMid, maxHeight: "200px", overflowY: "auto" }}
+                className="flex items-center justify-between px-5 py-2"
+                style={{ background: isDark ? "rgba(99,102,241,0.06)" : "rgba(238,242,255,0.6)" }}
               >
-                <div
-                  className="flex items-center justify-between px-5 py-2 sticky top-0"
-                  style={{ background: isDark ? "rgba(16,24,48,0.97)" : "rgba(248,250,255,0.97)" }}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0" />
-                    <span
-                      className="text-[11px] uppercase tracking-widest font-semibold"
-                      style={{ color: isDark ? "rgba(165,180,252,0.8)" : "#4338ca" }}
-                    >
-                      Notifications ({channelNotifs.length})
-                    </span>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0" />
+                  <span
+                    className="text-[11px] uppercase tracking-widest font-semibold"
+                    style={{ color: isDark ? "rgba(165,180,252,0.8)" : "#4338ca" }}
+                  >
+                    Channel Activity{channelNotifs.length > 0 ? ` (${channelNotifs.length})` : ""}
+                  </span>
+                </div>
+                {channelNotifs.length > 0 && (
                   <button
                     onClick={onClearChannelNotifs}
                     className="text-[11px] font-medium"
@@ -863,42 +875,53 @@ function OrbitalHub({
                   >
                     Clear all
                   </button>
-                </div>
-                {channelNotifs.map((n) => {
-                  const dotColor =
-                    n.type === "kick" ? "#f87171"
-                    : n.type === "mute" ? "#fb923c"
-                    : n.type === "unmute" ? "#34d399"
-                    : n.type === "leave" ? "#94a3b8"
-                    : n.type === "role" ? "#a78bfa"
-                    : "#60a5fa";
-                  const secsAgo = Math.floor((Date.now() - n.ts) / 1000);
-                  const timeStr = secsAgo < 60 ? "just now" : secsAgo < 3600 ? `${Math.floor(secsAgo / 60)}m ago` : `${Math.floor(secsAgo / 3600)}h ago`;
-                  return (
-                    <div
-                      key={n.id}
-                      className="flex items-start gap-2.5 px-4 py-2"
-                      style={{ background: isDark ? "rgba(99,102,241,0.04)" : "rgba(238,242,255,0.5)" }}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: dotColor }} />
-                      <span className="flex-1 text-xs leading-relaxed" style={{ color: isDark ? "rgba(238,242,255,0.75)" : "#334155" }}>
-                        {n.message}
-                      </span>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-[10px]" style={{ color: isDark ? "rgba(238,242,255,0.3)" : "#94a3b8" }}>{timeStr}</span>
-                        <button
-                          onClick={() => onDismissChannelNotif(n.id)}
-                          className="text-[10px] leading-none"
-                          style={{ color: isDark ? "rgba(238,242,255,0.3)" : "#94a3b8" }}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                )}
               </div>
-            )}
+              {channelNotifs.length === 0 ? (
+                <div
+                  className="px-5 py-3 text-xs"
+                  style={{ color: isDark ? "rgba(238,242,255,0.3)" : "#94a3b8" }}
+                >
+                  No recent activity
+                </div>
+              ) : (
+                <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+                  {channelNotifs.map((n) => {
+                    const dotColor =
+                      n.type === "kick" ? "#f87171"
+                      : n.type === "mute" ? "#fb923c"
+                      : n.type === "unmute" ? "#34d399"
+                      : n.type === "leave" ? "#94a3b8"
+                      : n.type === "role" ? "#a78bfa"
+                      : "#60a5fa";
+                    const secsAgo = Math.floor((Date.now() - n.ts) / 1000);
+                    const timeStr = secsAgo < 60 ? "just now" : secsAgo < 3600 ? `${Math.floor(secsAgo / 60)}m ago` : `${Math.floor(secsAgo / 3600)}h ago`;
+                    return (
+                      <div
+                        key={n.id}
+                        className="flex items-start gap-2.5 px-4 py-2"
+                        style={{ background: isDark ? "rgba(99,102,241,0.04)" : "rgba(238,242,255,0.4)" }}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: dotColor }} />
+                        <span className="flex-1 text-xs leading-relaxed" style={{ color: isDark ? "rgba(238,242,255,0.75)" : "#334155" }}>
+                          {n.message}
+                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[10px]" style={{ color: isDark ? "rgba(238,242,255,0.3)" : "#94a3b8" }}>{timeStr}</span>
+                          <button
+                            onClick={() => onDismissChannelNotif(n.id)}
+                            className="text-[10px] leading-none"
+                            style={{ color: isDark ? "rgba(238,242,255,0.3)" : "#94a3b8" }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
             {/* Room list */}
             <div className="flex-1 min-h-0 overflow-y-auto py-2">
