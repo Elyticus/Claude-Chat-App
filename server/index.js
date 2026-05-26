@@ -481,7 +481,7 @@ app.delete("/api/rooms/:roomId", requireAuth, async (req, res) => {
     } else {
       await queries.removeMember.run(roomId, req.user.id);
       io.to(`room:${roomId}`).emit("channel:member_left", {
-        roomId, userId: req.user.id, username: req.user.username,
+        roomId, userId: req.user.id, username: req.user.username, channelName: room?.name || "",
       });
     }
   } else if (otherMembers.length <= 1) {
@@ -548,6 +548,7 @@ app.post("/api/channels/join", requireAuth, async (req, res) => {
   });
   io.to(`room:${channel.id}`).emit("channel:member_joined", {
     roomId: channel.id, userId: req.user.id, username: req.user.username,
+    channelName: channel.name || "",
   });
   notifyNewRoom(channel.id, [req.user.id]);
   res.json({ roomId: channel.id });
@@ -587,13 +588,35 @@ app.patch("/api/channels/:roomId/members/:userId/role", requireAuth, async (req,
     await queries.setMemberRole.run(roomId, req.user.id, "admin");
   }
 
-  await queries.setMemberRole.run(roomId, targetId, role);
+  const [room, targetUser] = await Promise.all([
+    queries.getRoomById.get(roomId),
+    queries.getUserById.get(targetId),
+    queries.setMemberRole.run(roomId, targetId, role),
+  ]);
+  const channelName = room?.name || "";
+
+  // Persist role notification for the affected users so it survives a page reload
+  const roleName = role.charAt(0).toUpperCase() + role.slice(1);
+  const article  = /^[aeiou]/i.test(role) ? "an" : "a";
+  const targetNotif = role === "owner"
+    ? `${req.user.username} made you the Owner`
+    : `${req.user.username} made you ${article} ${roleName}`;
+  const notifWrites = [queries.setRoleNotification.run(roomId, targetId, targetNotif)];
+  if (role === "owner") {
+    notifWrites.push(queries.setRoleNotification.run(
+      roomId, req.user.id,
+      `You transferred ownership to ${targetUser?.username}`,
+    ));
+  }
+  await Promise.all(notifWrites);
+
   io.to(`room:${roomId}`).emit("channel:role_changed", {
-    roomId, userId: targetId, role, changedBy: req.user.username,
+    roomId, userId: targetId, role, changedBy: req.user.username, channelName,
   });
   if (role === "owner") {
     io.to(`room:${roomId}`).emit("channel:role_changed", {
-      roomId, userId: req.user.id, role: "admin", changedBy: req.user.username,
+      roomId, userId: req.user.id, role: "admin", changedBy: req.user.username, channelName,
+      transferredTo: targetUser?.username,
     });
   }
   res.json({ ok: true });
@@ -619,14 +642,19 @@ app.delete("/api/channels/:roomId/members/:userId", requireAuth, async (req, res
     io.sockets.sockets.get(sid)?.leave(`room:${roomId}`);
   });
 
-  io.to(`room:${roomId}`).emit("channel:member_kicked", {
-    roomId, kickedUserId: targetId, kickedBy: req.user.username,
-  });
+  const [kickedUser, kickRoom] = await Promise.all([
+    queries.getUserById.get(targetId),
+    queries.getRoomById.get(roomId),
+  ]);
+  const kickPayload = {
+    roomId, kickedUserId: targetId, kickedUsername: kickedUser?.username,
+    kickedBy: req.user.username, channelName: kickRoom?.name || "",
+  };
+
+  io.to(`room:${roomId}`).emit("channel:member_kicked", kickPayload);
   // Also notify the kicked user's sockets (already left the room so won't get the broadcast)
   online.get(targetId)?.forEach((sid) => {
-    io.sockets.sockets.get(sid)?.emit("channel:member_kicked", {
-      roomId, kickedUserId: targetId, kickedBy: req.user.username,
-    });
+    io.sockets.sockets.get(sid)?.emit("channel:member_kicked", kickPayload);
   });
   res.json({ ok: true });
 });
@@ -647,6 +675,7 @@ app.post("/api/channels/:roomId/members", requireAuth, async (req, res) => {
   }
 
   await queries.addMemberWithRole.run(roomId, userId, "member");
+  await queries.setRoomNew.run(roomId, userId, req.user.username);
 
   online.get(userId)?.forEach((sid) => {
     io.sockets.sockets.get(sid)?.join(`room:${roomId}`);
@@ -659,9 +688,10 @@ app.post("/api/channels/:roomId/members", requireAuth, async (req, res) => {
   await queries.insertMessage.run(roomId, userId, `${addedUser?.username} joined the channel`, true);
   io.to(`room:${roomId}`).emit("channel:member_joined", {
     roomId, userId, username: addedUser?.username, addedBy: req.user.username,
+    channelName: room?.name || "",
   });
   online.get(userId)?.forEach((sid) => {
-    io.sockets.sockets.get(sid)?.emit("channel:added", { room });
+    io.sockets.sockets.get(sid)?.emit("channel:added", { room, addedBy: req.user.username });
   });
   res.json({ ok: true });
 });
@@ -678,7 +708,7 @@ app.patch("/api/channels/:roomId", requireAuth, async (req, res) => {
   if (ROLE_LEVEL[myRole] < ROLE_LEVEL.admin) return res.status(403).json({ error: "Only admins and owners can edit the channel" });
 
   let cleanSlug = null;
-  if (slug !== undefined && myRole === "owner") {
+  if (slug !== undefined && ROLE_LEVEL[myRole] >= ROLE_LEVEL.admin) {
     cleanSlug = slug.trim().toLowerCase();
     if (!VALID_SLUG.test(cleanSlug)) {
       return res.status(400).json({ error: "Address must be lowercase letters, numbers, and dashes (e.g. my-channel)" });
@@ -713,10 +743,15 @@ app.patch("/api/channels/:roomId/members/:userId/mute", requireAuth, async (req,
   if (ROLE_LEVEL[myRole] <= ROLE_LEVEL[targetRole]) return res.status(403).json({ error: "Insufficient permissions" });
 
   const mutedUntil = duration > 0 ? Math.floor(Date.now() / 1000) + Number(duration) : null;
-  await queries.setMuted.run(roomId, targetId, mutedUntil);
+  const [, muteTarget, muteRoom] = await Promise.all([
+    queries.setMuted.run(roomId, targetId, mutedUntil),
+    queries.getUserById.get(targetId),
+    queries.getRoomById.get(roomId),
+  ]);
 
   io.to(`room:${roomId}`).emit("channel:member_muted", {
     roomId, userId: targetId, mutedUntil, mutedBy: req.user.username,
+    targetUsername: muteTarget?.username, channelName: muteRoom?.name || "",
   });
   res.json({ ok: true, mutedUntil });
 });

@@ -294,6 +294,9 @@ function OrbitalHub({
   avatarMap,
   myAvatar,
   onAvatarClick,
+  channelNotifs,
+  onDismissChannelNotif,
+  onClearChannelNotifs,
 }) {
   const hasGroupNotif = rooms.some((r) => !!r.is_group && !!r.is_new);
   const [rotationAngle, setRotationAngle] = useState(0);
@@ -602,6 +605,18 @@ function OrbitalHub({
             }}
           />
         )}
+        {channelNotifs.length > 0 && (
+          <span
+            className="absolute -bottom-1 -left-1 min-w-4 h-4 rounded-full z-20 flex items-center justify-center text-[9px] font-bold text-white px-0.5"
+            style={{
+              background: "linear-gradient(135deg,#6366f1,#818cf8)",
+              border: `2px solid ${isDark ? darkBg0 : lightBg0}`,
+              boxShadow: "0 0 8px rgba(99,102,241,0.7)",
+            }}
+          >
+            {channelNotifs.length > 9 ? "9+" : channelNotifs.length}
+          </span>
+        )}
       </button>
 
       {/* Room nodes */}
@@ -709,7 +724,7 @@ function OrbitalHub({
           onClick={() => setShowContactsList(false)}
         >
           <div
-            className="absolute bottom-0 left-0 right-0 rounded-t-3xl flex flex-col overflow-hidden animate-slide-up"
+            className="absolute bottom-0 left-0 right-0 flex flex-col overflow-hidden animate-slide-up"
             style={{
               height: "100dvh",
               background: isDark ? darkBg1 : lightBg1,
@@ -834,6 +849,80 @@ function OrbitalHub({
               </div>
             )}
 
+            {/* Channel notifications bar — always visible */}
+            <div
+              className="border-b shrink-0"
+              style={{ borderColor: isDark ? darkBorder : lightBorderMid }}
+            >
+              <div
+                className="flex items-center justify-between px-5 py-2"
+                style={{ background: isDark ? "rgba(99,102,241,0.06)" : "rgba(238,242,255,0.6)" }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0" />
+                  <span
+                    className="text-[11px] uppercase tracking-widest font-semibold"
+                    style={{ color: isDark ? "rgba(165,180,252,0.8)" : "#4338ca" }}
+                  >
+                    Channel Activity{channelNotifs.length > 0 ? ` (${channelNotifs.length})` : ""}
+                  </span>
+                </div>
+                {channelNotifs.length > 0 && (
+                  <button
+                    onClick={onClearChannelNotifs}
+                    className="text-[11px] font-medium"
+                    style={{ color: isDark ? "rgba(165,180,252,0.6)" : "#6366f1" }}
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
+              {channelNotifs.length === 0 ? (
+                <div
+                  className="px-5 py-3 text-xs"
+                  style={{ color: isDark ? "rgba(238,242,255,0.3)" : "#94a3b8" }}
+                >
+                  No recent activity
+                </div>
+              ) : (
+                <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+                  {channelNotifs.map((n) => {
+                    const dotColor =
+                      n.type === "kick" ? "#f87171"
+                      : n.type === "mute" ? "#fb923c"
+                      : n.type === "unmute" || n.type === "added" ? "#4ade80"
+                      : n.type === "leave" ? "#94a3b8"
+                      : n.type === "role" ? "#a78bfa"
+                      : "#60a5fa";
+                    const secsAgo = Math.floor((Date.now() - n.ts) / 1000);
+                    const timeStr = secsAgo < 60 ? "just now" : secsAgo < 3600 ? `${Math.floor(secsAgo / 60)}m ago` : `${Math.floor(secsAgo / 3600)}h ago`;
+                    return (
+                      <div
+                        key={n.id}
+                        className="flex items-start gap-2.5 px-4 py-2"
+                        style={{ background: isDark ? "rgba(99,102,241,0.04)" : "rgba(238,242,255,0.4)" }}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: dotColor }} />
+                        <span className="flex-1 text-xs leading-relaxed" style={{ color: isDark ? "rgba(238,242,255,0.75)" : "#334155" }}>
+                          {n.message}
+                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[10px]" style={{ color: isDark ? "rgba(238,242,255,0.3)" : "#94a3b8" }}>{timeStr}</span>
+                          <button
+                            onClick={() => onDismissChannelNotif(n.id)}
+                            className="text-[10px] leading-none"
+                            style={{ color: isDark ? "rgba(238,242,255,0.3)" : "#94a3b8" }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             {/* Room list */}
             <div className="flex-1 min-h-0 overflow-y-auto py-2">
               {rooms.length === 0 ? (
@@ -935,7 +1024,11 @@ function OrbitalHub({
                               </span>
                             )}
                           </div>
-                          {!!room.is_group && !!room.is_new ? (
+                          {room.role_notification ? (
+                            <div className="text-xs truncate mt-0.5" style={{ color: "#4ade80" }}>
+                              {room.role_notification}
+                            </div>
+                          ) : !!room.is_group && !!room.is_new ? (
                             <div className="text-xs truncate mt-0.5 text-yellow-400/90">
                               You were added by {room.added_by}
                             </div>
@@ -965,18 +1058,14 @@ function OrbitalHub({
                               {formatTime(room.last_message_at)}
                             </span>
                           )}
-                          {!!room.is_group && !!room.is_new ? (
+                          {room.role_notification ? (
+                            <span
+                              className="w-2 h-2 rounded-full bg-green-400"
+                              style={{ boxShadow: "0 0 6px rgba(74,222,128,0.9)" }}
+                            />
+                          ) : !!room.is_group && !!room.is_new ? (
                             <span className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.9)]" />
-                          ) : (
-                            isRecent && (
-                              <span
-                                className="w-1.5 h-1.5 rounded-full bg-indigo-400"
-                                style={{
-                                  boxShadow: "0 0 4px rgba(129,140,248,0.7)",
-                                }}
-                              />
-                            )
-                          )}
+                          ) : null}
                         </div>
                       </button>
                     );
@@ -2084,12 +2173,12 @@ function EditChannelModal({ initialName, initialDescription, initialSlug, myRole
   const [saving, setSaving]           = useState(false);
   const [err, setErr]                 = useState("");
 
-  const isOwner = myRole === "owner";
+  const canEditSlug = myRole === "owner" || myRole === "admin";
 
   function handleNameChange(val) {
     setName(val);
     setErr("");
-    if (isOwner && !slugManual) setSlug(toSlug(val));
+    if (canEditSlug && !slugManual) setSlug(toSlug(val));
   }
 
   async function submit(e) {
@@ -2097,7 +2186,7 @@ function EditChannelModal({ initialName, initialDescription, initialSlug, myRole
     if (!name.trim()) { setErr("Name is required"); return; }
     setSaving(true);
     try {
-      await onSave(name.trim(), description.trim(), isOwner ? slug : undefined);
+      await onSave(name.trim(), description.trim(), canEditSlug ? slug : undefined);
     } catch (ex) {
       setErr(ex.message || "Failed to save");
     } finally {
@@ -2130,7 +2219,7 @@ function EditChannelModal({ initialName, initialDescription, initialSlug, myRole
               maxLength={80}
             />
           </div>
-          {isOwner && (
+          {canEditSlug && (
             <div>
               <label className="block text-xs font-medium mb-1.5" style={{ color: isDark ? "rgba(238,242,255,0.5)" : "#64748b" }}>Channel Address</label>
               <div className="flex items-center rounded-xl overflow-hidden" style={{ background: isDark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.05)", border: `1px solid ${isDark ? darkBorder : lightBorderMid}` }}>
@@ -2471,6 +2560,19 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const [inputError, setInputError] = useState("");
   const [hasMoreMessages, setHasMoreMessages] = useState({});
   const [loadingMore, setLoadingMore] = useState({});
+  const [toasts, setToasts] = useState([]);
+  const [channelNotifs, setChannelNotifs] = useState([]);
+
+  function addToast(message) {
+    const id = Date.now() + Math.random();
+    setToasts((prev) => [...prev, { id, message }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 5000);
+  }
+
+  function addChannelNotif(message, type = "info") {
+    const id = Date.now() + Math.random();
+    setChannelNotifs((prev) => [{ id, message, type, ts: Date.now() }, ...prev].slice(0, 50));
+  }
 
   function toggleTheme() {
     setIsDark((prev) => {
@@ -2490,6 +2592,10 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const activeRoomIdRef = useRef(null);
   const closeTimerRef = useRef(null);
   const longPressTimerRef = useRef(null);
+  const addToastRef = useRef(addToast);
+  const addChannelNotifRef = useRef(addChannelNotif);
+  useEffect(() => { addToastRef.current = addToast; });
+  useEffect(() => { addChannelNotifRef.current = addChannelNotif; });
 
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId;
@@ -2703,7 +2809,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       }
     });
 
-    s.on("channel:member_kicked", ({ roomId, kickedUserId }) => {
+    s.on("channel:member_kicked", ({ roomId, kickedUserId, kickedUsername, kickedBy, channelName }) => {
       if (kickedUserId === currentUser.id) {
         loadedRoomsRef.current.delete(roomId);
         setRooms((prev) => prev.filter((r) => r.id !== roomId));
@@ -2711,6 +2817,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           setActiveRoomId(null);
           setTimeout(() => setDisplayRoomId(null), 200);
         }
+        addToastRef.current(`You were removed from #${channelName} by ${kickedBy}`);
+        addChannelNotifRef.current(`You were removed from #${channelName} by ${kickedBy}`, "kick");
       } else {
         setMessages((prev) => ({
           ...prev,
@@ -2718,7 +2826,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             ...(prev[roomId] || []),
             {
               id: `sys_${Date.now()}`,
-              text: `A member was removed from the channel`,
+              text: `${kickedUsername || "A member"} was removed from the channel`,
               system: true,
               created_at: Math.floor(Date.now() / 1000),
             },
@@ -2726,16 +2834,15 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         }));
         setGroupMembersPanel((prev) =>
           prev?.roomId === roomId
-            ? {
-                ...prev,
-                members: prev.members.filter((m) => m.id !== kickedUserId),
-              }
+            ? { ...prev, members: prev.members.filter((m) => m.id !== kickedUserId) }
             : prev,
         );
+        addToastRef.current(`${kickedUsername} was removed from #${channelName}`);
+        addChannelNotifRef.current(`${kickedUsername} was removed from #${channelName} by ${kickedBy}`, "kick");
       }
     });
 
-    s.on("channel:role_changed", ({ roomId, userId, role }) => {
+    s.on("channel:role_changed", ({ roomId, userId, role, changedBy, channelName, transferredTo }) => {
       setGroupMembersPanel((prev) =>
         prev?.roomId === roomId
           ? {
@@ -2746,29 +2853,69 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             }
           : prev,
       );
-      setRooms((prev) =>
-        prev.map((r) =>
-          r.id === roomId && userId === currentUser.id ? { ...r, role } : r,
-        ),
-      );
+
+      if (userId === currentUser.id) {
+        const roleName = role.charAt(0).toUpperCase() + role.slice(1);
+        const article = /^[aeiou]/i.test(role) ? "an" : "a";
+        const isOwnTransfer = !!(transferredTo && changedBy === currentUser.username);
+
+        // Text stored in rooms state for the sidebar indicator
+        const notifText = isOwnTransfer
+          ? `You transferred ownership to ${transferredTo}`
+          : role === "owner"
+            ? `${changedBy} made you the Owner`
+            : `${changedBy} made you ${article} ${roleName}`;
+
+        setRooms((prev) =>
+          prev.map((r) =>
+            r.id === roomId ? { ...r, role, role_notification: notifText } : r,
+          ),
+        );
+
+        const desktopTitle = isOwnTransfer
+          ? `You made ${transferredTo} the Owner of #${channelName}`
+          : `Your role in #${channelName} changed`;
+        const desktopBody = isOwnTransfer
+          ? `You are now an Admin`
+          : changedBy
+            ? `${changedBy} made you ${article} ${roleName}`
+            : `You are now ${article} ${roleName}`;
+        const toastMsg = isOwnTransfer
+          ? `You made ${transferredTo} the Owner of #${channelName}`
+          : changedBy
+            ? `${changedBy} made you ${article} ${roleName} in #${channelName}`
+            : `You are now ${article} ${roleName} in #${channelName}`;
+
+        if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+          new Notification(desktopTitle, { body: desktopBody });
+        }
+        addToastRef.current(toastMsg);
+        addChannelNotifRef.current(toastMsg, "role");
+      }
     });
 
-    s.on("channel:member_joined", ({ roomId, username }) => {
+    s.on("channel:member_joined", ({ roomId, username, channelName, addedBy }) => {
       setMessages((prev) => ({
         ...prev,
         [roomId]: [
           ...(prev[roomId] || []),
           {
             id: `sys_${Date.now()}`,
-            text: `${username} joined the channel`,
+            text: addedBy ? `${username} was added by ${addedBy}` : `${username} joined the channel`,
             system: true,
             created_at: Math.floor(Date.now() / 1000),
           },
         ],
       }));
+      const name = channelName ? `#${channelName}` : "the channel";
+      const msg = addedBy
+        ? `${username} was added to ${name} by ${addedBy}`
+        : `${username} joined ${name}`;
+      addToastRef.current(msg);
+      addChannelNotifRef.current(msg, "join");
     });
 
-    s.on("channel:member_left", ({ roomId, username }) => {
+    s.on("channel:member_left", ({ roomId, userId, username, channelName }) => {
       setMessages((prev) => ({
         ...prev,
         [roomId]: [
@@ -2776,14 +2923,31 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           { id: `sys_${Date.now()}`, text: `${username} left the channel`, system: true, created_at: Math.floor(Date.now() / 1000) },
         ],
       }));
+      if (userId !== currentUser.id) {
+        const msg = `${username} left #${channelName}`;
+        addToastRef.current(msg);
+        addChannelNotifRef.current(msg, "leave");
+      }
     });
 
-    s.on("channel:member_muted", ({ roomId, userId, mutedUntil }) => {
+    s.on("channel:member_muted", ({ roomId, userId, mutedUntil, mutedBy, targetUsername, channelName }) => {
       setGroupMembersPanel((prev) =>
         prev?.roomId === roomId
           ? { ...prev, members: prev.members.map((m) => m.id === userId ? { ...m, muted_until: mutedUntil } : m) }
           : prev,
       );
+      const isUnmute = !mutedUntil;
+      const name = channelName ? `#${channelName}` : "the channel";
+      let msg;
+      if (userId === currentUser.id) {
+        msg = isUnmute ? `You were unmuted in ${name}` : `You were muted in ${name} by ${mutedBy}`;
+      } else {
+        msg = isUnmute
+          ? `${targetUsername} was unmuted in ${name}`
+          : `${targetUsername} was muted in ${name} by ${mutedBy}`;
+      }
+      addToastRef.current(msg);
+      addChannelNotifRef.current(msg, isUnmute ? "unmute" : "mute");
     });
 
     s.on("channel:message_pinned", ({ roomId, pinned }) => {
@@ -2804,8 +2968,18 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       setRooms((prev) => prev.map((r) => r.id === roomId ? { ...r, name, description, ...(slug !== undefined && { slug }) } : r));
     });
 
-    s.on("channel:added", ({ room }) => {
+    s.on("channel:added", ({ room, addedBy }) => {
       if (room) api.getRooms().then(setRooms).catch(console.error);
+      if (addedBy && addedBy !== currentUser.username) {
+        if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+          new Notification(`Added to "#${room?.name}"`, {
+            body: `${addedBy} added you to this channel`,
+          });
+        }
+        const msg = `${addedBy} added you to #${room?.name}`;
+        addToastRef.current(msg);
+        addChannelNotifRef.current(msg, "added");
+      }
     });
 
     return () => {
@@ -3160,6 +3334,11 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     if (!displayRoomId) return;
     try {
       await api.kickChannelMember(displayRoomId, userId);
+      setGroupMembersPanel((prev) =>
+        prev?.roomId === displayRoomId
+          ? { ...prev, members: prev.members.filter((m) => m.id !== userId) }
+          : prev,
+      );
     } catch (err) {
       console.error(err);
     }
@@ -3169,6 +3348,11 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     if (!displayRoomId) return;
     try {
       await api.setMemberRole(displayRoomId, userId, role);
+      setGroupMembersPanel((prev) =>
+        prev?.roomId === displayRoomId
+          ? { ...prev, members: prev.members.map((m) => m.id === userId ? { ...m, role } : m) }
+          : prev,
+      );
     } catch (err) {
       console.error(err);
     }
@@ -3178,6 +3362,12 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     if (!displayRoomId) return;
     try {
       await api.muteChannelMember(displayRoomId, userId, duration);
+      const mutedUntil = duration ? Math.floor(Date.now() / 1000) + duration : null;
+      setGroupMembersPanel((prev) =>
+        prev?.roomId === displayRoomId
+          ? { ...prev, members: prev.members.map((m) => m.id === userId ? { ...m, muted_until: mutedUntil } : m) }
+          : prev,
+      );
     } catch (err) {
       console.error(err);
     }
@@ -3202,6 +3392,20 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       onConfirm: async () => {
         try {
           await api.setMemberRole(displayRoomId, userId, "owner");
+          // Immediately revoke owner-level UI access; socket confirms the rest
+          setRooms((prev) =>
+            prev.map((r) => r.id === displayRoomId ? { ...r, role: "admin" } : r),
+          );
+          setGroupMembersPanel((prev) =>
+            prev?.roomId === displayRoomId
+              ? {
+                  ...prev,
+                  members: prev.members.map((m) =>
+                    m.id === currentUser.id ? { ...m, role: "admin" } : m,
+                  ),
+                }
+              : prev,
+          );
         } catch (err) {
           console.error(err);
         }
@@ -3255,7 +3459,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     setActiveRoomId(roomId);
     setUnreadCounts((prev) => ({ ...prev, [roomId]: 0 }));
     setRooms((prev) =>
-      prev.map((r) => (r.id === roomId && r.is_new ? { ...r, is_new: 0 } : r)),
+      prev.map((r) =>
+        r.id === roomId ? { ...r, is_new: 0, role_notification: null } : r,
+      ),
     );
     setShowMsgSearch(false);
     setMsgSearch("");
@@ -3359,6 +3565,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         avatarMap={avatarMap}
         myAvatar={myAvatar}
         onAvatarClick={() => avatarFileRef.current?.click()}
+        channelNotifs={channelNotifs}
+        onDismissChannelNotif={(id) => setChannelNotifs((prev) => prev.filter((x) => x.id !== id))}
+        onClearChannelNotifs={() => setChannelNotifs([])}
       />
       <input
         ref={avatarFileRef}
@@ -4089,6 +4298,37 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           onClose={() => setConfirmModal(null)}
           isDark={isDark}
         />
+      )}
+
+      {/* In-app toast notifications */}
+      {toasts.length > 0 && (
+        <div
+          className="fixed bottom-6 right-4 z-[600] flex flex-col gap-2"
+          style={{ maxWidth: "320px", pointerEvents: "none" }}
+        >
+          {toasts.map((t) => (
+            <div
+              key={t.id}
+              className="animate-slide-in-right flex items-start gap-3 rounded-xl px-4 py-3 text-sm font-medium shadow-2xl"
+              style={{
+                pointerEvents: "auto",
+                background: isDark ? "rgba(22,20,44,0.97)" : "rgba(255,255,255,0.98)",
+                border: `1px solid ${isDark ? "rgba(99,102,241,0.3)" : "rgba(99,102,241,0.2)"}`,
+                borderLeft: "3px solid #6366f1",
+                color: isDark ? "#e0e7ff" : "#1e1b4b",
+              }}
+            >
+              <span className="flex-1 leading-snug">{t.message}</span>
+              <button
+                onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
+                className="shrink-0 mt-0.5 opacity-40 hover:opacity-80 transition-opacity"
+                style={{ color: isDark ? "#a5b4fc" : "#6366f1" }}
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
