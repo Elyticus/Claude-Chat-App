@@ -18,10 +18,7 @@ export default function App() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => {
-      document.getElementById("splash")?.remove();
-      setReady(true);
-    }, 2000);
+    const t = setTimeout(() => setReady(true), 2000);
     return () => clearTimeout(t);
   }, []);
 
@@ -47,7 +44,7 @@ export default function App() {
     setAuthData({ token: null, user: null });
   }
 
-  if (!ready) return null;
+  if (!ready) return SPLASH_LOGO;
 
   if (!authData.token || !authData.user) {
     return <AuthScreen onAuth={handleAuth} />;
