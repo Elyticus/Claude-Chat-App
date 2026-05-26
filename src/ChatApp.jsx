@@ -1159,6 +1159,12 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         onSelectRoom={selectRoom}
         onNewChat={() => setShowNewChat(true)}
         onLogout={onLogout}
+        onRequestLogout={() => setConfirmModal({
+          title: "Sign out",
+          body: "Are you sure you want to sign out?",
+          confirmLabel: "Sign out",
+          onConfirm: () => { setConfirmModal(null); onLogout(); },
+        })}
         currentUser={currentUser}
         onlineIds={onlineIds}
         unreadCounts={unreadCounts}
