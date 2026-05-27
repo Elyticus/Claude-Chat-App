@@ -106,17 +106,59 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     addChannelNotifRef.current = addChannelNotif;
   });
 
+  const selectRoomRef = useRef(null);
+  useEffect(() => {
+    selectRoomRef.current = selectRoom;
+  });
+
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId;
   }, [activeRoomId]);
 
   useEffect(() => {
-    if (
-      typeof Notification !== "undefined" &&
-      Notification.permission === "default"
-    ) {
-      Notification.requestPermission();
+    async function initPush() {
+      if (typeof Notification === "undefined") return;
+
+      let perm = Notification.permission;
+      if (perm === "default") {
+        perm = await Notification.requestPermission();
+      }
+
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+      const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+      if (!vapidKey || perm !== "granted") return;
+
+      try {
+        const reg = await navigator.serviceWorker.register("/sw.js");
+        let sub = await reg.pushManager.getSubscription();
+        if (!sub) {
+          sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: vapidKey,
+          });
+        }
+        api.pushSubscribe(sub).catch(console.error);
+      } catch (err) {
+        console.error("[push] Setup failed:", err);
+      }
     }
+
+    initPush();
+
+    function handleSwMessage(event) {
+      if (event.data?.type === "OPEN_ROOM") {
+        const roomId = Number(event.data.roomId);
+        if (roomId) selectRoomRef.current?.(roomId);
+      }
+    }
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", handleSwMessage);
+    }
+    return () => {
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener("message", handleSwMessage);
+      }
+    };
   }, []);
 
   // Track the visual viewport so the chat panel stays locked to the visible

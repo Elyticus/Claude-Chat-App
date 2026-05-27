@@ -105,4 +105,15 @@ export const api = {
 
   getPinnedMessages: (roomId) =>
     request("GET", `/channels/${roomId}/pins`),
+
+  pushSubscribe: (sub) => {
+    const json = sub.toJSON();
+    return request("POST", "/push/subscribe", {
+      endpoint: sub.endpoint,
+      keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
+    });
+  },
+
+  pushUnsubscribe: (endpoint) =>
+    request("DELETE", "/push/unsubscribe", { endpoint }),
 };

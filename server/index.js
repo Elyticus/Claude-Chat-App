@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
+import webpush from "web-push";
 import "dotenv/config";
 import { randomInt } from "crypto";
 
@@ -17,6 +18,19 @@ const httpServer = createServer(app);
 
 const CLIENT_ORIGIN = (process.env.CLIENT_ORIGIN || "http://localhost:5173").replace(/\/$/, "");
 const PORT = Number(process.env.PORT) || 4000;
+
+// ─── Web Push (VAPID) ──────────────────────────────────────────────────────────
+
+const vapidReady = !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
+if (vapidReady) {
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT || "mailto:admin@example.com",
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY,
+  );
+} else {
+  console.warn("[push] VAPID keys not configured — push notifications disabled");
+}
 
 // ─── Email ─────────────────────────────────────────────────────────────────────
 
@@ -833,6 +847,24 @@ app.delete("/api/messages/:messageId", requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ─── Push subscription ─────────────────────────────────────────────────────────
+
+app.post("/api/push/subscribe", requireAuth, async (req, res) => {
+  const { endpoint, keys } = req.body ?? {};
+  if (!endpoint || !keys?.p256dh || !keys?.auth) {
+    return res.status(400).json({ error: "Invalid subscription object" });
+  }
+  await queries.upsertPushSubscription.run(req.user.id, endpoint, keys.p256dh, keys.auth);
+  res.json({ ok: true });
+});
+
+app.delete("/api/push/unsubscribe", requireAuth, async (req, res) => {
+  const { endpoint } = req.body ?? {};
+  if (!endpoint) return res.status(400).json({ error: "endpoint required" });
+  await queries.deletePushSubscription.run(req.user.id, endpoint);
+  res.json({ ok: true });
+});
+
 // ─── Socket.io auth middleware ─────────────────────────────────────────────────
 
 io.use((socket, next) => {
@@ -879,6 +911,30 @@ io.on("connection", async (socket) => {
 
     socket.to(`room:${roomId}`).emit("message:new", { roomId, message });
     socket.emit("message:ack", { tempId, message, roomId });
+
+    // Web Push — notify members who are offline or have the app backgrounded
+    if (vapidReady) {
+      try {
+        const [subs, room] = await Promise.all([
+          queries.getPushSubscriptionsForRoom.all(roomId, userId),
+          queries.getRoomById.get(roomId),
+        ]);
+        if (subs.length > 0) {
+          const isGroup = !!(room?.is_group);
+          const pushTitle = isGroup ? (room?.name || "Group Chat") : username;
+          const pushBody = isGroup ? `${username}: ${text.trim().slice(0, 120)}` : text.trim().slice(0, 120);
+          const payload = JSON.stringify({ title: pushTitle, body: pushBody, roomId, icon: "/favicon.svg" });
+          subs.forEach((sub) => {
+            webpush.sendNotification(
+              { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+              payload,
+            ).catch(() => {});
+          });
+        }
+      } catch (pushErr) {
+        console.error("[push] Error sending push:", pushErr.message);
+      }
+    }
   });
 
   socket.on("message:react", async ({ messageId, emoji }) => {
