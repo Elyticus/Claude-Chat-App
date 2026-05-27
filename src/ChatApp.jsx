@@ -116,6 +116,13 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   }, [activeRoomId]);
 
   useEffect(() => {
+    function urlBase64ToUint8Array(base64String) {
+      const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+      const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+      const raw = atob(base64);
+      return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+    }
+
     async function initPush() {
       if (typeof Notification === "undefined") return;
 
@@ -134,7 +141,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         if (!sub) {
           sub = await reg.pushManager.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: vapidKey,
+            applicationServerKey: urlBase64ToUint8Array(vapidKey),
           });
         }
         api.pushSubscribe(sub).catch(console.error);

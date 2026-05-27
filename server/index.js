@@ -928,7 +928,14 @@ io.on("connection", async (socket) => {
             webpush.sendNotification(
               { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
               payload,
-            ).catch(() => {});
+            ).catch((err) => {
+              if (err.statusCode === 410 || err.statusCode === 404) {
+                // Subscription expired or no longer valid — remove it
+                queries.deletePushSubscription.run(sub.user_id, sub.endpoint).catch(() => {});
+              } else {
+                console.error("[push] Send failed:", err.statusCode, err.message?.slice(0, 80));
+              }
+            });
           });
         }
       } catch (pushErr) {
