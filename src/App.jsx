@@ -53,7 +53,7 @@ export default function App() {
   }
 
   return (
-    <Suspense fallback={SPLASH_LOGO}>
+    <Suspense fallback={<div style={{ height: "100%", background: "#070d1c" }} />}>
       <ChatApp
         token={authData.token}
         currentUser={authData.user}
