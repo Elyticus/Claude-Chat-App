@@ -5,12 +5,12 @@ const ChatApp = lazy(() => import("./ChatApp.jsx"));
 
 const SPLASH_LOGO = (
   <div style={{ height: "100%", background: "#070d1c", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "20px" }}>
-    <div style={{ width: 88, height: 88, borderRadius: "50%", background: "linear-gradient(135deg,#6366f1,#3b82f6,#14b8a6)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 48px rgba(99,102,241,0.45)" }}>
+    <div style={{ width: 88, height: 88, borderRadius: "50%", background: "linear-gradient(135deg,#6366f1,#3b82f6,#14b8a6)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 48px rgba(99,102,241,0.45)", animation: "scaleIn 0.45s cubic-bezier(0.34,1.56,0.64,1) both" }}>
       <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
       </svg>
     </div>
-    <span style={{ color: "#eef2ff", fontSize: "2rem", fontWeight: 700, letterSpacing: "-0.5px" }}>
+    <span style={{ color: "#eef2ff", fontSize: "2rem", fontWeight: 700, letterSpacing: "-0.5px", animation: "fadeInUp 0.35s ease 0.2s both" }}>
       Linkloop<span style={{ color: "#818cf8" }}>.</span>
     </span>
   </div>
