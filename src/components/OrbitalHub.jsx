@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { MessageCircle, LogOut, Sun, Moon, X } from "lucide-react";
+import { MessageCircle, LogOut, Sun, Moon, X, Clock } from "lucide-react";
 import StarField from "./ui/star-field.jsx";
+import TimeOfDayScreen from "./TimeOfDayScreen.jsx";
 import { Avatar } from "./ui/Avatar.jsx";
 import { formatTime, userBg, initials } from "@/lib/helpers.js";
 import {
@@ -52,6 +53,7 @@ export function OrbitalHub({
   const containerRef = useRef(null);
   const angleRef = useRef(0);
   const [showContactsList, setShowContactsList] = useState(false);
+  const [showTimeScreen, setShowTimeScreen] = useState(false);
   const [nowMs] = useState(Date.now);
 
   const orbitRooms = useMemo(() => {
@@ -115,6 +117,13 @@ export function OrbitalHub({
         <StarField isDark={isDark} />
       </div>
 
+      {/* Time of day overlay */}
+      {showTimeScreen && (
+        <div className="absolute inset-0 z-[170] overflow-hidden">
+          <TimeOfDayScreen onClose={() => setShowTimeScreen(false)} />
+        </div>
+      )}
+
       {/* Top bar */}
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 z-30">
         <div className="flex items-center gap-2.5">
@@ -172,6 +181,20 @@ export function OrbitalHub({
             >
               {currentUser.username}
             </span>
+          </button>
+          <button
+            onClick={() => setShowTimeScreen(true)}
+            title="Time of day"
+            aria-label="Open time of day screen"
+            className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+            style={{
+              background: isDark ? "rgba(99,162,241,0.12)" : "rgba(56,132,230,0.09)",
+              border: `1px solid ${isDark ? "rgba(99,162,241,0.30)" : "rgba(56,132,230,0.24)"}`,
+              color: isDark ? "#93c5fd" : "#2563eb",
+              boxShadow: isDark ? "0 0 12px rgba(99,162,241,0.18)" : "0 2px 8px rgba(56,132,230,0.10)",
+            }}
+          >
+            <Clock size={16} />
           </button>
           <button
             onClick={onToggleTheme}
