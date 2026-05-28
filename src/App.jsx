@@ -18,7 +18,7 @@ export default function App() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setReady(true), 2000);
+    const t = setTimeout(() => setReady(true), 1000);
     return () => clearTimeout(t);
   }, []);
 
