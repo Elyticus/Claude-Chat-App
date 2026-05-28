@@ -335,7 +335,7 @@ export default function AuthScreen({ onAuth }) {
               className="text-2xl font-bold tracking-tight"
               style={{ color: "#eef2ff" }}
             >
-              Chatloop<span style={{ color: "#818cf8" }}>.</span>
+              Linkloop<span style={{ color: "#818cf8" }}>.</span>
             </h1>
           </div>
 

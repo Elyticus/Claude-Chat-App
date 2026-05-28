@@ -84,9 +84,18 @@ export async function initDb() {
       code       TEXT NOT NULL,
       expires_at BIGINT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id         SERIAL PRIMARY KEY,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      endpoint   TEXT NOT NULL UNIQUE,
+      p256dh     TEXT NOT NULL,
+      auth       TEXT NOT NULL,
+      created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
+    );
     CREATE INDEX IF NOT EXISTS idx_messages_room ON messages(room_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_room_members_user ON room_members(user_id);
     CREATE INDEX IF NOT EXISTS idx_contacts_contact ON contacts(contact_id);
+    CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id);
   `);
 }
 
@@ -335,6 +344,28 @@ export const queries = {
     run: (roomId, userId, role) =>
       q("INSERT INTO room_members (room_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT (room_id, user_id) DO NOTHING",
         [roomId, userId, role]),
+  },
+
+  upsertPushSubscription: {
+    run: (userId, endpoint, p256dh, auth) =>
+      q(`INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (endpoint) DO UPDATE SET user_id = EXCLUDED.user_id, p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth`,
+        [userId, endpoint, p256dh, auth]),
+  },
+
+  deletePushSubscription: {
+    run: (userId, endpoint) =>
+      q("DELETE FROM push_subscriptions WHERE user_id = $1 AND endpoint = $2", [userId, endpoint]),
+  },
+
+  getPushSubscriptionsForRoom: {
+    all: (roomId, excludeUserId) =>
+      q(`SELECT ps.user_id, ps.endpoint, ps.p256dh, ps.auth
+         FROM push_subscriptions ps
+         JOIN room_members rm ON rm.user_id = ps.user_id AND rm.room_id = $1
+         WHERE ps.user_id != $2`,
+        [roomId, excludeUserId]).then(r => r.rows),
   },
 };
 

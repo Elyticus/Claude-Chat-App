@@ -116,7 +116,7 @@ export function OrbitalHub({
             className="font-bold tracking-wide text-xl"
             style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
           >
-            Chatloop
+            Linkloop
             <span style={{ color: "#818cf8" }}>.</span>
           </span>
           {totalUnread > 0 && (
