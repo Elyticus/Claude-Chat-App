@@ -13,11 +13,12 @@ import {
   lightBorderMid,
 } from "@/lib/constants.js";
 
+const isChannel = (r) => r.type === "channel" || r.type === "private_channel";
+
 export function OrbitalHub({
   rooms,
   onSelectRoom,
   onNewChat,
-  onLogout,
   onRequestLogout,
   currentUser,
   onlineIds,
@@ -34,9 +35,11 @@ export function OrbitalHub({
   channelNotifs,
   onClearChannelNotifs,
 }) {
-  const isChannel = (r) => r.type === "channel" || r.type === "private_channel";
   // Yellow badge: only plain groups (non-channel) that are new
-  const hasGroupNewNotif = rooms.some((r) => !!r.is_group && !!r.is_new && !isChannel(r));
+  const hasGroupNewNotif = useMemo(
+    () => rooms.some((r) => !!r.is_group && !!r.is_new && !isChannel(r)),
+    [rooms],
+  );
   // Green badge: channel socket activity notifs
   const channelNotifsCount = channelNotifs.length;
 
@@ -96,7 +99,10 @@ export function OrbitalHub({
     [rotationAngle, containerSize],
   );
 
-  const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
+  const totalUnread = useMemo(
+    () => Object.values(unreadCounts).reduce((a, b) => a + b, 0),
+    [unreadCounts],
+  );
 
   return (
     <div
@@ -373,17 +379,17 @@ export function OrbitalHub({
         const unread = unreadCounts[room.id] || 0;
         const ringNormal = isRoomChannel
           ? "rgba(74,222,128,0.55)"
-          : !!room.is_group
+          : room.is_group
             ? "rgba(250,204,21,0.55)"
             : isDark ? "rgba(99,102,241,0.22)" : "rgba(99,102,241,0.18)";
         const ringHover = isRoomChannel
           ? "rgba(74,222,128,0.9)"
-          : !!room.is_group
+          : room.is_group
             ? "rgba(250,204,21,0.9)"
             : isDark ? "rgba(99,102,241,0.5)" : "rgba(99,102,241,0.45)";
         const glowHover = isRoomChannel
           ? "rgba(74,222,128,0.4)"
-          : !!room.is_group
+          : room.is_group
             ? "rgba(250,204,21,0.4)"
             : isDark ? "rgba(99,102,241,0.4)" : "rgba(99,102,241,0.3)";
 

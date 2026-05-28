@@ -3,7 +3,7 @@ import { userBg, initials } from "@/lib/helpers.js";
 export function Avatar({
   userId,
   username,
-  size = 100,
+  size = 48,
   online = false,
   avatar = null,
 }) {

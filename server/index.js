@@ -323,7 +323,9 @@ app.post("/api/users/me/avatar", requireAuth, async (req, res) => {
     return res.status(400).json({ error: "Image too large (max ~375 KB)" });
   }
   await queries.updateAvatar.run(req.user.id, avatar);
-  io.emit("user:avatar", { userId: req.user.id, avatar });
+  const userRooms = await queries.getUserRoomIds.all(req.user.id);
+  const roomKeys = userRooms.map(({ room_id }) => `room:${room_id}`);
+  if (roomKeys.length > 0) io.to(roomKeys).emit("user:avatar", { userId: req.user.id, avatar });
   res.json({ ok: true });
 });
 
@@ -432,6 +434,9 @@ app.post("/api/rooms/group", requireAuth, async (req, res) => {
   const { userIds, name } = req.body ?? {};
   if (!Array.isArray(userIds) || userIds.length < 1) {
     return res.status(400).json({ error: "At least 1 other member required" });
+  }
+  if (userIds.length > 49) {
+    return res.status(400).json({ error: "Groups are limited to 50 members" });
   }
   if (!name?.trim()) {
     return res.status(400).json({ error: "Group name required" });
@@ -963,7 +968,8 @@ io.on("connection", async (socket) => {
     socket.to(`room:${roomId}`).emit("typing:update", { roomId, userId, username, typing: true });
   });
 
-  socket.on("typing:stop", ({ roomId }) => {
+  socket.on("typing:stop", async ({ roomId }) => {
+    if (!(await queries.isMember.get(roomId, userId))) return;
     socket.to(`room:${roomId}`).emit("typing:update", { roomId, userId, username, typing: false });
   });
 

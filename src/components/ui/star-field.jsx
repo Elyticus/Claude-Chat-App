@@ -58,8 +58,6 @@ function makeClouds(w, h) {
 }
 
 function makeBirds(w, h) {
-  // Vanishing point: warm horizon just above where sun glow peaks
-  const vpY = h * 0.78;
   return Array.from({ length: NUM_BIRDS }, () => ({
     // World-space offset from the vanishing point (screen pos = vp + offset * z)
     wx:        (Math.random() - 0.5) * w * 1.6,
@@ -348,7 +346,7 @@ export default function StarField({ isDark = true }) {
       cancelAnimationFrame(rafRef.current);
       lastTimeRef.current = null;
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <canvas
