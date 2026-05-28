@@ -1,6 +1,12 @@
 import { userBg, initials } from "@/lib/helpers.js";
 
-export function Avatar({ userId, username, size = 48, online = false, avatar = null }) {
+export function Avatar({
+  userId,
+  username,
+  size = 100,
+  online = false,
+  avatar = null,
+}) {
   const dotSize = Math.round(size * 0.28);
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
