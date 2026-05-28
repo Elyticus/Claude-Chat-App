@@ -18,6 +18,7 @@ export function OrbitalHub({
   onSelectRoom,
   onNewChat,
   onLogout,
+  onRequestLogout,
   currentUser,
   onlineIds,
   unreadCounts,
@@ -115,7 +116,7 @@ export function OrbitalHub({
             className="font-bold tracking-wide text-xl"
             style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
           >
-            Chatloop
+            Linkloop
             <span style={{ color: "#818cf8" }}>.</span>
           </span>
           {totalUnread > 0 && (
@@ -185,7 +186,7 @@ export function OrbitalHub({
             {isDark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
           <button
-            onClick={onLogout}
+            onClick={onRequestLogout}
             title="Sign out"
             aria-label="Sign out"
             className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"

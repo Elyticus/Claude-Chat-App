@@ -63,7 +63,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const [msgSearch, setMsgSearch] = useState("");
   const [unreadCounts, setUnreadCounts] = useState({});
   const [isDark, setIsDark] = useState(
-    () => localStorage.getItem("chatloop_theme") !== "light",
+    () => localStorage.getItem("linkloop_theme") !== "light",
   );
   const [myAvatar, setMyAvatar] = useState(() => currentUser.avatar || null);
   const [groupMembersPanel, setGroupMembersPanel] = useState(null);
@@ -86,7 +86,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   function toggleTheme() {
     setIsDark((prev) => {
       const next = !prev;
-      localStorage.setItem("chatloop_theme", next ? "dark" : "light");
+      localStorage.setItem("linkloop_theme", next ? "dark" : "light");
       return next;
     });
   }
@@ -106,17 +106,66 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     addChannelNotifRef.current = addChannelNotif;
   });
 
+  const selectRoomRef = useRef(null);
+  useEffect(() => {
+    selectRoomRef.current = selectRoom;
+  });
+
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId;
   }, [activeRoomId]);
 
   useEffect(() => {
-    if (
-      typeof Notification !== "undefined" &&
-      Notification.permission === "default"
-    ) {
-      Notification.requestPermission();
+    function urlBase64ToUint8Array(base64String) {
+      const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+      const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+      const raw = atob(base64);
+      return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
     }
+
+    async function initPush() {
+      if (typeof Notification === "undefined") return;
+
+      let perm = Notification.permission;
+      if (perm === "default") {
+        perm = await Notification.requestPermission();
+      }
+
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+      const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+      if (!vapidKey || perm !== "granted") return;
+
+      try {
+        const reg = await navigator.serviceWorker.register("/sw.js");
+        let sub = await reg.pushManager.getSubscription();
+        if (!sub) {
+          sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(vapidKey),
+          });
+        }
+        api.pushSubscribe(sub).catch(console.error);
+      } catch (err) {
+        console.error("[push] Setup failed:", err);
+      }
+    }
+
+    initPush();
+
+    function handleSwMessage(event) {
+      if (event.data?.type === "OPEN_ROOM") {
+        const roomId = Number(event.data.roomId);
+        if (roomId) selectRoomRef.current?.(roomId);
+      }
+    }
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", handleSwMessage);
+    }
+    return () => {
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener("message", handleSwMessage);
+      }
+    };
   }, []);
 
   // Track the visual viewport so the chat panel stays locked to the visible
@@ -603,7 +652,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       .getRooms()
       .then((loadedRooms) => {
         setRooms(loadedRooms);
-        const savedId = Number(localStorage.getItem("chatloop_active_room"));
+        const savedId = Number(localStorage.getItem("linkloop_active_room"));
         if (savedId && loadedRooms.some((r) => r.id === savedId)) {
           setActiveRoomId(savedId);
           setDisplayRoomId(savedId);
@@ -648,7 +697,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   // ── Tab title ─────────────────────────────────────────────────────────────────
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
   useEffect(() => {
-    document.title = totalUnread > 0 ? `(${totalUnread}) Chatloop` : "Chatloop";
+    document.title = totalUnread > 0 ? `(${totalUnread}) Linkloop` : "Linkloop";
   }, [totalUnread]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
@@ -787,7 +836,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     const dataUrl = await resizeImage(file, 256);
     setMyAvatar(dataUrl);
     const updated = { ...currentUser, avatar: dataUrl };
-    localStorage.setItem("chatloop_user", JSON.stringify(updated));
+    localStorage.setItem("linkloop_user", JSON.stringify(updated));
     api.uploadAvatar(dataUrl).catch(console.error);
   }
 
@@ -1069,7 +1118,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     setShowMsgSearch(false);
     setMsgSearch("");
     stopTyping();
-    localStorage.setItem("chatloop_active_room", String(roomId));
+    localStorage.setItem("linkloop_active_room", String(roomId));
     const room = rooms.find((r) => r.id === roomId);
     if (room?.type === "channel" || room?.type === "private_channel") {
       api
@@ -1087,7 +1136,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     closeTimerRef.current = setTimeout(() => setDisplayRoomId(null), 200);
     setShowMsgSearch(false);
     setMsgSearch("");
-    localStorage.removeItem("chatloop_active_room");
+    localStorage.removeItem("linkloop_active_room");
   }
 
   // ── Derived ──────────────────────────────────────────────────────────────────
@@ -1159,6 +1208,12 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         onSelectRoom={selectRoom}
         onNewChat={() => setShowNewChat(true)}
         onLogout={onLogout}
+        onRequestLogout={() => setConfirmModal({
+          title: "Sign out",
+          body: "Are you sure you want to sign out?",
+          confirmLabel: "Sign out",
+          onConfirm: () => { setConfirmModal(null); onLogout(); },
+        })}
         currentUser={currentUser}
         onlineIds={onlineIds}
         unreadCounts={unreadCounts}
