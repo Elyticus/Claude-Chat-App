@@ -11,7 +11,7 @@ const SPLASH_LOGO = (
       </svg>
     </div>
     <span style={{ color: "#eef2ff", fontSize: "2rem", fontWeight: 700, letterSpacing: "-0.5px" }}>
-      Chatloop<span style={{ color: "#818cf8" }}>.</span>
+      Linkloop<span style={{ color: "#818cf8" }}>.</span>
     </span>
   </div>
 );
@@ -26,8 +26,8 @@ export default function App() {
 
   const [authData, setAuthData] = useState(() => {
     try {
-      const token = localStorage.getItem("chatloop_token");
-      const user = JSON.parse(localStorage.getItem("chatloop_user") || "null");
+      const token = localStorage.getItem("linkloop_token");
+      const user = JSON.parse(localStorage.getItem("linkloop_user") || "null");
       return token && user ? { token, user } : { token: null, user: null };
     } catch {
       return { token: null, user: null };
@@ -35,14 +35,14 @@ export default function App() {
   });
 
   function handleAuth({ token, user }) {
-    localStorage.setItem("chatloop_token", token);
-    localStorage.setItem("chatloop_user", JSON.stringify(user));
+    localStorage.setItem("linkloop_token", token);
+    localStorage.setItem("linkloop_user", JSON.stringify(user));
     setAuthData({ token, user });
   }
 
   function handleLogout() {
-    localStorage.removeItem("chatloop_token");
-    localStorage.removeItem("chatloop_user");
+    localStorage.removeItem("linkloop_token");
+    localStorage.removeItem("linkloop_user");
     setAuthData({ token: null, user: null });
   }
 

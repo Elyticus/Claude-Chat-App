@@ -1,16 +1,16 @@
-// Chatloop service worker — handles Web Push notifications
+// Linkloop service worker — handles Web Push notifications
 self.addEventListener("push", (event) => {
   if (!event.data) return;
   let payload;
   try {
     payload = event.data.json();
   } catch {
-    payload = { title: "Chatloop", body: event.data.text() };
+    payload = { title: "Linkloop", body: event.data.text() };
   }
 
   const { title, body, roomId, icon } = payload;
   event.waitUntil(
-    self.registration.showNotification(title || "Chatloop", {
+    self.registration.showNotification(title || "Linkloop", {
       body: body || "",
       icon: icon || "/favicon.svg",
       badge: "/favicon.svg",

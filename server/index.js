@@ -54,11 +54,11 @@ async function sendVerificationEmail(email, username, code) {
     console.log(`\n[email] Verification code for ${email}: ${code}\n`);
     return;
   }
-  const from = process.env.SMTP_FROM || `Chatloop <${process.env.SMTP_USER}>`;
+  const from = process.env.SMTP_FROM || `Linkloop <${process.env.SMTP_USER}>`;
   await transporter.sendMail({
     from,
     to: email,
-    subject: "Your Chatloop verification code",
+    subject: "Your Linkloop verification code",
     text: `Hi ${username},\n\nYour verification code is: ${code}\n\nIt expires in 15 minutes.\n\nIf you did not request this, ignore this email.`,
     html: `<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
 <body style="margin:0;padding:0;background:#000;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
@@ -67,11 +67,11 @@ async function sendVerificationEmail(email, username, code) {
 <table width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;">
 <tr><td align="center" style="padding-bottom:32px;">
 <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#3b82f6,#14b8a6);display:inline-flex;align-items:center;justify-content:center;font-size:22px;">💬</div>
-<h1 style="color:#fff;font-size:24px;font-weight:700;margin:14px 0 0;letter-spacing:-0.5px;">Chatloop<span style="color:#a78bfa;">.</span></h1>
+<h1 style="color:#fff;font-size:24px;font-weight:700;margin:14px 0 0;letter-spacing:-0.5px;">Linkloop<span style="color:#a78bfa;">.</span></h1>
 </td></tr>
 <tr><td style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:40px 32px;">
 <h2 style="color:#fff;font-size:20px;font-weight:600;margin:0 0 8px;">Verify your email</h2>
-<p style="color:rgba(255,255,255,0.5);font-size:14px;line-height:1.6;margin:0 0 32px;">Hi ${username}, enter this code to complete your Chatloop registration:</p>
+<p style="color:rgba(255,255,255,0.5);font-size:14px;line-height:1.6;margin:0 0 32px;">Hi ${username}, enter this code to complete your Linkloop registration:</p>
 <div style="text-align:center;margin-bottom:32px;">
 <div style="display:inline-block;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.4);border-radius:12px;padding:20px 40px;">
 <span style="font-size:40px;font-weight:700;color:#a78bfa;letter-spacing:14px;">${code}</span>
@@ -80,7 +80,7 @@ async function sendVerificationEmail(email, username, code) {
 <p style="color:rgba(255,255,255,0.3);font-size:12px;text-align:center;margin:0;">Expires in 15 minutes &nbsp;·&nbsp; Ignore if you didn't request this</p>
 </td></tr>
 <tr><td align="center" style="padding-top:24px;">
-<p style="color:rgba(255,255,255,0.15);font-size:12px;margin:0;">© 2025 Chatloop</p>
+<p style="color:rgba(255,255,255,0.15);font-size:12px;margin:0;">© 2025 Linkloop</p>
 </td></tr>
 </table>
 </td></tr>
@@ -94,11 +94,11 @@ async function sendPasswordResetEmail(email, username, code) {
     console.log(`\n[email] Password reset code for ${email}: ${code}\n`);
     return;
   }
-  const from = process.env.SMTP_FROM || `Chatloop <${process.env.SMTP_USER}>`;
+  const from = process.env.SMTP_FROM || `Linkloop <${process.env.SMTP_USER}>`;
   await transporter.sendMail({
     from,
     to: email,
-    subject: "Your Chatloop password reset code",
+    subject: "Your Linkloop password reset code",
     text: `Hi ${username},\n\nYour password reset code is: ${code}\n\nIt expires in 15 minutes.\n\nIf you did not request a password reset, you can safely ignore this email.`,
     html: `<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
 <body style="margin:0;padding:0;background:#000;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
@@ -107,11 +107,11 @@ async function sendPasswordResetEmail(email, username, code) {
 <table width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;">
 <tr><td align="center" style="padding-bottom:32px;">
 <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#3b82f6,#14b8a6);display:inline-flex;align-items:center;justify-content:center;font-size:22px;">💬</div>
-<h1 style="color:#fff;font-size:24px;font-weight:700;margin:14px 0 0;letter-spacing:-0.5px;">Chatloop<span style="color:#a78bfa;">.</span></h1>
+<h1 style="color:#fff;font-size:24px;font-weight:700;margin:14px 0 0;letter-spacing:-0.5px;">Linkloop<span style="color:#a78bfa;">.</span></h1>
 </td></tr>
 <tr><td style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:40px 32px;">
 <h2 style="color:#fff;font-size:20px;font-weight:600;margin:0 0 8px;">Reset your password</h2>
-<p style="color:rgba(255,255,255,0.5);font-size:14px;line-height:1.6;margin:0 0 32px;">Hi ${username}, use this code to set a new password for your Chatloop account:</p>
+<p style="color:rgba(255,255,255,0.5);font-size:14px;line-height:1.6;margin:0 0 32px;">Hi ${username}, use this code to set a new password for your Linkloop account:</p>
 <div style="text-align:center;margin-bottom:32px;">
 <div style="display:inline-block;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.4);border-radius:12px;padding:20px 40px;">
 <span style="font-size:40px;font-weight:700;color:#a78bfa;letter-spacing:14px;">${code}</span>
@@ -120,7 +120,7 @@ async function sendPasswordResetEmail(email, username, code) {
 <p style="color:rgba(255,255,255,0.3);font-size:12px;text-align:center;margin:0;">Expires in 15 minutes &nbsp;·&nbsp; Ignore if you didn't request this</p>
 </td></tr>
 <tr><td align="center" style="padding-top:24px;">
-<p style="color:rgba(255,255,255,0.15);font-size:12px;margin:0;">© 2025 Chatloop</p>
+<p style="color:rgba(255,255,255,0.15);font-size:12px;margin:0;">© 2025 Linkloop</p>
 </td></tr>
 </table>
 </td></tr>
@@ -196,7 +196,7 @@ function requireAuth(req, res, next) {
 
 // ─── REST ──────────────────────────────────────────────────────────────────────
 
-app.get("/", (req, res) => res.json({ status: "ok", service: "Chatloop API" }));
+app.get("/", (req, res) => res.json({ status: "ok", service: "Linkloop API" }));
 
 app.post("/api/auth/register", registerLimiter, async (req, res) => {
   const { username, email, password } = req.body ?? {};
@@ -994,7 +994,7 @@ async function start() {
     throw new Error("JWT_SECRET environment variable is required — server will not start without it");
   }
   await initDb();
-  httpServer.listen(PORT, () => console.log(`Chatloop server → http://localhost:${PORT}`));
+  httpServer.listen(PORT, () => console.log(`Linkloop server → http://localhost:${PORT}`));
 }
 
 start();

@@ -1,7 +1,7 @@
 const BASE = import.meta.env.VITE_API_URL || "/api";
 
 function token() {
-  return localStorage.getItem("chatloop_token");
+  return localStorage.getItem("linkloop_token");
 }
 
 function authHeaders() {

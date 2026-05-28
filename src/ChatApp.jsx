@@ -63,7 +63,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const [msgSearch, setMsgSearch] = useState("");
   const [unreadCounts, setUnreadCounts] = useState({});
   const [isDark, setIsDark] = useState(
-    () => localStorage.getItem("chatloop_theme") !== "light",
+    () => localStorage.getItem("linkloop_theme") !== "light",
   );
   const [myAvatar, setMyAvatar] = useState(() => currentUser.avatar || null);
   const [groupMembersPanel, setGroupMembersPanel] = useState(null);
@@ -86,7 +86,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   function toggleTheme() {
     setIsDark((prev) => {
       const next = !prev;
-      localStorage.setItem("chatloop_theme", next ? "dark" : "light");
+      localStorage.setItem("linkloop_theme", next ? "dark" : "light");
       return next;
     });
   }
@@ -652,7 +652,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       .getRooms()
       .then((loadedRooms) => {
         setRooms(loadedRooms);
-        const savedId = Number(localStorage.getItem("chatloop_active_room"));
+        const savedId = Number(localStorage.getItem("linkloop_active_room"));
         if (savedId && loadedRooms.some((r) => r.id === savedId)) {
           setActiveRoomId(savedId);
           setDisplayRoomId(savedId);
@@ -697,7 +697,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   // ── Tab title ─────────────────────────────────────────────────────────────────
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
   useEffect(() => {
-    document.title = totalUnread > 0 ? `(${totalUnread}) Chatloop` : "Chatloop";
+    document.title = totalUnread > 0 ? `(${totalUnread}) Linkloop` : "Linkloop";
   }, [totalUnread]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
@@ -836,7 +836,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     const dataUrl = await resizeImage(file, 256);
     setMyAvatar(dataUrl);
     const updated = { ...currentUser, avatar: dataUrl };
-    localStorage.setItem("chatloop_user", JSON.stringify(updated));
+    localStorage.setItem("linkloop_user", JSON.stringify(updated));
     api.uploadAvatar(dataUrl).catch(console.error);
   }
 
@@ -1118,7 +1118,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     setShowMsgSearch(false);
     setMsgSearch("");
     stopTyping();
-    localStorage.setItem("chatloop_active_room", String(roomId));
+    localStorage.setItem("linkloop_active_room", String(roomId));
     const room = rooms.find((r) => r.id === roomId);
     if (room?.type === "channel" || room?.type === "private_channel") {
       api
@@ -1136,7 +1136,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     closeTimerRef.current = setTimeout(() => setDisplayRoomId(null), 200);
     setShowMsgSearch(false);
     setMsgSearch("");
-    localStorage.removeItem("chatloop_active_room");
+    localStorage.removeItem("linkloop_active_room");
   }
 
   // ── Derived ──────────────────────────────────────────────────────────────────
