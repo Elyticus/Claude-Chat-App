@@ -486,7 +486,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
     s.on(
       "channel:member_joined",
-      ({ roomId, username, channelName, addedBy }) => {
+      ({ roomId, userId, username, channelName, addedBy }) => {
         setMessages((prev) => ({
           ...prev,
           [roomId]: [
@@ -501,11 +501,16 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             },
           ],
         }));
-        const name = channelName ? `#${channelName}` : "the channel";
-        const msg = addedBy
-          ? `${username} was added to ${name} by ${addedBy}`
-          : `${username} joined ${name}`;
-        addChannelNotifRef.current(msg, "join", roomId);
+        // When a member is *added* by someone (addedBy present), only the added
+        // user gets a Channel Activity entry — and they receive it via their own
+        // "channel:added" event. The person who did the adding and every other
+        // existing member only see the chat-window system message above.
+        // For a self-join via channel link (no addedBy), still surface the entry
+        // to everyone except the person who just joined.
+        if (!addedBy && userId !== currentUser.id) {
+          const name = channelName ? `#${channelName}` : "the channel";
+          addChannelNotifRef.current(`${username} joined ${name}`, "join", roomId);
+        }
       },
     );
 
