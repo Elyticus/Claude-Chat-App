@@ -414,7 +414,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
     s.on(
       "channel:role_changed",
-      ({ roomId, userId, role, changedBy, channelName, transferredTo }) => {
+      ({ roomId, userId, username, role, changedBy, channelName, transferredTo }) => {
         setGroupMembersPanel((prev) =>
           prev?.roomId === roomId
             ? {
@@ -480,6 +480,31 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             ],
           }));
           addChannelNotifRef.current(toastMsg, "role", roomId);
+        } else if (!transferredTo) {
+          // Everyone else in the channel (including the person who made the
+          // change) sees the role change as a system message in the chat window.
+          // The Channel Activity entry belongs to the affected user only (handled
+          // above). The redundant owner-demotion event (transferredTo set) is
+          // skipped here — the ownership transfer is already conveyed by the new
+          // owner's event.
+          const roleName = role.charAt(0).toUpperCase() + role.slice(1);
+          const article = /^[aeiou]/i.test(role) ? "an" : "a";
+          const sysText =
+            role === "owner"
+              ? `${changedBy} made ${username} the Owner`
+              : `${changedBy} made ${username} ${article} ${roleName}`;
+          setMessages((prev) => ({
+            ...prev,
+            [roomId]: [
+              ...(prev[roomId] || []),
+              {
+                id: `sys_${Date.now()}`,
+                text: sysText,
+                system: true,
+                created_at: Math.floor(Date.now() / 1000),
+              },
+            ],
+          }));
         }
       },
     );
