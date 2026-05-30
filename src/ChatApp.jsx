@@ -76,10 +76,10 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const [loadingMore, setLoadingMore] = useState({});
   const [channelNotifs, setChannelNotifs] = useState([]);
 
-  function addChannelNotif(message, type = "info", roomId = null) {
+  function addChannelNotif(message, type = "info", roomId = null, sticky = false) {
     const id = Date.now() + Math.random();
     setChannelNotifs((prev) =>
-      [{ id, message, type, roomId, ts: Date.now() }, ...prev].slice(0, 50),
+      [{ id, message, type, roomId, sticky, ts: Date.now() }, ...prev].slice(0, 50),
     );
   }
 
@@ -479,7 +479,11 @@ export default function ChatApp({ token, currentUser, onLogout }) {
               },
             ],
           }));
-          addChannelNotifRef.current(toastMsg, "role", roomId);
+          // Sticky: a notification about the current user's own role change must
+          // not be auto-dismissed when they open the channel (unlike ambient
+          // channel activity). It stays in the Activity bar / Orb badge until the
+          // user clears it, so the affected user reliably sees it.
+          addChannelNotifRef.current(toastMsg, "role", roomId, true);
         } else if (!transferredTo) {
           // Everyone else in the channel (including the person who made the
           // change) sees the role change as a system message in the chat window.
@@ -1144,7 +1148,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         r.id === roomId ? { ...r, is_new: 0, role_notification: null } : r,
       ),
     );
-    setChannelNotifs((prev) => prev.filter((n) => n.roomId !== roomId));
+    setChannelNotifs((prev) =>
+      prev.filter((n) => n.roomId !== roomId || n.sticky),
+    );
     setShowMsgSearch(false);
     setMsgSearch("");
     stopTyping();
