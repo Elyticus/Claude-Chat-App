@@ -76,10 +76,10 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const [loadingMore, setLoadingMore] = useState({});
   const [channelNotifs, setChannelNotifs] = useState([]);
 
-  function addChannelNotif(message, type = "info", roomId = null, sticky = false) {
+  function addChannelNotif(message, type = "info", roomId = null) {
     const id = Date.now() + Math.random();
     setChannelNotifs((prev) =>
-      [{ id, message, type, roomId, sticky, ts: Date.now() }, ...prev].slice(0, 50),
+      [{ id, message, type, roomId, ts: Date.now() }, ...prev].slice(0, 50),
     );
   }
 
@@ -414,7 +414,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
     s.on(
       "channel:role_changed",
-      ({ roomId, userId, username, role, changedBy, channelName, transferredTo }) => {
+      ({ roomId, userId, role, changedBy, channelName, transferredTo }) => {
         setGroupMembersPanel((prev) =>
           prev?.roomId === roomId
             ? {
@@ -479,43 +479,14 @@ export default function ChatApp({ token, currentUser, onLogout }) {
               },
             ],
           }));
-          // Sticky: a notification about the current user's own role change must
-          // not be auto-dismissed when they open the channel (unlike ambient
-          // channel activity). It stays in the Activity bar / Orb badge until the
-          // user clears it, so the affected user reliably sees it.
-          addChannelNotifRef.current(toastMsg, "role", roomId, true);
-        } else if (!transferredTo) {
-          // Everyone else in the channel (including the person who made the
-          // change) sees the role change as a system message in the chat window.
-          // The Channel Activity entry belongs to the affected user only (handled
-          // above). The redundant owner-demotion event (transferredTo set) is
-          // skipped here — the ownership transfer is already conveyed by the new
-          // owner's event.
-          const roleName = role.charAt(0).toUpperCase() + role.slice(1);
-          const article = /^[aeiou]/i.test(role) ? "an" : "a";
-          const sysText =
-            role === "owner"
-              ? `${changedBy} made ${username} the Owner`
-              : `${changedBy} made ${username} ${article} ${roleName}`;
-          setMessages((prev) => ({
-            ...prev,
-            [roomId]: [
-              ...(prev[roomId] || []),
-              {
-                id: `sys_${Date.now()}`,
-                text: sysText,
-                system: true,
-                created_at: Math.floor(Date.now() / 1000),
-              },
-            ],
-          }));
+          addChannelNotifRef.current(toastMsg, "role", roomId);
         }
       },
     );
 
     s.on(
       "channel:member_joined",
-      ({ roomId, userId, username, channelName, addedBy }) => {
+      ({ roomId, username, channelName, addedBy }) => {
         setMessages((prev) => ({
           ...prev,
           [roomId]: [
@@ -530,16 +501,11 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             },
           ],
         }));
-        // When a member is *added* by someone (addedBy present), only the added
-        // user gets a Channel Activity entry — and they receive it via their own
-        // "channel:added" event. The person who did the adding and every other
-        // existing member only see the chat-window system message above.
-        // For a self-join via channel link (no addedBy), still surface the entry
-        // to everyone except the person who just joined.
-        if (!addedBy && userId !== currentUser.id) {
-          const name = channelName ? `#${channelName}` : "the channel";
-          addChannelNotifRef.current(`${username} joined ${name}`, "join", roomId);
-        }
+        const name = channelName ? `#${channelName}` : "the channel";
+        const msg = addedBy
+          ? `${username} was added to ${name} by ${addedBy}`
+          : `${username} joined ${name}`;
+        addChannelNotifRef.current(msg, "join", roomId);
       },
     );
 
@@ -1148,9 +1114,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         r.id === roomId ? { ...r, is_new: 0, role_notification: null } : r,
       ),
     );
-    setChannelNotifs((prev) =>
-      prev.filter((n) => n.roomId !== roomId || n.sticky),
-    );
+    setChannelNotifs((prev) => prev.filter((n) => n.roomId !== roomId));
     setShowMsgSearch(false);
     setMsgSearch("");
     stopTyping();
