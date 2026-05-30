@@ -643,11 +643,11 @@ app.patch("/api/channels/:roomId/members/:userId/role", requireAuth, async (req,
   await Promise.all(notifWrites);
 
   io.to(`room:${roomId}`).emit("channel:role_changed", {
-    roomId, userId: targetId, role, changedBy: req.user.username, channelName,
+    roomId, userId: targetId, username: targetUser?.username, role, changedBy: req.user.username, channelName,
   });
   if (role === "owner") {
     io.to(`room:${roomId}`).emit("channel:role_changed", {
-      roomId, userId: req.user.id, role: "admin", changedBy: req.user.username, channelName,
+      roomId, userId: req.user.id, username: req.user.username, role: "admin", changedBy: req.user.username, channelName,
       transferredTo: targetUser?.username,
     });
   }
