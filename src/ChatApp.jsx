@@ -111,6 +111,14 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     selectRoomRef.current = selectRoom;
   });
 
+  // Mirror `rooms` into a ref so socket listeners (registered once) can read the
+  // latest room metadata — e.g. to title a new-message notification with the
+  // group/channel name — without going stale or re-subscribing on every change.
+  const roomsRef = useRef(rooms);
+  useEffect(() => {
+    roomsRef.current = rooms;
+  }, [rooms]);
+
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId;
   }, [activeRoomId]);
@@ -227,7 +235,23 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           Notification.permission === "granted" &&
           document.hidden
         ) {
-          new Notification(message.username, { body: message.text });
+          // Title with the group/channel name (and prefix the body with the
+          // sender) so group and channel notifications are distinguishable;
+          // DMs keep showing just the sender's name.
+          const room = roomsRef.current.find((r) => r.id === roomId);
+          const isChannel =
+            room?.type === "channel" || room?.type === "private_channel";
+          const isGroup = !!room?.is_group;
+          const title = isChannel
+            ? `#${room.name || room.slug}`
+            : isGroup
+              ? room.name || "Group Chat"
+              : message.username;
+          const body =
+            isGroup || isChannel
+              ? `${message.username}: ${message.text}`
+              : message.text;
+          new Notification(title, { body });
         }
       }
     });
