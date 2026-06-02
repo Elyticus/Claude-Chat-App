@@ -101,6 +101,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const activeRoomIdRef = useRef(null);
   const closeTimerRef = useRef(null);
   const longPressTimerRef = useRef(null);
+  const audioCtxRef = useRef(null);
   const addChannelNotifRef = useRef(addChannelNotif);
   useEffect(() => {
     addChannelNotifRef.current = addChannelNotif;
@@ -118,6 +119,34 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   useEffect(() => {
     roomsRef.current = rooms;
   }, [rooms]);
+
+  // Short two-tone "ping" for incoming messages in a room you're not viewing.
+  // Synthesized with the Web Audio API so there's no audio asset to ship; the
+  // context is created lazily and resumed on use (the user has already
+  // interacted with the app by this point, satisfying autoplay policies).
+  const playPing = useCallback(() => {
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      const ctx = audioCtxRef.current || (audioCtxRef.current = new AC());
+      if (ctx.state === "suspended") ctx.resume();
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.setValueAtTime(1320, now + 0.1);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.18, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+      osc.start(now);
+      osc.stop(now + 0.36);
+    } catch {
+      /* audio unavailable — ignore */
+    }
+  }, []);
 
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId;
@@ -230,28 +259,44 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           ...prev,
           [roomId]: (prev[roomId] || 0) + 1,
         }));
-        if (
-          typeof Notification !== "undefined" &&
-          Notification.permission === "granted" &&
-          document.hidden
-        ) {
-          // Title with the group/channel name (and prefix the body with the
-          // sender) so group and channel notifications are distinguishable;
-          // DMs keep showing just the sender's name.
-          const room = roomsRef.current.find((r) => r.id === roomId);
-          const isChannel =
-            room?.type === "channel" || room?.type === "private_channel";
-          const isGroup = !!room?.is_group;
-          const title = isChannel
-            ? `#${room.name || room.slug}`
-            : isGroup
-              ? room.name || "Group Chat"
-              : message.username;
-          const body =
-            isGroup || isChannel
-              ? `${message.username}: ${message.text}`
-              : message.text;
-          new Notification(title, { body });
+
+        // Alert on messages from other people in a room you're not currently
+        // viewing — whether the tab is backgrounded OR just focused on a
+        // different chat. (Skip echoes of your own messages from another tab.)
+        if (message.user_id !== currentUser.id) {
+          playPing();
+
+          if (
+            typeof Notification !== "undefined" &&
+            Notification.permission === "granted"
+          ) {
+            // Title with the group/channel name (and prefix the body with the
+            // sender) so group and channel notifications are distinguishable;
+            // DMs keep showing just the sender's name.
+            const room = roomsRef.current.find((r) => r.id === roomId);
+            const isChannel =
+              room?.type === "channel" || room?.type === "private_channel";
+            const isGroup = !!room?.is_group;
+            const title = isChannel
+              ? `#${room.name || room.slug}`
+              : isGroup
+                ? room.name || "Group Chat"
+                : message.username;
+            const body =
+              isGroup || isChannel
+                ? `${message.username}: ${message.text}`
+                : message.text;
+            // tag collapses repeat alerts from the same room into one popup.
+            const notification = new Notification(title, {
+              body,
+              tag: `room-${roomId}`,
+            });
+            notification.onclick = () => {
+              window.focus();
+              selectRoomRef.current?.(roomId);
+              notification.close();
+            };
+          }
         }
       }
     });
@@ -668,7 +713,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       s.off("channel:added");
       disconnectSocket();
     };
-  }, [token, currentUser.id, currentUser.username]);
+  }, [token, currentUser.id, currentUser.username, playPing]);
 
   // ── Load rooms + users ────────────────────────────────────────────────────────
   useEffect(() => {
