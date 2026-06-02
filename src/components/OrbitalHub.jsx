@@ -354,6 +354,20 @@ export function OrbitalHub({
           className="text-white relative z-10"
           strokeWidth={1.8}
         />
+        {/* Unread messages — red (DMs, groups, channels) */}
+        {totalUnread > 0 && (
+          <span
+            className="absolute -top-1 -left-1 min-w-5 h-5 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 z-20 animate-pulse"
+            style={{
+              background: "linear-gradient(135deg,#ef4444,#dc2626)",
+              boxShadow: "0 2px 8px rgba(239,68,68,0.5)",
+            }}
+            aria-label={`${totalUnread} unread message${totalUnread === 1 ? "" : "s"}`}
+          >
+            {totalUnread > 99 ? "99+" : totalUnread}
+          </span>
+        )}
+        {/* Contact requests — red */}
         {pendingCount > 0 && (
           <span
             className="absolute -top-1 -right-1 min-w-5 h-5 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 z-20"
