@@ -884,6 +884,9 @@ io.use((socket, next) => {
 io.on("connection", async (socket) => {
   const { id: userId, username } = socket.user;
 
+  // Was this user fully offline before this socket connected? (Used to avoid
+  // re-announcing "online" every time the same user opens an extra tab.)
+  const wasOffline = !isOnline(userId);
   markOnline(userId, socket.id);
   await queries.touchUser.run(userId);
 
@@ -891,9 +894,22 @@ io.on("connection", async (socket) => {
   const roomKeys = userRooms.map(({ room_id }) => `room:${room_id}`);
   roomKeys.forEach((key) => socket.join(key));
 
-  // Only notify users who share a room with this user — avoids O(n) global broadcast
-  if (roomKeys.length > 0) {
-    socket.to(roomKeys).emit("user:status", { userId, online: true });
+  // ── Presence ───────────────────────────────────────────────────────────────
+  // Online status is already globally visible (GET /api/users returns every
+  // user's `online` flag to any authenticated user), so presence is broadcast
+  // to all connected clients — not just room-mates. This is what makes the
+  // online dots update live for contacts who don't yet share a room, and for
+  // rooms created/joined mid-session (which a connect-time closure would miss).
+  //
+  // 1) Give the freshly-connected socket the current online snapshot so its
+  //    dots are correct immediately, independent of the REST call's timing.
+  for (const otherId of online.keys()) {
+    if (otherId !== userId) socket.emit("user:status", { userId: otherId, online: true });
+  }
+  // 2) Announce this user to everyone else — only on the first tab/socket, so
+  //    opening additional tabs doesn't spam redundant "online" events.
+  if (wasOffline) {
+    socket.broadcast.emit("user:status", { userId, online: true });
   }
 
   socket.on("message:send", async ({ roomId, text, tempId }) => {
@@ -976,11 +992,9 @@ io.on("connection", async (socket) => {
   socket.on("disconnect", async () => {
     markOffline(userId, socket.id);
     await queries.touchUser.run(userId);
+    // Only announce "offline" once the user's last tab/socket has gone away.
     if (!isOnline(userId)) {
-      // Room-scoped: only notify users who share a room with this user
-      if (roomKeys.length > 0) {
-        io.to(roomKeys).emit("user:status", { userId, online: false });
-      }
+      io.emit("user:status", { userId, online: false });
     }
   });
 });
