@@ -16,6 +16,30 @@ import {
 
 const isChannel = (r) => r.type === "channel" || r.type === "private_channel";
 
+// Unread-count badge color by room type: DM = red, group = yellow, channel =
+// green. Mirrors the per-type ring colors on the orbital nodes.
+const unreadBadgeStyle = (room) => {
+  if (isChannel(room)) {
+    return {
+      background: "linear-gradient(135deg,#22c55e,#16a34a)",
+      boxShadow: "0 2px 8px rgba(34,197,94,0.5)",
+      color: "#ffffff",
+    };
+  }
+  if (room.is_group) {
+    return {
+      background: "linear-gradient(135deg,#facc15,#eab308)",
+      boxShadow: "0 2px 8px rgba(234,179,8,0.5)",
+      color: "#422006",
+    };
+  }
+  return {
+    background: "linear-gradient(135deg,#ef4444,#dc2626)",
+    boxShadow: "0 2px 8px rgba(239,68,68,0.5)",
+    color: "#ffffff",
+  };
+};
+
 export function OrbitalHub({
   rooms,
   onSelectRoom,
@@ -41,8 +65,26 @@ export function OrbitalHub({
     () => rooms.some((r) => !!r.is_group && !!r.is_new && !isChannel(r)),
     [rooms],
   );
-  // Green badge: channel socket activity notifs
+  // Green badge: channel activity notifs (live socket events for this session).
   const channelNotifsCount = channelNotifs.length;
+
+  // Channels with unseen activity directed at this user. Combines persisted
+  // markers (is_new = just added, role_notification = role/privilege change),
+  // which survive a reload, with this session's live channel notifs. Drives the
+  // green activity dot on channel bubbles and the green badge on the main hub.
+  const channelActivityRoomIds = useMemo(() => {
+    const ids = new Set();
+    for (const r of rooms) {
+      if (isChannel(r) && (!!r.is_new || !!r.role_notification)) ids.add(r.id);
+    }
+    for (const n of channelNotifs) if (n.roomId) ids.add(n.roomId);
+    return ids;
+  }, [rooms, channelNotifs]);
+
+  // Show the green hub badge for live notifs, falling back to the persisted
+  // channel-activity count so the indicator survives a reload.
+  const channelBadgeCount =
+    channelNotifsCount > 0 ? channelNotifsCount : channelActivityRoomIds.size;
 
   const [rotationAngle, setRotationAngle] = useState(0);
   const [hoveredId, setHoveredId] = useState(null);
@@ -358,6 +400,20 @@ export function OrbitalHub({
           className="text-white relative z-10"
           strokeWidth={1.8}
         />
+        {/* Unread messages — red (DMs, groups, channels) */}
+        {totalUnread > 0 && (
+          <span
+            className="absolute -top-1 -left-1 min-w-5 h-5 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 z-20 animate-pulse"
+            style={{
+              background: "linear-gradient(135deg,#ef4444,#dc2626)",
+              boxShadow: "0 2px 8px rgba(239,68,68,0.5)",
+            }}
+            aria-label={`${totalUnread} unread message${totalUnread === 1 ? "" : "s"}`}
+          >
+            {totalUnread > 99 ? "99+" : totalUnread}
+          </span>
+        )}
+        {/* Contact requests — red */}
         {pendingCount > 0 && (
           <span
             className="absolute -top-1 -right-1 min-w-5 h-5 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 z-20"
@@ -379,7 +435,7 @@ export function OrbitalHub({
           />
         )}
         {/* Channel notification — green */}
-        {channelNotifsCount > 0 && (
+        {channelBadgeCount > 0 && (
           <span
             className="absolute -bottom-1 -left-1 min-w-4 h-4 rounded-full z-20 flex items-center justify-center text-[9px] font-bold text-white px-0.5"
             style={{
@@ -387,7 +443,7 @@ export function OrbitalHub({
               boxShadow: "0 0 8px rgba(74,222,128,0.7)",
             }}
           >
-            {channelNotifsCount > 9 ? "9+" : channelNotifsCount}
+            {channelBadgeCount > 9 ? "9+" : channelBadgeCount}
           </span>
         )}
       </button>
@@ -488,14 +544,23 @@ export function OrbitalHub({
               )}
               {unread > 0 && (
                 <span
-                  className="absolute -top-1.5 -right-1.5 min-w-5 h-5 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1"
-                  style={{
-                    background: "linear-gradient(135deg,#ef4444,#dc2626)",
-                    boxShadow: "0 2px 8px rgba(239,68,68,0.5)",
-                  }}
+                  className="absolute -top-1.5 -right-1.5 min-w-5 h-5 text-[10px] font-bold rounded-full flex items-center justify-center px-1"
+                  style={unreadBadgeStyle(room)}
                 >
                   {unread > 99 ? "99+" : unread}
                 </span>
+              )}
+              {/* Green channel-activity dot — added to channel / role change /
+                  mute affecting this user (bottom-left, clear of the count). */}
+              {isRoomChannel && channelActivityRoomIds.has(room.id) && (
+                <span
+                  className="absolute -bottom-0.5 -left-0.5 w-3.5 h-3.5 rounded-full animate-pulse"
+                  style={{
+                    background: "linear-gradient(135deg,#22c55e,#4ade80)",
+                    border: `2px solid ${isDark ? darkBg0 : lightBg0}`,
+                    boxShadow: "0 0 8px rgba(74,222,128,0.7)",
+                  }}
+                />
               )}
             </div>
             <span
@@ -815,12 +880,8 @@ export function OrbitalHub({
                           )}
                           {unread > 0 && (
                             <span
-                              className="absolute -top-1 -right-1 min-w-4 h-4 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1"
-                              style={{
-                                background:
-                                  "linear-gradient(135deg,#ef4444,#dc2626)",
-                                boxShadow: "0 2px 6px rgba(239,68,68,0.5)",
-                              }}
+                              className="absolute -top-1 -right-1 min-w-4 h-4 text-[9px] font-bold rounded-full flex items-center justify-center px-1"
+                              style={unreadBadgeStyle(room)}
                             >
                               {unread > 99 ? "99+" : unread}
                             </span>

@@ -101,6 +101,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const activeRoomIdRef = useRef(null);
   const closeTimerRef = useRef(null);
   const longPressTimerRef = useRef(null);
+  const audioCtxRef = useRef(null);
   const addChannelNotifRef = useRef(addChannelNotif);
   useEffect(() => {
     addChannelNotifRef.current = addChannelNotif;
@@ -111,9 +112,85 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     selectRoomRef.current = selectRoom;
   });
 
+  // Mirror `rooms` into a ref so socket listeners (registered once) can read the
+  // latest room metadata — e.g. to title a new-message notification with the
+  // group/channel name — without going stale or re-subscribing on every change.
+  const roomsRef = useRef(rooms);
+  useEffect(() => {
+    roomsRef.current = rooms;
+  }, [rooms]);
+
+  // Short two-tone "ping" for incoming messages in a room you're not viewing.
+  // Synthesized with the Web Audio API so there's no audio asset to ship; the
+  // context is created lazily and resumed on use (the user has already
+  // interacted with the app by this point, satisfying autoplay policies).
+  const playPing = useCallback(() => {
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      const ctx = audioCtxRef.current || (audioCtxRef.current = new AC());
+      if (ctx.state === "suspended") ctx.resume();
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.setValueAtTime(1320, now + 0.1);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.18, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+      osc.start(now);
+      osc.stop(now + 0.36);
+    } catch {
+      /* audio unavailable — ignore */
+    }
+  }, []);
+
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId;
   }, [activeRoomId]);
+
+  // Fetch rooms and rebuild unread counts from the server's per-room
+  // `unread_count` (the room currently open is treated as read). This is the
+  // source of truth that makes unread badges survive a reload / app close and
+  // lets us recover anything missed while the socket was suspended in the
+  // background. Returns the loaded rooms for callers that need them.
+  const syncRooms = useCallback(() => {
+    return api
+      .getRooms()
+      .then((loadedRooms) => {
+        setRooms(loadedRooms);
+        setUnreadCounts(() => {
+          const next = {};
+          for (const r of loadedRooms) {
+            if (r.id === activeRoomIdRef.current) continue;
+            if (r.unread_count > 0) next[r.id] = r.unread_count;
+          }
+          return next;
+        });
+        return loadedRooms;
+      })
+      .catch((err) => {
+        console.error(err);
+        return null;
+      });
+  }, []);
+
+  const syncPresence = useCallback(() => {
+    return api
+      .getUsers()
+      .then((users) => {
+        setAllUsers(users);
+        setOnlineIds(new Set(users.filter((u) => u.online).map((u) => u.id)));
+        return users;
+      })
+      .catch((err) => {
+        console.error(err);
+        return null;
+      });
+  }, []);
 
   useEffect(() => {
     function urlBase64ToUint8Array(base64String) {
@@ -222,13 +299,49 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           ...prev,
           [roomId]: (prev[roomId] || 0) + 1,
         }));
-        if (
-          typeof Notification !== "undefined" &&
-          Notification.permission === "granted" &&
-          document.hidden
-        ) {
-          new Notification(message.username, { body: message.text });
+
+        // Alert on messages from other people in a room you're not currently
+        // viewing — whether the tab is backgrounded OR just focused on a
+        // different chat. (Skip echoes of your own messages from another tab.)
+        if (message.user_id !== currentUser.id) {
+          playPing();
+
+          if (
+            typeof Notification !== "undefined" &&
+            Notification.permission === "granted"
+          ) {
+            // Title with the group/channel name (and prefix the body with the
+            // sender) so group and channel notifications are distinguishable;
+            // DMs keep showing just the sender's name.
+            const room = roomsRef.current.find((r) => r.id === roomId);
+            const isChannel =
+              room?.type === "channel" || room?.type === "private_channel";
+            const isGroup = !!room?.is_group;
+            const title = isChannel
+              ? `#${room.name || room.slug}`
+              : isGroup
+                ? room.name || "Group Chat"
+                : message.username;
+            const body =
+              isGroup || isChannel
+                ? `${message.username}: ${message.text}`
+                : message.text;
+            // tag collapses repeat alerts from the same room into one popup.
+            const notification = new Notification(title, {
+              body,
+              tag: `room-${roomId}`,
+            });
+            notification.onclick = () => {
+              window.focus();
+              selectRoomRef.current?.(roomId);
+              notification.close();
+            };
+          }
         }
+      } else {
+        // Message landed in the room you're already viewing — keep the server's
+        // read marker current so it doesn't resurface as unread after a reload.
+        s.emit("room:read", { roomId });
       }
     });
 
@@ -403,11 +516,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                 }
               : prev,
           );
-          addChannelNotifRef.current(
-            `${kickedUsername} was removed from #${channelName} by ${kickedBy}`,
-            "kick",
-            roomId,
-          );
+          // No activity badge for the actor / remaining members — only the
+          // kicked user (handled in the branch above) gets the notification.
         }
       },
     );
@@ -486,7 +596,11 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
     s.on(
       "channel:member_joined",
-      ({ roomId, username, channelName, addedBy }) => {
+      ({ roomId, username, addedBy }) => {
+        // In-chat system message is part of channel history (everyone sees it).
+        // The green "channel activity" notification is NOT raised here — it must
+        // reach only the user who was added, who receives it via `channel:added`.
+        // The actor and existing members should not get an activity badge.
         setMessages((prev) => ({
           ...prev,
           [roomId]: [
@@ -501,15 +615,12 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             },
           ],
         }));
-        const name = channelName ? `#${channelName}` : "the channel";
-        const msg = addedBy
-          ? `${username} was added to ${name} by ${addedBy}`
-          : `${username} joined ${name}`;
-        addChannelNotifRef.current(msg, "join", roomId);
       },
     );
 
-    s.on("channel:member_left", ({ roomId, userId, username, channelName, systemMessage }) => {
+    s.on("channel:member_left", ({ roomId, systemMessage, username }) => {
+      // A member leaving is channel history (system message), not a targeted
+      // activity notification — nobody gets an activity badge for it.
       const msgEntry = systemMessage ?? {
         id: `sys_${Date.now()}`,
         text: `${username} left the channel`,
@@ -520,10 +631,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         ...prev,
         [roomId]: [...(prev[roomId] || []), msgEntry],
       }));
-      if (userId !== currentUser.id) {
-        const msg = `${username} left #${channelName}`;
-        addChannelNotifRef.current(msg, "leave", roomId);
-      }
     });
 
     s.on(
@@ -548,19 +655,10 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         );
         const isUnmute = !mutedUntil;
         const name = channelName ? `#${channelName}` : "the channel";
-        let msg;
-        if (userId === currentUser.id) {
-          msg = isUnmute
-            ? `You were unmuted in ${name}`
-            : `You were muted in ${name} by ${mutedBy}`;
-        } else {
-          msg = isUnmute
-            ? `${targetUsername} was unmuted in ${name}`
-            : `${targetUsername} was muted in ${name} by ${mutedBy}`;
-        }
+        const isMe = userId === currentUser.id;
         const sysText = isUnmute
-          ? `${userId === currentUser.id ? "You were" : `${targetUsername} was`} unmuted`
-          : `${userId === currentUser.id ? "You were" : `${targetUsername} was`} muted by ${mutedBy}`;
+          ? `${isMe ? "You were" : `${targetUsername} was`} unmuted`
+          : `${isMe ? "You were" : `${targetUsername} was`} muted by ${mutedBy}`;
         setMessages((prev) => ({
           ...prev,
           [roomId]: [
@@ -573,7 +671,14 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             },
           ],
         }));
-        addChannelNotifRef.current(msg, isUnmute ? "unmute" : "mute", roomId);
+        // Activity badge only for the affected member, never the moderator or
+        // other members.
+        if (isMe) {
+          const msg = isUnmute
+            ? `You were unmuted in ${name}`
+            : `You were muted in ${name} by ${mutedBy}`;
+          addChannelNotifRef.current(msg, isUnmute ? "unmute" : "mute", roomId);
+        }
       },
     );
 
@@ -619,7 +724,17 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       }
     });
 
+    // After the socket reconnects (e.g. the app was backgrounded/locked on
+    // mobile and the connection was suspended), pull fresh rooms/unread and
+    // presence so anything missed while disconnected shows up right away.
+    const onReconnect = () => {
+      syncRooms();
+      syncPresence();
+    };
+    s.io.on("reconnect", onReconnect);
+
     return () => {
+      s.io.off("reconnect", onReconnect);
       s.off("message:new");
       s.off("message:ack");
       s.off("message:reaction");
@@ -644,29 +759,41 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       s.off("channel:added");
       disconnectSocket();
     };
-  }, [token, currentUser.id, currentUser.username]);
+  }, [token, currentUser.id, currentUser.username, playPing, syncRooms, syncPresence]);
 
   // ── Load rooms + users ────────────────────────────────────────────────────────
   useEffect(() => {
-    api
-      .getRooms()
-      .then((loadedRooms) => {
-        setRooms(loadedRooms);
-        const savedId = Number(localStorage.getItem("linkloop_active_room"));
-        if (savedId && loadedRooms.some((r) => r.id === savedId)) {
-          setActiveRoomId(savedId);
-          setDisplayRoomId(savedId);
-        }
-      })
-      .catch(console.error);
-    api
-      .getUsers()
-      .then((users) => {
-        setAllUsers(users);
-        setOnlineIds(new Set(users.filter((u) => u.online).map((u) => u.id)));
-      })
-      .catch(console.error);
-  }, []);
+    syncRooms().then((loadedRooms) => {
+      if (!loadedRooms) return;
+      const savedId = Number(localStorage.getItem("linkloop_active_room"));
+      if (savedId && loadedRooms.some((r) => r.id === savedId)) {
+        setActiveRoomId(savedId);
+        setDisplayRoomId(savedId);
+        setUnreadCounts((prev) => ({ ...prev, [savedId]: 0 }));
+      }
+    });
+    syncPresence();
+  }, [syncRooms, syncPresence]);
+
+  // ── Re-sync when the app returns to the foreground ────────────────────────────
+  // Mobile browsers suspend the socket when the app is backgrounded or the
+  // screen locks, so messages can arrive while we're not listening. On return,
+  // reconnect the socket and pull fresh rooms/unread counts from the server.
+  useEffect(() => {
+    function handleForeground() {
+      if (document.visibilityState !== "visible") return;
+      const s = socketRef.current;
+      if (s && !s.connected) s.connect();
+      syncRooms();
+      syncPresence();
+    }
+    document.addEventListener("visibilitychange", handleForeground);
+    window.addEventListener("focus", handleForeground);
+    return () => {
+      document.removeEventListener("visibilitychange", handleForeground);
+      window.removeEventListener("focus", handleForeground);
+    };
+  }, [syncRooms, syncPresence]);
 
   // ── Load messages on room change ──────────────────────────────────────────────
   useEffect(() => {
@@ -1109,6 +1236,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     setDisplayRoomId(roomId);
     setActiveRoomId(roomId);
     setUnreadCounts((prev) => ({ ...prev, [roomId]: 0 }));
+    // Persist the read state server-side so the count stays cleared after a
+    // reload, even if this room's messages were already loaded this session.
+    socketRef.current?.emit("room:read", { roomId });
     setRooms((prev) =>
       prev.map((r) =>
         r.id === roomId ? { ...r, is_new: 0, role_notification: null } : r,
