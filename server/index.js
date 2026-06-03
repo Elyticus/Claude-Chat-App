@@ -134,6 +134,12 @@ function generateCode() {
   return randomInt(10_000_000, 100_000_000).toString();
 }
 
+// Persists a system message and returns a broadcast-ready object with the real DB id.
+async function saveSystemMsg(roomId, actorId, text) {
+  const { lastInsertRowid: id } = await queries.insertMessage.run(roomId, actorId, text, true);
+  return { id, text, system: true, created_at: Math.floor(Date.now() / 1000) };
+}
+
 const io = new Server(httpServer, {
   cors: { origin: CLIENT_ORIGIN, credentials: true },
 });
@@ -640,12 +646,21 @@ app.patch("/api/channels/:roomId/members/:userId/role", requireAuth, async (req,
       `You transferred ownership to ${targetUser?.username}`,
     ));
   }
-  await Promise.all(notifWrites);
+
+  // Neutral system message visible to all channel members — persisted in DB
+  const sysText = role === "owner"
+    ? `${req.user.username} transferred ownership to ${targetUser?.username}`
+    : `${targetUser?.username} was made ${article} ${roleName} by ${req.user.username}`;
+  const [systemMsg] = await Promise.all([
+    saveSystemMsg(roomId, req.user.id, sysText),
+    ...notifWrites,
+  ]);
 
   io.to(`room:${roomId}`).emit("channel:role_changed", {
-    roomId, userId: targetId, role, changedBy: req.user.username, channelName,
+    roomId, userId: targetId, role, changedBy: req.user.username, channelName, systemMsg,
   });
   if (role === "owner") {
+    // Second event updates the actor's own role state on all clients — no new system message.
     io.to(`room:${roomId}`).emit("channel:role_changed", {
       roomId, userId: req.user.id, role: "admin", changedBy: req.user.username, channelName,
       transferredTo: targetUser?.username,
@@ -678,9 +693,13 @@ app.delete("/api/channels/:roomId/members/:userId", requireAuth, async (req, res
     queries.getUserById.get(targetId),
     queries.getRoomById.get(roomId),
   ]);
+  const systemMsg = await saveSystemMsg(
+    roomId, req.user.id,
+    `${kickedUser?.username} was removed by ${req.user.username}`,
+  );
   const kickPayload = {
     roomId, kickedUserId: targetId, kickedUsername: kickedUser?.username,
-    kickedBy: req.user.username, channelName: kickRoom?.name || "",
+    kickedBy: req.user.username, channelName: kickRoom?.name || "", systemMsg,
   };
 
   io.to(`room:${roomId}`).emit("channel:member_kicked", kickPayload);
@@ -717,10 +736,13 @@ app.post("/api/channels/:roomId/members", requireAuth, async (req, res) => {
     queries.getRoomById.get(roomId),
     queries.getUserById.get(userId),
   ]);
-  await queries.insertMessage.run(roomId, userId, `${addedUser?.username} joined the channel`, true);
+  const systemMsg = await saveSystemMsg(
+    roomId, req.user.id,
+    `${addedUser?.username} was added by ${req.user.username}`,
+  );
   io.to(`room:${roomId}`).emit("channel:member_joined", {
     roomId, userId, username: addedUser?.username, addedBy: req.user.username,
-    channelName: room?.name || "",
+    channelName: room?.name || "", systemMsg,
   });
   online.get(userId)?.forEach((sid) => {
     io.sockets.sockets.get(sid)?.emit("channel:added", { room, addedBy: req.user.username });
@@ -781,9 +803,17 @@ app.patch("/api/channels/:roomId/members/:userId/mute", requireAuth, async (req,
     queries.getRoomById.get(roomId),
   ]);
 
+  const mutedUntilTime = mutedUntil
+    ? new Date(mutedUntil * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : null;
+  const muteText = mutedUntil
+    ? `${muteTarget?.username} was muted by ${req.user.username} until ${mutedUntilTime}`
+    : `${muteTarget?.username} was unmuted by ${req.user.username}`;
+  const systemMsg = await saveSystemMsg(roomId, req.user.id, muteText);
+
   io.to(`room:${roomId}`).emit("channel:member_muted", {
     roomId, userId: targetId, mutedUntil, mutedBy: req.user.username,
-    targetUsername: muteTarget?.username, channelName: muteRoom?.name || "",
+    targetUsername: muteTarget?.username, channelName: muteRoom?.name || "", systemMsg,
   });
   res.json({ ok: true, mutedUntil });
 });

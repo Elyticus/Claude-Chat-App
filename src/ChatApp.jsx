@@ -482,7 +482,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
     s.on(
       "channel:member_kicked",
-      ({ roomId, kickedUserId, kickedUsername, kickedBy, channelName }) => {
+      ({ roomId, kickedUserId, kickedUsername, kickedBy, channelName, systemMsg }) => {
         if (kickedUserId === currentUser.id) {
           loadedRoomsRef.current.delete(roomId);
           setRooms((prev) => prev.filter((r) => r.id !== roomId));
@@ -496,17 +496,15 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             roomId,
           );
         } else {
+          const msg = systemMsg ?? {
+            id: `sys_${Date.now()}`,
+            text: `${kickedUsername || "A member"} was removed from the channel`,
+            system: true,
+            created_at: Math.floor(Date.now() / 1000),
+          };
           setMessages((prev) => ({
             ...prev,
-            [roomId]: [
-              ...(prev[roomId] || []),
-              {
-                id: `sys_${Date.now()}`,
-                text: `${kickedUsername || "A member"} was removed from the channel`,
-                system: true,
-                created_at: Math.floor(Date.now() / 1000),
-              },
-            ],
+            [roomId]: [...(prev[roomId] || []), msg],
           }));
           setGroupMembersPanel((prev) =>
             prev?.roomId === roomId
@@ -516,15 +514,13 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                 }
               : prev,
           );
-          // No activity badge for the actor / remaining members — only the
-          // kicked user (handled in the branch above) gets the notification.
         }
       },
     );
 
     s.on(
       "channel:role_changed",
-      ({ roomId, userId, role, changedBy, channelName, transferredTo }) => {
+      ({ roomId, userId, role, changedBy, channelName, transferredTo, systemMsg }) => {
         setGroupMembersPanel((prev) =>
           prev?.roomId === roomId
             ? {
@@ -536,12 +532,20 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             : prev,
         );
 
+        // System message is visible to all members and persisted (only present on
+        // the first emit; the second emit for ownership transfer has no systemMsg).
+        if (systemMsg) {
+          setMessages((prev) => ({
+            ...prev,
+            [roomId]: [...(prev[roomId] || []), systemMsg],
+          }));
+        }
+
+        // Personalized notification and role-state update only for the affected user.
         if (userId === currentUser.id) {
           const roleName = role.charAt(0).toUpperCase() + role.slice(1);
           const article = /^[aeiou]/i.test(role) ? "an" : "a";
-          const isOwnTransfer = !!(
-            transferredTo && changedBy === currentUser.username
-          );
+          const isOwnTransfer = !!(transferredTo && changedBy === currentUser.username);
 
           const notifText = isOwnTransfer
             ? `You transferred ownership to ${transferredTo}`
@@ -551,9 +555,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
           setRooms((prev) =>
             prev.map((r) =>
-              r.id === roomId
-                ? { ...r, role, role_notification: notifText }
-                : r,
+              r.id === roomId ? { ...r, role, role_notification: notifText } : r,
             ),
           );
 
@@ -577,18 +579,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           ) {
             new Notification(desktopTitle, { body: desktopBody });
           }
-          setMessages((prev) => ({
-            ...prev,
-            [roomId]: [
-              ...(prev[roomId] || []),
-              {
-                id: `sys_${Date.now()}`,
-                text: notifText,
-                system: true,
-                created_at: Math.floor(Date.now() / 1000),
-              },
-            ],
-          }));
           addChannelNotifRef.current(toastMsg, "role", roomId);
         }
       },
@@ -596,24 +586,20 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
     s.on(
       "channel:member_joined",
-      ({ roomId, username, addedBy }) => {
+      ({ roomId, username, addedBy, systemMsg }) => {
         // In-chat system message is part of channel history (everyone sees it).
         // The green "channel activity" notification is NOT raised here — it must
         // reach only the user who was added, who receives it via `channel:added`.
         // The actor and existing members should not get an activity badge.
+        const msg = systemMsg ?? {
+          id: `sys_${Date.now()}`,
+          text: addedBy ? `${username} was added by ${addedBy}` : `${username} joined the channel`,
+          system: true,
+          created_at: Math.floor(Date.now() / 1000),
+        };
         setMessages((prev) => ({
           ...prev,
-          [roomId]: [
-            ...(prev[roomId] || []),
-            {
-              id: `sys_${Date.now()}`,
-              text: addedBy
-                ? `${username} was added by ${addedBy}`
-                : `${username} joined the channel`,
-              system: true,
-              created_at: Math.floor(Date.now() / 1000),
-            },
-          ],
+          [roomId]: [...(prev[roomId] || []), msg],
         }));
       },
     );
@@ -635,14 +621,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
     s.on(
       "channel:member_muted",
-      ({
-        roomId,
-        userId,
-        mutedUntil,
-        mutedBy,
-        targetUsername,
-        channelName,
-      }) => {
+      ({ roomId, userId, mutedUntil, mutedBy, targetUsername, channelName, systemMsg }) => {
         setGroupMembersPanel((prev) =>
           prev?.roomId === roomId
             ? {
@@ -653,34 +632,27 @@ export default function ChatApp({ token, currentUser, onLogout }) {
               }
             : prev,
         );
-        const isUnmute = !mutedUntil;
-        const name = channelName ? `#${channelName}` : "the channel";
-        const isMe = userId === currentUser.id;
-        const mutedUntilStr = mutedUntil
-          ? new Date(mutedUntil * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-          : null;
-        const sysText = isUnmute
-          ? `${isMe ? "You were" : `${targetUsername} was`} unmuted`
-          : `${isMe ? "You were" : `${targetUsername} was`} muted by ${mutedBy} until ${mutedUntilStr}`;
+        // System message (neutral, third-person) visible to all members and persisted.
+        const msg = systemMsg ?? {
+          id: `sys_${Date.now()}`,
+          text: mutedUntil
+            ? `${targetUsername} was muted by ${mutedBy}`
+            : `${targetUsername} was unmuted by ${mutedBy}`,
+          system: true,
+          created_at: Math.floor(Date.now() / 1000),
+        };
         setMessages((prev) => ({
           ...prev,
-          [roomId]: [
-            ...(prev[roomId] || []),
-            {
-              id: `sys_${Date.now()}`,
-              text: sysText,
-              system: true,
-              created_at: Math.floor(Date.now() / 1000),
-            },
-          ],
+          [roomId]: [...(prev[roomId] || []), msg],
         }));
-        // Activity badge only for the affected member, never the moderator or
-        // other members.
-        if (isMe) {
-          const msg = isUnmute
+        // Personal OrbitalHub notification only for the affected member.
+        if (userId === currentUser.id) {
+          const isUnmute = !mutedUntil;
+          const name = channelName ? `#${channelName}` : "the channel";
+          const notif = isUnmute
             ? `You were unmuted in ${name}`
-            : `You were muted in ${name} by ${mutedBy} until ${mutedUntilStr}`;
-          addChannelNotifRef.current(msg, isUnmute ? "unmute" : "mute", roomId);
+            : `You were muted in ${name} by ${mutedBy}`;
+          addChannelNotifRef.current(notif, isUnmute ? "unmute" : "mute", roomId);
         }
       },
     );
