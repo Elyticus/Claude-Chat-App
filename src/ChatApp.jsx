@@ -74,13 +74,21 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const [inputError, setInputError] = useState("");
   const [hasMoreMessages, setHasMoreMessages] = useState({});
   const [loadingMore, setLoadingMore] = useState({});
-  const [channelNotifs, setChannelNotifs] = useState([]);
+  const [channelNotifs, setChannelNotifs] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("linkloop_channel_notifs") || "[]");
+    } catch {
+      return [];
+    }
+  });
 
   function addChannelNotif(message, type = "info", roomId = null) {
     const id = Date.now() + Math.random();
-    setChannelNotifs((prev) =>
-      [{ id, message, type, roomId, ts: Date.now() }, ...prev].slice(0, 50),
-    );
+    setChannelNotifs((prev) => {
+      const next = [{ id, message, type, roomId, ts: Date.now() }, ...prev].slice(0, 50);
+      localStorage.setItem("linkloop_channel_notifs", JSON.stringify(next));
+      return next;
+    });
   }
 
   function toggleTheme() {
@@ -1332,7 +1340,10 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         myAvatar={myAvatar}
         onAvatarClick={() => avatarFileRef.current?.click()}
         channelNotifs={channelNotifs}
-        onClearChannelNotifs={() => setChannelNotifs([])}
+        onClearChannelNotifs={() => {
+          setChannelNotifs([]);
+          localStorage.removeItem("linkloop_channel_notifs");
+        }}
       />
       <input
         ref={avatarFileRef}
