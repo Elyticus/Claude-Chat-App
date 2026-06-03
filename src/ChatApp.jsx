@@ -482,7 +482,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
     s.on(
       "channel:member_kicked",
-      ({ roomId, kickedUserId, kickedUsername, kickedBy, channelName }) => {
+      ({ roomId, kickedUserId, kickedBy, channelName }) => {
         if (kickedUserId === currentUser.id) {
           loadedRoomsRef.current.delete(roomId);
           setRooms((prev) => prev.filter((r) => r.id !== roomId));
@@ -496,18 +496,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             roomId,
           );
         } else {
-          setMessages((prev) => ({
-            ...prev,
-            [roomId]: [
-              ...(prev[roomId] || []),
-              {
-                id: `sys_${Date.now()}`,
-                text: `${kickedUsername || "A member"} was removed from the channel`,
-                system: true,
-                created_at: Math.floor(Date.now() / 1000),
-              },
-            ],
-          }));
+          // Removal shows only in the Channel Activity panel (for the kicked
+          // user) — not as a system message in the channel chat. Still keep the
+          // live member-list in sync.
           setGroupMembersPanel((prev) =>
             prev?.roomId === roomId
               ? {
@@ -516,8 +507,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                 }
               : prev,
           );
-          // No activity badge for the actor / remaining members — only the
-          // kicked user (handled in the branch above) gets the notification.
         }
       },
     );
@@ -577,18 +566,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           ) {
             new Notification(desktopTitle, { body: desktopBody });
           }
-          setMessages((prev) => ({
-            ...prev,
-            [roomId]: [
-              ...(prev[roomId] || []),
-              {
-                id: `sys_${Date.now()}`,
-                text: notifText,
-                system: true,
-                created_at: Math.floor(Date.now() / 1000),
-              },
-            ],
-          }));
+          // Role changes surface in the Channel Activity panel only — not as a
+          // system message in the channel chat window.
           addChannelNotifRef.current(toastMsg, "role", roomId);
         }
       },
@@ -635,14 +614,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
     s.on(
       "channel:member_muted",
-      ({
-        roomId,
-        userId,
-        mutedUntil,
-        mutedBy,
-        targetUsername,
-        channelName,
-      }) => {
+      ({ roomId, userId, mutedUntil, mutedBy, channelName }) => {
         setGroupMembersPanel((prev) =>
           prev?.roomId === roomId
             ? {
@@ -655,25 +627,10 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         );
         const isUnmute = !mutedUntil;
         const name = channelName ? `#${channelName}` : "the channel";
-        const isMe = userId === currentUser.id;
-        const sysText = isUnmute
-          ? `${isMe ? "You were" : `${targetUsername} was`} unmuted`
-          : `${isMe ? "You were" : `${targetUsername} was`} muted by ${mutedBy}`;
-        setMessages((prev) => ({
-          ...prev,
-          [roomId]: [
-            ...(prev[roomId] || []),
-            {
-              id: `sys_${Date.now()}`,
-              text: sysText,
-              system: true,
-              created_at: Math.floor(Date.now() / 1000),
-            },
-          ],
-        }));
-        // Activity badge only for the affected member, never the moderator or
-        // other members.
-        if (isMe) {
+        // Mute/unmute surfaces in the Channel Activity panel only (for the
+        // affected member) — not as a system message in the channel chat, and
+        // never for the moderator or other members.
+        if (userId === currentUser.id) {
           const msg = isUnmute
             ? `You were unmuted in ${name}`
             : `You were muted in ${name} by ${mutedBy}`;

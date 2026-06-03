@@ -106,9 +106,12 @@ fixes already made; reintroducing the old patterns will rebreak the app.
   who performed the action, and never uninvolved members.** Pattern: gate every
   `addChannelNotif` on `userId === currentUser.id` (the target), and let the
   added user be notified via the user-scoped `channel:added` event rather than
-  the room-wide `channel:member_joined` broadcast. In-chat system messages
-  ("X joined/left the channel") are channel history and DO still render for
-  everyone — that is separate from the activity badge.
+  the room-wide `channel:member_joined` broadcast.
+- **Role / mute / kick notifications live ONLY in the Channel Activity panel**
+  (via `addChannelNotif`), for the affected user. Do NOT also inject them as
+  in-chat `system` messages — that clutters the conversation. The only system
+  messages that render in the channel chat are join/leave ("X joined/left the
+  channel"), which are channel history shown to everyone.
 
 ## Tech Stack
 
