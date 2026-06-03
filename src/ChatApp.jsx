@@ -449,11 +449,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             body: `${data.addedBy} added you to this group`,
           });
         }
-        addChannelNotifRef.current(
-          `${data.addedBy} added you to "${data.groupName}"`,
-          "added",
-          data.roomId,
-        );
       }
     });
 
@@ -1397,6 +1392,18 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     return map;
   }, [allUsers, myAvatar, currentUser.id]);
 
+  // Computed over the full rooms list (not filtered by pendingRoomIds) so the
+  // yellow hub dot appears immediately when room:new fires, even before a message
+  // is sent (pending rooms are hidden from the orbital canvas but still carry
+  // their is_new flag).
+  const hasGroupNewNotif = rooms.some(
+    (r) =>
+      !!r.is_group &&
+      !!r.is_new &&
+      r.type !== "channel" &&
+      r.type !== "private_channel",
+  );
+
   const activeRoom = rooms.find((r) => r.id === displayRoomId) || null;
   const activeMessages = displayRoomId ? messages[displayRoomId] || [] : [];
   const displayedMessages =
@@ -1447,6 +1454,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       {/* Orbital Hub — always in background */}
       <OrbitalHub
         rooms={rooms.filter((r) => !pendingRoomIds.has(r.id))}
+        hasGroupNewNotif={hasGroupNewNotif}
         onSelectRoom={selectRoom}
         onNewChat={() => setShowNewChat(true)}
         onLogout={onLogout}

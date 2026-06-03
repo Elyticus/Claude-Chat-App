@@ -42,6 +42,7 @@ const unreadBadgeStyle = (room) => {
 
 export function OrbitalHub({
   rooms,
+  hasGroupNewNotif,
   onSelectRoom,
   onNewChat,
   onRequestLogout,
@@ -60,11 +61,6 @@ export function OrbitalHub({
   channelNotifs,
   onClearChannelNotifs,
 }) {
-  // Yellow badge: only plain groups (non-channel) that are new
-  const hasGroupNewNotif = useMemo(
-    () => rooms.some((r) => !!r.is_group && !!r.is_new && !isChannel(r)),
-    [rooms],
-  );
   // Green badge: channel activity notifs (live socket events for this session).
   const channelNotifsCount = channelNotifs.length;
 
@@ -74,10 +70,14 @@ export function OrbitalHub({
   // green activity dot on channel bubbles and the green badge on the main hub.
   const channelActivityRoomIds = useMemo(() => {
     const ids = new Set();
+    const channelIds = new Set(rooms.filter(isChannel).map((r) => r.id));
     for (const r of rooms) {
       if (isChannel(r) && (!!r.is_new || !!r.role_notification)) ids.add(r.id);
     }
-    for (const n of channelNotifs) if (n.roomId) ids.add(n.roomId);
+    // Only count notifs that belong to actual channels, never groups or DMs
+    for (const n of channelNotifs) {
+      if (n.roomId && channelIds.has(n.roomId)) ids.add(n.roomId);
+    }
     return ids;
   }, [rooms, channelNotifs]);
 
