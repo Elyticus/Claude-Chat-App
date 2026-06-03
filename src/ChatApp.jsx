@@ -83,8 +83,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       return [];
     }
   });
-  const [toastNotif, setToastNotif] = useState(null);
-  const toastTimerRef = useRef(null);
+  // Rooms created/joined this session that have no messages yet — hidden from
+  // OrbitalHub until the first message is sent or received.
+  const [pendingRoomIds, setPendingRoomIds] = useState(new Set());
 
   function addChannelNotif(message, type = "info", roomId = null) {
     const id = Date.now() + Math.random();
@@ -94,10 +95,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       localStorage.setItem("linkloop_channel_notifs", JSON.stringify(next));
       return next;
     });
-    // Floating toast — visible above the chat panel on all screen sizes
-    setToastNotif(notif);
-    clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => setToastNotif(null), 5000);
   }
 
   function toggleTheme() {
@@ -300,6 +297,12 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         ...prev,
         [roomId]: [...(prev[roomId] || []), message],
       }));
+      setPendingRoomIds((prev) => {
+        if (!prev.has(roomId)) return prev;
+        const next = new Set(prev);
+        next.delete(roomId);
+        return next;
+      });
       setRooms((prev) =>
         prev
           .map((r) =>
@@ -371,6 +374,12 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           m.id === tempId ? message : m,
         ),
       }));
+      setPendingRoomIds((prev) => {
+        if (!prev.has(roomId)) return prev;
+        const next = new Set(prev);
+        next.delete(roomId);
+        return next;
+      });
       setRooms((prev) =>
         prev
           .map((r) =>
@@ -414,7 +423,19 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     });
 
     s.on("room:new", (data) => {
-      api.getRooms().then(setRooms).catch(console.error);
+      api
+        .getRooms()
+        .then((loadedRooms) => {
+          const prevIds = new Set(roomsRef.current.map((r) => r.id));
+          const newPending = loadedRooms
+            .filter((r) => !prevIds.has(r.id) && !r.last_message)
+            .map((r) => r.id);
+          setRooms(loadedRooms);
+          if (newPending.length > 0) {
+            setPendingRoomIds((prev) => new Set([...prev, ...newPending]));
+          }
+        })
+        .catch(console.error);
       if (
         data.isGroup &&
         data.addedBy &&
@@ -758,7 +779,21 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     });
 
     s.on("channel:added", ({ room, addedBy }) => {
-      if (room) api.getRooms().then(setRooms).catch(console.error);
+      if (room) {
+        api
+          .getRooms()
+          .then((loadedRooms) => {
+            const isNewRoom = !roomsRef.current.some((r) => r.id === room.id);
+            setRooms(loadedRooms);
+            if (isNewRoom) {
+              const freshRoom = loadedRooms.find((r) => r.id === room.id);
+              if (!freshRoom?.last_message) {
+                setPendingRoomIds((prev) => new Set([...prev, room.id]));
+              }
+            }
+          })
+          .catch(console.error);
+      }
       if (addedBy && addedBy !== currentUser.username) {
         if (
           typeof Notification !== "undefined" &&
@@ -1080,6 +1115,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     }
     try {
       const { roomId } = await api.createDM(user.id);
+      setPendingRoomIds((prev) => new Set([...prev, roomId]));
       selectRoom(roomId);
       api.getRooms().then(setRooms).catch(console.error);
     } catch (err) {
@@ -1144,6 +1180,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       description,
       isPrivate,
     );
+    setPendingRoomIds((prev) => new Set([...prev, roomId]));
     selectRoom(roomId);
     api.getRooms().then(setRooms).catch(console.error);
   }
@@ -1152,7 +1189,16 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     const { roomId } = await api.joinChannel(slug);
     setShowNewChat(false);
     selectRoom(roomId);
-    api.getRooms().then(setRooms).catch(console.error);
+    api
+      .getRooms()
+      .then((loadedRooms) => {
+        setRooms(loadedRooms);
+        const joinedRoom = loadedRooms.find((r) => r.id === roomId);
+        if (!joinedRoom?.last_message) {
+          setPendingRoomIds((prev) => new Set([...prev, roomId]));
+        }
+      })
+      .catch(console.error);
   }
 
   async function handleKickMember(userId) {
@@ -1280,6 +1326,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     setShowNewChat(false);
     try {
       const { roomId } = await api.createGroup(userIds, name);
+      setPendingRoomIds((prev) => new Set([...prev, roomId]));
       selectRoom(roomId);
       api.getRooms().then(setRooms).catch(console.error);
     } catch (err) {
@@ -1390,7 +1437,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     >
       {/* Orbital Hub — always in background */}
       <OrbitalHub
-        rooms={rooms}
+        rooms={rooms.filter((r) => !pendingRoomIds.has(r.id))}
         onSelectRoom={selectRoom}
         onNewChat={() => setShowNewChat(true)}
         onLogout={onLogout}
@@ -2193,73 +2240,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         />
       )}
 
-      {/* Channel Activity toast — floats above chat panel on all screen sizes */}
-      {toastNotif &&
-        (() => {
-          const dotColor =
-            toastNotif.type === "kick"
-              ? "#f87171"
-              : toastNotif.type === "mute"
-                ? "#fb923c"
-                : toastNotif.type === "unmute"
-                  ? "#4ade80"
-                  : toastNotif.type === "role"
-                    ? "#a78bfa"
-                    : "#4ade80";
-          return (
-            <div
-              key={toastNotif.id}
-              className="fixed left-1/2 z-490 animate-slide-in-down pointer-events-none"
-              style={{
-                top: "max(env(safe-area-inset-top, 0px), 12px)",
-                transform: "translateX(-50%)",
-              }}
-            >
-              <div
-                className="pointer-events-auto flex items-start gap-3 px-4 py-3 rounded-2xl shadow-2xl"
-                style={{
-                  background: isDark
-                    ? "rgba(10,15,30,0.96)"
-                    : "rgba(255,255,255,0.97)",
-                  border: `1px solid ${isDark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.08)"}`,
-                  borderLeft: `3px solid ${dotColor}`,
-                  minWidth: "280px",
-                  maxWidth: "min(420px, calc(100vw - 32px))",
-                  backdropFilter: "blur(16px)",
-                  boxShadow: isDark
-                    ? "0 16px 48px rgba(0,0,0,0.6)"
-                    : "0 16px 48px rgba(99,102,241,0.15)",
-                }}
-              >
-                <span
-                  className="w-2 h-2 rounded-full mt-1.5 shrink-0"
-                  style={{ background: dotColor }}
-                />
-                <div className="flex-1 min-w-0">
-                  <p
-                    className="text-[10px] font-semibold uppercase tracking-widest mb-0.5"
-                    style={{ color: dotColor }}
-                  >
-                    Channel Activity
-                  </p>
-                  <p
-                    className="text-sm leading-snug"
-                    style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
-                  >
-                    {toastNotif.message}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setToastNotif(null)}
-                  className="shrink-0 mt-0.5 opacity-40 hover:opacity-70 transition-opacity"
-                  style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            </div>
-          );
-        })()}
     </div>
   );
 }
