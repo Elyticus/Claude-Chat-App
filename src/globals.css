@@ -245,6 +245,12 @@ input, textarea {
 }
 .animate-slide-in-left { animation: slideInLeft 0.25s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
+@keyframes slideInDown {
+  from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.animate-slide-in-down { animation: slideInDown 0.25s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
 /* Hide scrollbar visually while keeping scroll functionality */
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }

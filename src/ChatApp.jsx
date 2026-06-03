@@ -76,19 +76,28 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const [loadingMore, setLoadingMore] = useState({});
   const [channelNotifs, setChannelNotifs] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem("linkloop_channel_notifs") || "[]");
+      return JSON.parse(
+        localStorage.getItem("linkloop_channel_notifs") || "[]",
+      );
     } catch {
       return [];
     }
   });
+  const [toastNotif, setToastNotif] = useState(null);
+  const toastTimerRef = useRef(null);
 
   function addChannelNotif(message, type = "info", roomId = null) {
     const id = Date.now() + Math.random();
+    const notif = { id, message, type, roomId, ts: Date.now() };
     setChannelNotifs((prev) => {
-      const next = [{ id, message, type, roomId, ts: Date.now() }, ...prev].slice(0, 50);
+      const next = [notif, ...prev].slice(0, 50);
       localStorage.setItem("linkloop_channel_notifs", JSON.stringify(next));
       return next;
     });
+    // Floating toast — visible above the chat panel on all screen sizes
+    setToastNotif(notif);
+    clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToastNotif(null), 5000);
   }
 
   function toggleTheme() {
@@ -203,7 +212,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   useEffect(() => {
     function urlBase64ToUint8Array(base64String) {
       const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-      const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+      const base64 = (base64String + padding)
+        .replace(/-/g, "+")
+        .replace(/_/g, "/");
       const raw = atob(base64);
       return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
     }
@@ -490,7 +501,14 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
     s.on(
       "channel:member_kicked",
-      ({ roomId, kickedUserId, kickedUsername, kickedBy, channelName, systemMsg }) => {
+      ({
+        roomId,
+        kickedUserId,
+        kickedUsername,
+        kickedBy,
+        channelName,
+        systemMsg,
+      }) => {
         if (kickedUserId === currentUser.id) {
           loadedRoomsRef.current.delete(roomId);
           setRooms((prev) => prev.filter((r) => r.id !== roomId));
@@ -522,13 +540,28 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                 }
               : prev,
           );
+          // Notify all remaining members
+          const name = channelName ? `#${channelName}` : "the channel";
+          addChannelNotifRef.current(
+            `${kickedUsername} was removed from ${name}`,
+            "kick",
+            roomId,
+          );
         }
       },
     );
 
     s.on(
       "channel:role_changed",
-      ({ roomId, userId, role, changedBy, channelName, transferredTo, systemMsg }) => {
+      ({
+        roomId,
+        userId,
+        role,
+        changedBy,
+        channelName,
+        transferredTo,
+        systemMsg,
+      }) => {
         setGroupMembersPanel((prev) =>
           prev?.roomId === roomId
             ? {
@@ -549,11 +582,20 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           }));
         }
 
-        // Personalized notification and role-state update only for the affected user.
-        if (userId === currentUser.id) {
+        const isMe = userId === currentUser.id;
+
+        // Neutral notification for all uninvolved members
+        if (!isMe && systemMsg) {
+          addChannelNotifRef.current(systemMsg.text, "role", roomId);
+        }
+
+        // Personalized notification + role-state update for the affected user
+        if (isMe) {
           const roleName = role.charAt(0).toUpperCase() + role.slice(1);
           const article = /^[aeiou]/i.test(role) ? "an" : "a";
-          const isOwnTransfer = !!(transferredTo && changedBy === currentUser.username);
+          const isOwnTransfer = !!(
+            transferredTo && changedBy === currentUser.username
+          );
 
           const notifText = isOwnTransfer
             ? `You transferred ownership to ${transferredTo}`
@@ -563,7 +605,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
           setRooms((prev) =>
             prev.map((r) =>
-              r.id === roomId ? { ...r, role, role_notification: notifText } : r,
+              r.id === roomId
+                ? { ...r, role, role_notification: notifText }
+                : r,
             ),
           );
 
@@ -594,14 +638,12 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
     s.on(
       "channel:member_joined",
-      ({ roomId, username, addedBy, systemMsg }) => {
-        // In-chat system message is part of channel history (everyone sees it).
-        // The green "channel activity" notification is NOT raised here — it must
-        // reach only the user who was added, who receives it via `channel:added`.
-        // The actor and existing members should not get an activity badge.
+      ({ roomId, userId, username, addedBy, channelName, systemMsg }) => {
         const msg = systemMsg ?? {
           id: `sys_${Date.now()}`,
-          text: addedBy ? `${username} was added by ${addedBy}` : `${username} joined the channel`,
+          text: addedBy
+            ? `${username} was added by ${addedBy}`
+            : `${username} joined the channel`,
           system: true,
           created_at: Math.floor(Date.now() / 1000),
         };
@@ -609,6 +651,15 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           ...prev,
           [roomId]: [...(prev[roomId] || []), msg],
         }));
+        // Notify all existing members — the newly added user gets `channel:added` instead
+        if (userId !== currentUser.id) {
+          const name = channelName ? `#${channelName}` : "the channel";
+          addChannelNotifRef.current(
+            `${username} was added to ${name}`,
+            "added",
+            roomId,
+          );
+        }
       },
     );
 
@@ -629,7 +680,15 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
     s.on(
       "channel:member_muted",
-      ({ roomId, userId, mutedUntil, mutedBy, targetUsername, channelName, systemMsg }) => {
+      ({
+        roomId,
+        userId,
+        mutedUntil,
+        mutedBy,
+        targetUsername,
+        channelName,
+        systemMsg,
+      }) => {
         setGroupMembersPanel((prev) =>
           prev?.roomId === roomId
             ? {
@@ -640,12 +699,16 @@ export default function ChatApp({ token, currentUser, onLogout }) {
               }
             : prev,
         );
+        const isUnmute = !mutedUntil;
+        const isMe = userId === currentUser.id;
+        const name = channelName ? `#${channelName}` : "the channel";
+
         // System message (neutral, third-person) visible to all members and persisted.
         const msg = systemMsg ?? {
           id: `sys_${Date.now()}`,
-          text: mutedUntil
-            ? `${targetUsername} was muted by ${mutedBy}`
-            : `${targetUsername} was unmuted by ${mutedBy}`,
+          text: isUnmute
+            ? `${targetUsername} was unmuted by ${mutedBy}`
+            : `${targetUsername} was muted by ${mutedBy}`,
           system: true,
           created_at: Math.floor(Date.now() / 1000),
         };
@@ -653,15 +716,18 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           ...prev,
           [roomId]: [...(prev[roomId] || []), msg],
         }));
-        // Personal OrbitalHub notification only for the affected member.
-        if (userId === currentUser.id) {
-          const isUnmute = !mutedUntil;
-          const name = channelName ? `#${channelName}` : "the channel";
-          const notif = isUnmute
+
+        // Notification for ALL channel members — personalized for the affected user
+        const notifText = isMe
+          ? isUnmute
             ? `You were unmuted in ${name}`
-            : `You were muted in ${name} by ${mutedBy}`;
-          addChannelNotifRef.current(notif, isUnmute ? "unmute" : "mute", roomId);
-        }
+            : `You were muted in ${name} by ${mutedBy}`
+          : msg.text;
+        addChannelNotifRef.current(
+          notifText,
+          isUnmute ? "unmute" : "mute",
+          roomId,
+        );
       },
     );
 
@@ -742,7 +808,14 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       s.off("channel:added");
       disconnectSocket();
     };
-  }, [token, currentUser.id, currentUser.username, playPing, syncRooms, syncPresence]);
+  }, [
+    token,
+    currentUser.id,
+    currentUser.username,
+    playPing,
+    syncRooms,
+    syncPresence,
+  ]);
 
   // ── Load rooms + users ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1321,12 +1394,17 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         onSelectRoom={selectRoom}
         onNewChat={() => setShowNewChat(true)}
         onLogout={onLogout}
-        onRequestLogout={() => setConfirmModal({
-          title: "Sign out",
-          body: "Are you sure you want to sign out?",
-          confirmLabel: "Sign out",
-          onConfirm: () => { setConfirmModal(null); onLogout(); },
-        })}
+        onRequestLogout={() =>
+          setConfirmModal({
+            title: "Sign out",
+            body: "Are you sure you want to sign out?",
+            confirmLabel: "Sign out",
+            onConfirm: () => {
+              setConfirmModal(null);
+              onLogout();
+            },
+          })
+        }
         currentUser={currentUser}
         onlineIds={onlineIds}
         unreadCounts={unreadCounts}
@@ -2115,6 +2193,73 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         />
       )}
 
+      {/* Channel Activity toast — floats above chat panel on all screen sizes */}
+      {toastNotif &&
+        (() => {
+          const dotColor =
+            toastNotif.type === "kick"
+              ? "#f87171"
+              : toastNotif.type === "mute"
+                ? "#fb923c"
+                : toastNotif.type === "unmute"
+                  ? "#4ade80"
+                  : toastNotif.type === "role"
+                    ? "#a78bfa"
+                    : "#4ade80";
+          return (
+            <div
+              key={toastNotif.id}
+              className="fixed left-1/2 z-490 animate-slide-in-down pointer-events-none"
+              style={{
+                top: "max(env(safe-area-inset-top, 0px), 12px)",
+                transform: "translateX(-50%)",
+              }}
+            >
+              <div
+                className="pointer-events-auto flex items-start gap-3 px-4 py-3 rounded-2xl shadow-2xl"
+                style={{
+                  background: isDark
+                    ? "rgba(10,15,30,0.96)"
+                    : "rgba(255,255,255,0.97)",
+                  border: `1px solid ${isDark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.08)"}`,
+                  borderLeft: `3px solid ${dotColor}`,
+                  minWidth: "280px",
+                  maxWidth: "min(420px, calc(100vw - 32px))",
+                  backdropFilter: "blur(16px)",
+                  boxShadow: isDark
+                    ? "0 16px 48px rgba(0,0,0,0.6)"
+                    : "0 16px 48px rgba(99,102,241,0.15)",
+                }}
+              >
+                <span
+                  className="w-2 h-2 rounded-full mt-1.5 shrink-0"
+                  style={{ background: dotColor }}
+                />
+                <div className="flex-1 min-w-0">
+                  <p
+                    className="text-[10px] font-semibold uppercase tracking-widest mb-0.5"
+                    style={{ color: dotColor }}
+                  >
+                    Channel Activity
+                  </p>
+                  <p
+                    className="text-sm leading-snug"
+                    style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+                  >
+                    {toastNotif.message}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setToastNotif(null)}
+                  className="shrink-0 mt-0.5 opacity-40 hover:opacity-70 transition-opacity"
+                  style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+          );
+        })()}
     </div>
   );
 }
