@@ -16,6 +16,30 @@ import {
 
 const isChannel = (r) => r.type === "channel" || r.type === "private_channel";
 
+// Unread-count badge color by room type: DM = red, group = yellow, channel =
+// green. Mirrors the per-type ring colors on the orbital nodes.
+const unreadBadgeStyle = (room) => {
+  if (isChannel(room)) {
+    return {
+      background: "linear-gradient(135deg,#22c55e,#16a34a)",
+      boxShadow: "0 2px 8px rgba(34,197,94,0.5)",
+      color: "#ffffff",
+    };
+  }
+  if (room.is_group) {
+    return {
+      background: "linear-gradient(135deg,#facc15,#eab308)",
+      boxShadow: "0 2px 8px rgba(234,179,8,0.5)",
+      color: "#422006",
+    };
+  }
+  return {
+    background: "linear-gradient(135deg,#ef4444,#dc2626)",
+    boxShadow: "0 2px 8px rgba(239,68,68,0.5)",
+    color: "#ffffff",
+  };
+};
+
 export function OrbitalHub({
   rooms,
   onSelectRoom,
@@ -491,11 +515,8 @@ export function OrbitalHub({
               )}
               {unread > 0 && (
                 <span
-                  className="absolute -top-1.5 -right-1.5 min-w-5 h-5 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1"
-                  style={{
-                    background: "linear-gradient(135deg,#ef4444,#dc2626)",
-                    boxShadow: "0 2px 8px rgba(239,68,68,0.5)",
-                  }}
+                  className="absolute -top-1.5 -right-1.5 min-w-5 h-5 text-[10px] font-bold rounded-full flex items-center justify-center px-1"
+                  style={unreadBadgeStyle(room)}
                 >
                   {unread > 99 ? "99+" : unread}
                 </span>
@@ -816,12 +837,8 @@ export function OrbitalHub({
                           )}
                           {unread > 0 && (
                             <span
-                              className="absolute -top-1 -right-1 min-w-4 h-4 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1"
-                              style={{
-                                background:
-                                  "linear-gradient(135deg,#ef4444,#dc2626)",
-                                boxShadow: "0 2px 6px rgba(239,68,68,0.5)",
-                              }}
+                              className="absolute -top-1 -right-1 min-w-4 h-4 text-[9px] font-bold rounded-full flex items-center justify-center px-1"
+                              style={unreadBadgeStyle(room)}
                             >
                               {unread > 99 ? "99+" : unread}
                             </span>
