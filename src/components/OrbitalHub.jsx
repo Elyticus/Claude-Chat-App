@@ -119,7 +119,7 @@ export function OrbitalHub({
 
       {/* Time of day overlay */}
       {showTimeScreen && (
-        <div className="absolute inset-0 z-[170] overflow-hidden">
+        <div className="absolute inset-0 z-170 overflow-hidden">
           <TimeOfDayScreen onClose={() => setShowTimeScreen(false)} />
         </div>
       )}
@@ -188,10 +188,14 @@ export function OrbitalHub({
             aria-label="Open time of day screen"
             className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
             style={{
-              background: isDark ? "rgba(99,162,241,0.12)" : "rgba(56,132,230,0.09)",
+              background: isDark
+                ? "rgba(99,162,241,0.12)"
+                : "rgba(56,132,230,0.09)",
               border: `1px solid ${isDark ? "rgba(99,162,241,0.30)" : "rgba(56,132,230,0.24)"}`,
               color: isDark ? "#93c5fd" : "#2563eb",
-              boxShadow: isDark ? "0 0 12px rgba(99,162,241,0.18)" : "0 2px 8px rgba(56,132,230,0.10)",
+              boxShadow: isDark
+                ? "0 0 12px rgba(99,162,241,0.18)"
+                : "0 2px 8px rgba(56,132,230,0.10)",
             }}
           >
             <Clock size={16} />
@@ -404,17 +408,23 @@ export function OrbitalHub({
           ? "rgba(74,222,128,0.55)"
           : room.is_group
             ? "rgba(250,204,21,0.55)"
-            : isDark ? "rgba(99,102,241,0.22)" : "rgba(99,102,241,0.18)";
+            : isDark
+              ? "rgba(99,102,241,0.22)"
+              : "rgba(99,102,241,0.18)";
         const ringHover = isRoomChannel
           ? "rgba(74,222,128,0.9)"
           : room.is_group
             ? "rgba(250,204,21,0.9)"
-            : isDark ? "rgba(99,102,241,0.5)" : "rgba(99,102,241,0.45)";
+            : isDark
+              ? "rgba(99,102,241,0.5)"
+              : "rgba(99,102,241,0.45)";
         const glowHover = isRoomChannel
           ? "rgba(74,222,128,0.4)"
           : room.is_group
             ? "rgba(250,204,21,0.4)"
-            : isDark ? "rgba(99,102,241,0.4)" : "rgba(99,102,241,0.3)";
+            : isDark
+              ? "rgba(99,102,241,0.4)"
+              : "rgba(99,102,241,0.3)";
 
         return (
           <div
@@ -463,7 +473,8 @@ export function OrbitalHub({
                 className="absolute inset-0 rounded-full pointer-events-none transition-all duration-200"
                 style={{
                   border: `2px solid ${hoveredId === room.id ? ringHover : ringNormal}`,
-                  boxShadow: hoveredId === room.id ? `0 0 16px ${glowHover}` : "none",
+                  boxShadow:
+                    hoveredId === room.id ? `0 0 16px ${glowHover}` : "none",
                 }}
               />
               {isOnline && (
@@ -489,7 +500,10 @@ export function OrbitalHub({
             </div>
             <span
               className="mt-2 text-[11px] font-semibold max-w-19 truncate text-center leading-tight"
-              style={{ color: isDark ? "rgba(238,242,255,0.9)" : "#1e293b", opacity: pos.opacity }}
+              style={{
+                color: isDark ? "rgba(238,242,255,0.9)" : "#1e293b",
+                opacity: pos.opacity,
+              }}
             >
               {displayName}
             </span>
@@ -713,9 +727,7 @@ export function OrbitalHub({
                         <span
                           className="text-[10px] shrink-0"
                           style={{
-                            color: isDark
-                              ? "rgba(238,242,255,0.3)"
-                              : "#94a3b8",
+                            color: isDark ? "rgba(238,242,255,0.3)" : "#94a3b8",
                           }}
                         >
                           {timeStr}
@@ -758,7 +770,8 @@ export function OrbitalHub({
                       nowMs / 1000 - room.last_message_at < 86400;
                     // is_new on a channel → green; on a plain group → yellow
                     const isNewChannel = isRoomChannel && !!room.is_new;
-                    const isNewGroup = !isRoomChannel && !!room.is_group && !!room.is_new;
+                    const isNewGroup =
+                      !isRoomChannel && !!room.is_group && !!room.is_new;
 
                     return (
                       <button
@@ -871,12 +884,16 @@ export function OrbitalHub({
                           {room.role_notification ? (
                             <span
                               className="w-2 h-2 rounded-full bg-green-400"
-                              style={{ boxShadow: "0 0 6px rgba(74,222,128,0.9)" }}
+                              style={{
+                                boxShadow: "0 0 6px rgba(74,222,128,0.9)",
+                              }}
                             />
                           ) : isNewChannel ? (
                             <span
                               className="w-2 h-2 rounded-full bg-green-400"
-                              style={{ boxShadow: "0 0 6px rgba(74,222,128,0.9)" }}
+                              style={{
+                                boxShadow: "0 0 6px rgba(74,222,128,0.9)",
+                              }}
                             />
                           ) : isNewGroup ? (
                             <span className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.9)]" />
