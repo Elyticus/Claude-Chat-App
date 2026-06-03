@@ -65,8 +65,26 @@ export function OrbitalHub({
     () => rooms.some((r) => !!r.is_group && !!r.is_new && !isChannel(r)),
     [rooms],
   );
-  // Green badge: channel socket activity notifs
+  // Green badge: channel activity notifs (live socket events for this session).
   const channelNotifsCount = channelNotifs.length;
+
+  // Channels with unseen activity directed at this user. Combines persisted
+  // markers (is_new = just added, role_notification = role/privilege change),
+  // which survive a reload, with this session's live channel notifs. Drives the
+  // green activity dot on channel bubbles and the green badge on the main hub.
+  const channelActivityRoomIds = useMemo(() => {
+    const ids = new Set();
+    for (const r of rooms) {
+      if (isChannel(r) && (!!r.is_new || !!r.role_notification)) ids.add(r.id);
+    }
+    for (const n of channelNotifs) if (n.roomId) ids.add(n.roomId);
+    return ids;
+  }, [rooms, channelNotifs]);
+
+  // Show the green hub badge for live notifs, falling back to the persisted
+  // channel-activity count so the indicator survives a reload.
+  const channelBadgeCount =
+    channelNotifsCount > 0 ? channelNotifsCount : channelActivityRoomIds.size;
 
   const [rotationAngle, setRotationAngle] = useState(0);
   const [hoveredId, setHoveredId] = useState(null);
@@ -413,7 +431,7 @@ export function OrbitalHub({
           />
         )}
         {/* Channel notification — green */}
-        {channelNotifsCount > 0 && (
+        {channelBadgeCount > 0 && (
           <span
             className="absolute -bottom-1 -left-1 min-w-4 h-4 rounded-full z-20 flex items-center justify-center text-[9px] font-bold text-white px-0.5"
             style={{
@@ -421,7 +439,7 @@ export function OrbitalHub({
               boxShadow: "0 0 8px rgba(74,222,128,0.7)",
             }}
           >
-            {channelNotifsCount > 9 ? "9+" : channelNotifsCount}
+            {channelBadgeCount > 9 ? "9+" : channelBadgeCount}
           </span>
         )}
       </button>
@@ -520,6 +538,18 @@ export function OrbitalHub({
                 >
                   {unread > 99 ? "99+" : unread}
                 </span>
+              )}
+              {/* Green channel-activity dot — added to channel / role change /
+                  mute affecting this user (bottom-left, clear of the count). */}
+              {isRoomChannel && channelActivityRoomIds.has(room.id) && (
+                <span
+                  className="absolute -bottom-0.5 -left-0.5 w-3.5 h-3.5 rounded-full animate-pulse"
+                  style={{
+                    background: "linear-gradient(135deg,#22c55e,#4ade80)",
+                    border: `2px solid ${isDark ? darkBg0 : lightBg0}`,
+                    boxShadow: "0 0 8px rgba(74,222,128,0.7)",
+                  }}
+                />
               )}
             </div>
             <span

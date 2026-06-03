@@ -48,6 +48,7 @@ Authentication: token is passed in the handshake `auth` object and validated bef
 | `message:react`  | `{ messageId, emoji }`         | Toggles — same emoji clears it     |
 | `typing:start`   | `{ roomId }`                   | Broadcasts to others in room       |
 | `typing:stop`    | `{ roomId }`                   | Broadcasts to others in room       |
+| `room:read`      | `{ roomId }`                   | Persists read state (`markRoomSeen` → advances `last_read_at`); emit on open and on a message arriving in the open room |
 
 **Server → Client:**
 
@@ -58,13 +59,32 @@ Authentication: token is passed in the handshake `auth` object and validated bef
 | `message:reaction`  | `{ roomId, messageId, emoji }`              | Broadcast to all room members            |
 | `message:deleted`   | `{ roomId, messageId }`                     | Broadcast to all room members            |
 | `typing:update`     | `{ roomId, userId, username, typing }`      | Broadcast to others in room              |
-| `user:status`       | `{ userId, online }`                        | Broadcast on connect/disconnect          |
+| `user:status`       | `{ userId, online }`                        | **Global** broadcast on first connect / last disconnect; plus a per-user snapshot to each newly connected socket |
 
 ## Presence / Online Status
 
 - `online` Map in `server/index.js` tracks `userId → Set<socketId>` (handles multiple tabs).
-- On `connection`: user joins all their rooms, `user:status { online: true }` broadcast.
-- On `disconnect`: if no remaining sockets, `user:status { online: false }` broadcast.
+- On `connection`: user joins all their rooms; the new socket is sent the
+  **current online snapshot** (one `user:status` per already-online user); then
+  `user:status { online: true }` is broadcast to **all** clients — but only on
+  the user's **first** socket.
+- On `disconnect`: if no remaining sockets, `user:status { online: false }` is
+  broadcast to **all** clients.
+- **Do NOT scope presence to room-mates.** Online status is globally visible via
+  `GET /api/users`, and contacts are often roomless — room-scoping (or a
+  connection-time `roomKeys` closure) leaves their dots frozen. See the
+  "Notification & Presence System" section in the root `CLAUDE.md`.
+
+## Unread Counts
+
+- `room_members.last_read_at` (epoch, defaults to `NOW()`) is the read marker.
+  `getUserRooms` returns a per-room `unread_count` = non-system messages from
+  other users with `created_at > COALESCE(last_read_at, joined_at)`.
+- `markRoomSeen` advances `last_read_at` (also clears `is_new` /
+  `role_notification`). It is called from the `room:read` socket event and from
+  `GET /api/rooms/:id/messages`.
+- Unread counts are **durable** (survive reload/app-close) — the client must
+  rebuild its badges from `unread_count`, never keep them only in memory.
 
 ## Backend Pitfalls
 

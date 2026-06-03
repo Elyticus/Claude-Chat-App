@@ -516,11 +516,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                 }
               : prev,
           );
-          addChannelNotifRef.current(
-            `${kickedUsername} was removed from #${channelName} by ${kickedBy}`,
-            "kick",
-            roomId,
-          );
+          // No activity badge for the actor / remaining members — only the
+          // kicked user (handled in the branch above) gets the notification.
         }
       },
     );
@@ -599,7 +596,11 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
     s.on(
       "channel:member_joined",
-      ({ roomId, username, channelName, addedBy }) => {
+      ({ roomId, username, addedBy }) => {
+        // In-chat system message is part of channel history (everyone sees it).
+        // The green "channel activity" notification is NOT raised here — it must
+        // reach only the user who was added, who receives it via `channel:added`.
+        // The actor and existing members should not get an activity badge.
         setMessages((prev) => ({
           ...prev,
           [roomId]: [
@@ -614,15 +615,12 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             },
           ],
         }));
-        const name = channelName ? `#${channelName}` : "the channel";
-        const msg = addedBy
-          ? `${username} was added to ${name} by ${addedBy}`
-          : `${username} joined ${name}`;
-        addChannelNotifRef.current(msg, "join", roomId);
       },
     );
 
-    s.on("channel:member_left", ({ roomId, userId, username, channelName, systemMessage }) => {
+    s.on("channel:member_left", ({ roomId, systemMessage, username }) => {
+      // A member leaving is channel history (system message), not a targeted
+      // activity notification — nobody gets an activity badge for it.
       const msgEntry = systemMessage ?? {
         id: `sys_${Date.now()}`,
         text: `${username} left the channel`,
@@ -633,10 +631,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         ...prev,
         [roomId]: [...(prev[roomId] || []), msgEntry],
       }));
-      if (userId !== currentUser.id) {
-        const msg = `${username} left #${channelName}`;
-        addChannelNotifRef.current(msg, "leave", roomId);
-      }
     });
 
     s.on(
@@ -661,19 +655,10 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         );
         const isUnmute = !mutedUntil;
         const name = channelName ? `#${channelName}` : "the channel";
-        let msg;
-        if (userId === currentUser.id) {
-          msg = isUnmute
-            ? `You were unmuted in ${name}`
-            : `You were muted in ${name} by ${mutedBy}`;
-        } else {
-          msg = isUnmute
-            ? `${targetUsername} was unmuted in ${name}`
-            : `${targetUsername} was muted in ${name} by ${mutedBy}`;
-        }
+        const isMe = userId === currentUser.id;
         const sysText = isUnmute
-          ? `${userId === currentUser.id ? "You were" : `${targetUsername} was`} unmuted`
-          : `${userId === currentUser.id ? "You were" : `${targetUsername} was`} muted by ${mutedBy}`;
+          ? `${isMe ? "You were" : `${targetUsername} was`} unmuted`
+          : `${isMe ? "You were" : `${targetUsername} was`} muted by ${mutedBy}`;
         setMessages((prev) => ({
           ...prev,
           [roomId]: [
@@ -686,7 +671,14 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             },
           ],
         }));
-        addChannelNotifRef.current(msg, isUnmute ? "unmute" : "mute", roomId);
+        // Activity badge only for the affected member, never the moderator or
+        // other members.
+        if (isMe) {
+          const msg = isUnmute
+            ? `You were unmuted in ${name}`
+            : `You were muted in ${name} by ${mutedBy}`;
+          addChannelNotifRef.current(msg, isUnmute ? "unmute" : "mute", roomId);
+        }
       },
     );
 

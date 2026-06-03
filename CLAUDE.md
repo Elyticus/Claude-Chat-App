@@ -49,6 +49,67 @@ A fully functional real-time chat application. Users register/login with JWT aut
 See `server/CLAUDE.md` for backend details (DB schema, REST API, Socket.io events).
 See `src/CLAUDE.md` for frontend details (UI architecture, pitfalls).
 
+## Notification & Presence System
+
+This area has been a repeated source of bugs. Follow these rules — they encode
+fixes already made; reintroducing the old patterns will rebreak the app.
+
+### Presence (online status)
+
+- **Broadcast presence to ALL connected clients, not room-scoped.** Online
+  status is already globally visible (`GET /api/users` returns every user's
+  `online` flag), and two people are contacts *before* they share a room, so a
+  room-scoped `user:status` leaves their dots frozen. On connect, also send the
+  new socket the current online snapshot so its dots are right immediately
+  (don't depend on REST timing). Announce `online` only on a user's first
+  socket; `offline` only when their last socket disconnects.
+- **Never derive presence recipients from a list captured at connection time.**
+  A `roomKeys` closure goes stale the moment the user joins a new room.
+
+### Unread counts MUST be server-authoritative
+
+- Unread counts **cannot live only in React state** — closing the app wipes
+  them. The server owns read state: `room_members.last_read_at` +
+  a per-room `unread_count` in `getUserRooms` (non-system messages from other
+  users after `last_read_at`). The client **initializes/rebuilds unread badges
+  from `unread_count`** on every load.
+- Mark a room read by emitting `room:read` (→ `markRoomSeen`) on **open**
+  (`selectRoom`) and when a message lands in the **already-open** room. Don't
+  rely solely on the messages GET — it only fires on first open per session.
+
+### Mobile resilience (notifications "not appearing")
+
+- **`reconnectionAttempts: Infinity`.** Mobile browsers suspend sockets when
+  backgrounded/locked; a capped count leaves the socket permanently dead (no
+  live events) until a full reload.
+- **Re-sync on return to foreground.** A `visibilitychange`/`focus` effect must
+  reconnect the socket if dropped and re-pull rooms/unread/presence. Also
+  re-sync on the socket manager's `reconnect` event. This recovers anything
+  missed while suspended.
+
+### Notification color system
+
+- **DM = red, group = yellow, channel = green** for the unread-count badge on
+  each spinning bubble and chat-list row (see `unreadBadgeStyle` in
+  `OrbitalHub.jsx`).
+- **Main orbital hub icon** shows a single **combined red total** of all unread
+  messages, plus separate indicators that are kept distinct: red contact
+  requests, yellow "added to a group", green channel activity.
+- **Channel bubbles** also show a small **green activity dot** when the channel
+  has unseen activity for this user (persisted `is_new` / `role_notification`
+  or a live channel notif).
+
+### Channel-activity notifications target the AFFECTED user only
+
+- The green "Channel Activity" notification (`addChannelNotif`) must fire **only
+  for the user who is added / kicked / muted / role-changed — never the actor
+  who performed the action, and never uninvolved members.** Pattern: gate every
+  `addChannelNotif` on `userId === currentUser.id` (the target), and let the
+  added user be notified via the user-scoped `channel:added` event rather than
+  the room-wide `channel:member_joined` broadcast. In-chat system messages
+  ("X joined/left the channel") are channel history and DO still render for
+  everyone — that is separate from the activity badge.
+
 ## Tech Stack
 
 | Layer     | Technology                                           |
