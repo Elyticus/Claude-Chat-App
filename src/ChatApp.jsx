@@ -656,9 +656,12 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         const isUnmute = !mutedUntil;
         const name = channelName ? `#${channelName}` : "the channel";
         const isMe = userId === currentUser.id;
+        const mutedUntilStr = mutedUntil
+          ? new Date(mutedUntil * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          : null;
         const sysText = isUnmute
           ? `${isMe ? "You were" : `${targetUsername} was`} unmuted`
-          : `${isMe ? "You were" : `${targetUsername} was`} muted by ${mutedBy}`;
+          : `${isMe ? "You were" : `${targetUsername} was`} muted by ${mutedBy} until ${mutedUntilStr}`;
         setMessages((prev) => ({
           ...prev,
           [roomId]: [
@@ -676,7 +679,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         if (isMe) {
           const msg = isUnmute
             ? `You were unmuted in ${name}`
-            : `You were muted in ${name} by ${mutedBy}`;
+            : `You were muted in ${name} by ${mutedBy} until ${mutedUntilStr}`;
           addChannelNotifRef.current(msg, isUnmute ? "unmute" : "mute", roomId);
         }
       },
