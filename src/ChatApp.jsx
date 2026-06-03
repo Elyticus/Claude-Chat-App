@@ -449,6 +449,11 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             body: `${data.addedBy} added you to this group`,
           });
         }
+        addChannelNotifRef.current(
+          `${data.addedBy} added you to "${data.groupName}"`,
+          "added",
+          data.roomId,
+        );
       }
     });
 
@@ -561,13 +566,15 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                 }
               : prev,
           );
-          // Notify all remaining members
-          const name = channelName ? `#${channelName}` : "the channel";
-          addChannelNotifRef.current(
-            `${kickedUsername} was removed from ${name}`,
-            "kick",
-            roomId,
-          );
+          // Notify remaining members — not the actor who performed the kick
+          if (kickedBy !== currentUser.username) {
+            const name = channelName ? `#${channelName}` : "the channel";
+            addChannelNotifRef.current(
+              `${kickedUsername} was removed from ${name}`,
+              "kick",
+              roomId,
+            );
+          }
         }
       },
     );
@@ -605,8 +612,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
         const isMe = userId === currentUser.id;
 
-        // Neutral notification for all uninvolved members
-        if (!isMe && systemMsg) {
+        // Neutral notification for uninvolved members — not the actor who made the change
+        if (!isMe && systemMsg && changedBy !== currentUser.username) {
           addChannelNotifRef.current(systemMsg.text, "role", roomId);
         }
 
@@ -672,8 +679,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           ...prev,
           [roomId]: [...(prev[roomId] || []), msg],
         }));
-        // Notify all existing members — the newly added user gets `channel:added` instead
-        if (userId !== currentUser.id) {
+        // Notify existing members — skip the actor and the newly added user
+        if (userId !== currentUser.id && addedBy !== currentUser.username) {
           const name = channelName ? `#${channelName}` : "the channel";
           addChannelNotifRef.current(
             `${username} was added to ${name}`,
@@ -738,17 +745,19 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           [roomId]: [...(prev[roomId] || []), msg],
         }));
 
-        // Notification for ALL channel members — personalized for the affected user
-        const notifText = isMe
-          ? isUnmute
-            ? `You were unmuted in ${name}`
-            : `You were muted in ${name} by ${mutedBy}`
-          : msg.text;
-        addChannelNotifRef.current(
-          notifText,
-          isUnmute ? "unmute" : "mute",
-          roomId,
-        );
+        // Notify the muted user (personalized) and uninvolved members — not the actor
+        if (isMe || mutedBy !== currentUser.username) {
+          const notifText = isMe
+            ? isUnmute
+              ? `You were unmuted in ${name}`
+              : `You were muted in ${name} by ${mutedBy}`
+            : msg.text;
+          addChannelNotifRef.current(
+            notifText,
+            isUnmute ? "unmute" : "mute",
+            roomId,
+          );
+        }
       },
     );
 
