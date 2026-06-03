@@ -979,6 +979,14 @@ io.on("connection", async (socket) => {
     });
   });
 
+  // Persist that this user has read a room (advances last_read_at), so unread
+  // counts survive a reload / app close and reconcile across devices.
+  socket.on("room:read", async ({ roomId }) => {
+    if (!roomId) return;
+    if (!(await queries.isMember.get(roomId, userId))) return;
+    await queries.markRoomSeen.run(roomId, userId);
+  });
+
   socket.on("typing:start", async ({ roomId }) => {
     if (!(await queries.isMember.get(roomId, userId))) return;
     socket.to(`room:${roomId}`).emit("typing:update", { roomId, userId, username, typing: true });

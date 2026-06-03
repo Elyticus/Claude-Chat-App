@@ -13,8 +13,12 @@ export function connectSocket(token) {
     auth: { token },
     autoConnect: true,
     reconnection: true,
-    reconnectionAttempts: 5,
+    // Never give up reconnecting — mobile browsers suspend sockets when the app
+    // is backgrounded/locked, and a capped attempt count would leave the socket
+    // permanently dead (no live messages) until a full page reload.
+    reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
   });
 
   return socket;
