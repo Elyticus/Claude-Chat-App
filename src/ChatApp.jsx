@@ -152,6 +152,46 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     activeRoomIdRef.current = activeRoomId;
   }, [activeRoomId]);
 
+  // Fetch rooms and rebuild unread counts from the server's per-room
+  // `unread_count` (the room currently open is treated as read). This is the
+  // source of truth that makes unread badges survive a reload / app close and
+  // lets us recover anything missed while the socket was suspended in the
+  // background. Returns the loaded rooms for callers that need them.
+  const syncRooms = useCallback(() => {
+    return api
+      .getRooms()
+      .then((loadedRooms) => {
+        setRooms(loadedRooms);
+        setUnreadCounts(() => {
+          const next = {};
+          for (const r of loadedRooms) {
+            if (r.id === activeRoomIdRef.current) continue;
+            if (r.unread_count > 0) next[r.id] = r.unread_count;
+          }
+          return next;
+        });
+        return loadedRooms;
+      })
+      .catch((err) => {
+        console.error(err);
+        return null;
+      });
+  }, []);
+
+  const syncPresence = useCallback(() => {
+    return api
+      .getUsers()
+      .then((users) => {
+        setAllUsers(users);
+        setOnlineIds(new Set(users.filter((u) => u.online).map((u) => u.id)));
+        return users;
+      })
+      .catch((err) => {
+        console.error(err);
+        return null;
+      });
+  }, []);
+
   useEffect(() => {
     function urlBase64ToUint8Array(base64String) {
       const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -298,6 +338,10 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             };
           }
         }
+      } else {
+        // Message landed in the room you're already viewing — keep the server's
+        // read marker current so it doesn't resurface as unread after a reload.
+        s.emit("room:read", { roomId });
       }
     });
 
@@ -688,7 +732,17 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       }
     });
 
+    // After the socket reconnects (e.g. the app was backgrounded/locked on
+    // mobile and the connection was suspended), pull fresh rooms/unread and
+    // presence so anything missed while disconnected shows up right away.
+    const onReconnect = () => {
+      syncRooms();
+      syncPresence();
+    };
+    s.io.on("reconnect", onReconnect);
+
     return () => {
+      s.io.off("reconnect", onReconnect);
       s.off("message:new");
       s.off("message:ack");
       s.off("message:reaction");
@@ -713,29 +767,41 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       s.off("channel:added");
       disconnectSocket();
     };
-  }, [token, currentUser.id, currentUser.username, playPing]);
+  }, [token, currentUser.id, currentUser.username, playPing, syncRooms, syncPresence]);
 
   // ── Load rooms + users ────────────────────────────────────────────────────────
   useEffect(() => {
-    api
-      .getRooms()
-      .then((loadedRooms) => {
-        setRooms(loadedRooms);
-        const savedId = Number(localStorage.getItem("linkloop_active_room"));
-        if (savedId && loadedRooms.some((r) => r.id === savedId)) {
-          setActiveRoomId(savedId);
-          setDisplayRoomId(savedId);
-        }
-      })
-      .catch(console.error);
-    api
-      .getUsers()
-      .then((users) => {
-        setAllUsers(users);
-        setOnlineIds(new Set(users.filter((u) => u.online).map((u) => u.id)));
-      })
-      .catch(console.error);
-  }, []);
+    syncRooms().then((loadedRooms) => {
+      if (!loadedRooms) return;
+      const savedId = Number(localStorage.getItem("linkloop_active_room"));
+      if (savedId && loadedRooms.some((r) => r.id === savedId)) {
+        setActiveRoomId(savedId);
+        setDisplayRoomId(savedId);
+        setUnreadCounts((prev) => ({ ...prev, [savedId]: 0 }));
+      }
+    });
+    syncPresence();
+  }, [syncRooms, syncPresence]);
+
+  // ── Re-sync when the app returns to the foreground ────────────────────────────
+  // Mobile browsers suspend the socket when the app is backgrounded or the
+  // screen locks, so messages can arrive while we're not listening. On return,
+  // reconnect the socket and pull fresh rooms/unread counts from the server.
+  useEffect(() => {
+    function handleForeground() {
+      if (document.visibilityState !== "visible") return;
+      const s = socketRef.current;
+      if (s && !s.connected) s.connect();
+      syncRooms();
+      syncPresence();
+    }
+    document.addEventListener("visibilitychange", handleForeground);
+    window.addEventListener("focus", handleForeground);
+    return () => {
+      document.removeEventListener("visibilitychange", handleForeground);
+      window.removeEventListener("focus", handleForeground);
+    };
+  }, [syncRooms, syncPresence]);
 
   // ── Load messages on room change ──────────────────────────────────────────────
   useEffect(() => {
@@ -1178,6 +1244,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     setDisplayRoomId(roomId);
     setActiveRoomId(roomId);
     setUnreadCounts((prev) => ({ ...prev, [roomId]: 0 }));
+    // Persist the read state server-side so the count stays cleared after a
+    // reload, even if this room's messages were already loaded this session.
+    socketRef.current?.emit("room:read", { roomId });
     setRooms((prev) =>
       prev.map((r) =>
         r.id === roomId ? { ...r, is_new: 0, role_notification: null } : r,

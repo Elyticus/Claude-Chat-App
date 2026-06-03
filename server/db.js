@@ -55,6 +55,10 @@ export async function initDb() {
     ALTER TABLE room_members ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'member';
     ALTER TABLE room_members ADD COLUMN IF NOT EXISTS muted_until BIGINT;
     ALTER TABLE room_members ADD COLUMN IF NOT EXISTS role_notification TEXT;
+    -- Default NOW() so the column backfills existing memberships to a clean
+    -- slate (no flood of historical "unread") and new memberships floor unread
+    -- at join time.
+    ALTER TABLE room_members ADD COLUMN IF NOT EXISTS last_read_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT;
     CREATE TABLE IF NOT EXISTS messages (
       id         SERIAL PRIMARY KEY,
       room_id    INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
@@ -197,7 +201,13 @@ export const queries = {
       q(`SELECT r.id, r.name, r.is_group, r.type, r.slug, r.description,
                 rm.is_new, rm.added_by, rm.role, rm.role_notification,
                 m.text AS last_message, m.created_at AS last_message_at,
-                mu.id AS other_user_id, mu.username AS other_username
+                mu.id AS other_user_id, mu.username AS other_username,
+                (SELECT COUNT(*) FROM messages um
+                  WHERE um.room_id = r.id
+                    AND um.user_id != $1
+                    AND um.is_system = 0
+                    AND um.created_at > COALESCE(rm.last_read_at, rm.joined_at, 0)
+                )::INT AS unread_count
          FROM rooms r
          JOIN room_members rm ON rm.room_id = r.id AND rm.user_id = $1
          LEFT JOIN messages m ON m.id = (
@@ -250,7 +260,7 @@ export const queries = {
   getUserRoomIds: { all: (userId)         => q("SELECT room_id FROM room_members WHERE user_id = $1", [userId]).then(r => r.rows) },
   setRoomNew:          { run: (roomId, userId, addedBy) => q("UPDATE room_members SET is_new = 1, added_by = $3 WHERE room_id = $1 AND user_id = $2", [roomId, userId, addedBy]) },
   setRoleNotification: { run: (roomId, userId, text)    => q("UPDATE room_members SET role_notification = $3 WHERE room_id = $1 AND user_id = $2", [roomId, userId, text]) },
-  markRoomSeen:        { run: (roomId, userId)          => q("UPDATE room_members SET is_new = 0, role_notification = NULL WHERE room_id = $1 AND user_id = $2", [roomId, userId]) },
+  markRoomSeen:        { run: (roomId, userId)          => q("UPDATE room_members SET is_new = 0, role_notification = NULL, last_read_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE room_id = $1 AND user_id = $2", [roomId, userId]) },
 
   getRoomMembers: {
     all: (roomId) =>
