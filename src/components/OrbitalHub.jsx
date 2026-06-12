@@ -81,10 +81,11 @@ export function OrbitalHub({
     return ids;
   }, [rooms, channelNotifs]);
 
-  // Show the green hub badge for live notifs, falling back to the persisted
-  // channel-activity count so the indicator survives a reload.
-  const channelBadgeCount =
-    channelNotifsCount > 0 ? channelNotifsCount : channelActivityRoomIds.size;
+  // Show the green hub dot for live notifs, falling back to the persisted
+  // channel-activity markers so the indicator survives a reload. Plain dot,
+  // no count — only the red unread badge shows numbers.
+  const hasChannelActivity =
+    channelNotifsCount > 0 || channelActivityRoomIds.size > 0;
 
   const [rotationAngle, setRotationAngle] = useState(0);
   const [hoveredId, setHoveredId] = useState(null);
@@ -434,17 +435,15 @@ export function OrbitalHub({
             }}
           />
         )}
-        {/* Channel notification — green */}
-        {channelBadgeCount > 0 && (
+        {/* Channel notification — green dot (no count) */}
+        {hasChannelActivity && (
           <span
-            className="absolute -bottom-1 -left-1 min-w-4 h-4 rounded-full z-20 flex items-center justify-center text-[9px] font-bold text-white px-0.5"
+            className="absolute -bottom-1 -left-1 w-4 h-4 rounded-full z-20 animate-pulse"
             style={{
               background: "linear-gradient(135deg,#22c55e,#4ade80)",
               boxShadow: "0 0 8px rgba(74,222,128,0.7)",
             }}
-          >
-            {channelBadgeCount > 9 ? "9+" : channelBadgeCount}
-          </span>
+          />
         )}
       </button>
 

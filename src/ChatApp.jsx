@@ -97,6 +97,25 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     });
   }
 
+  // Drop every notification and unread badge tied to a room. Called when the
+  // room goes away (deleted, or this user was kicked) so stale notifications
+  // don't point at a chat that no longer exists, and when a room is opened
+  // (its activity has been seen).
+  function clearRoomNotifs(roomId) {
+    setUnreadCounts((prev) => {
+      if (!(roomId in prev)) return prev;
+      const next = { ...prev };
+      delete next[roomId];
+      return next;
+    });
+    setChannelNotifs((prev) => {
+      const next = prev.filter((n) => n.roomId !== roomId);
+      if (next.length === prev.length) return prev;
+      localStorage.setItem("linkloop_channel_notifs", JSON.stringify(next));
+      return next;
+    });
+  }
+
   function toggleTheme() {
     setIsDark((prev) => {
       const next = !prev;
@@ -117,8 +136,10 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const longPressTimerRef = useRef(null);
   const audioCtxRef = useRef(null);
   const addChannelNotifRef = useRef(addChannelNotif);
+  const clearRoomNotifsRef = useRef(clearRoomNotifs);
   useEffect(() => {
     addChannelNotifRef.current = addChannelNotif;
+    clearRoomNotifsRef.current = clearRoomNotifs;
   });
 
   const selectRoomRef = useRef(null);
@@ -182,6 +203,17 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             if (r.id === activeRoomIdRef.current) continue;
             if (r.unread_count > 0) next[r.id] = r.unread_count;
           }
+          return next;
+        });
+        // Prune persisted notifications whose room no longer exists — covers
+        // rooms deleted while this user was offline (no room:deleted event).
+        const roomIds = new Set(loadedRooms.map((r) => r.id));
+        setChannelNotifs((prev) => {
+          const next = prev.filter(
+            (n) => n.roomId == null || roomIds.has(n.roomId),
+          );
+          if (next.length === prev.length) return prev;
+          localStorage.setItem("linkloop_channel_notifs", JSON.stringify(next));
           return next;
         });
         return loadedRooms;
@@ -462,6 +494,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     s.on("room:deleted", ({ roomId }) => {
       loadedRoomsRef.current.delete(roomId);
       setRooms((prev) => prev.filter((r) => r.id !== roomId));
+      clearRoomNotifsRef.current(roomId);
       if (activeRoomIdRef.current === roomId) {
         setActiveRoomId(null);
         setTimeout(() => setDisplayRoomId(null), 200);
@@ -533,14 +566,18 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         if (kickedUserId === currentUser.id) {
           loadedRoomsRef.current.delete(roomId);
           setRooms((prev) => prev.filter((r) => r.id !== roomId));
+          clearRoomNotifsRef.current(roomId);
           if (activeRoomIdRef.current === roomId) {
             setActiveRoomId(null);
             setTimeout(() => setDisplayRoomId(null), 200);
           }
+          // roomId null: the room is gone for this user, so the notif must not
+          // be tied to it — room-scoped notifs are pruned when the room
+          // disappears, and this one should persist until dismissed.
           addChannelNotifRef.current(
             `You were removed from #${channelName} by ${kickedBy}`,
             "kick",
-            roomId,
+            null,
           );
         } else {
           const msg = systemMsg ?? {
@@ -1098,6 +1135,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       onConfirm: async () => {
         closeRoom();
         setRooms((prev) => prev.filter((r) => r.id !== roomId));
+        clearRoomNotifs(roomId);
         try {
           await api.deleteRoom(roomId);
         } catch (err) {
@@ -1342,7 +1380,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     clearTimeout(closeTimerRef.current);
     setDisplayRoomId(roomId);
     setActiveRoomId(roomId);
-    setUnreadCounts((prev) => ({ ...prev, [roomId]: 0 }));
+    clearRoomNotifs(roomId);
     // Persist the read state server-side so the count stays cleared after a
     // reload, even if this room's messages were already loaded this session.
     socketRef.current?.emit("room:read", { roomId });
@@ -1351,7 +1389,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         r.id === roomId ? { ...r, is_new: 0, role_notification: null } : r,
       ),
     );
-    setChannelNotifs((prev) => prev.filter((n) => n.roomId !== roomId));
     setShowMsgSearch(false);
     setMsgSearch("");
     stopTyping();

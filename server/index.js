@@ -320,6 +320,12 @@ app.get("/api/users", requireAuth, async (req, res) => {
   res.json(rows.map((u) => ({ ...u, online: isOnline(u.id) })));
 });
 
+app.get("/api/users/:id", requireAuth, async (req, res) => {
+  const user = await queries.getUserById.get(Number(req.params.id));
+  if (!user) return res.status(404).json({ error: "User not found" });
+  res.json({ ...user, online: isOnline(user.id) });
+});
+
 app.post("/api/users/me/avatar", requireAuth, async (req, res) => {
   const { avatar } = req.body ?? {};
   if (!avatar || !/^data:image\/(jpeg|png|webp|gif);base64,/.test(avatar)) {
