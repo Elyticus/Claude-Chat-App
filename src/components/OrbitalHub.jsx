@@ -53,6 +53,7 @@ export function OrbitalHub({
   isDark,
   theme,
   onToggleTheme,
+  onToggleSpecial,
   pendingCount,
   pendingUsers,
   onAcceptContact,
@@ -223,49 +224,51 @@ export function OrbitalHub({
             </span>
           </button>
           <button
-            onClick={onToggleTheme}
-            title={
-              isSpecial
-                ? "Dark mode"
-                : isDark
-                  ? "Light mode"
-                  : "Special mode"
-            }
+            onClick={onToggleSpecial}
+            title={isSpecial ? "Exit special mode" : "Special mode"}
             aria-label={
-              isSpecial
-                ? "Switch to dark mode"
-                : isDark
-                  ? "Switch to light mode"
-                  : "Switch to special mode"
+              isSpecial ? "Exit special mode" : "Switch to special mode"
             }
             className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
             style={
               isSpecial
                 ? {
-                    background: "rgba(45,212,191,0.14)",
-                    border: "1px solid rgba(45,212,191,0.35)",
+                    background: "rgba(45,212,191,0.18)",
+                    border: "1px solid rgba(45,212,191,0.45)",
                     color: "#5eead4",
-                    boxShadow: "0 0 12px rgba(45,212,191,0.22)",
+                    boxShadow: "0 0 14px rgba(45,212,191,0.3)",
                   }
                 : {
                     background: isDark
-                      ? "rgba(129,140,248,0.14)"
-                      : "rgba(99,102,241,0.10)",
-                    border: `1px solid ${isDark ? "rgba(129,140,248,0.35)" : "rgba(99,102,241,0.28)"}`,
-                    color: isDark ? "#a5b4fc" : "#4f46e5",
+                      ? "rgba(45,212,191,0.10)"
+                      : "rgba(13,148,136,0.08)",
+                    border: `1px solid ${isDark ? "rgba(45,212,191,0.28)" : "rgba(13,148,136,0.22)"}`,
+                    color: isDark ? "#2dd4bf" : "#0d9488",
                     boxShadow: isDark
-                      ? "0 0 12px rgba(129,140,248,0.2)"
-                      : "0 2px 8px rgba(99,102,241,0.12)",
+                      ? "0 0 10px rgba(45,212,191,0.12)"
+                      : "0 2px 8px rgba(13,148,136,0.10)",
                   }
             }
           >
-            {isSpecial ? (
-              <Moon size={16} />
-            ) : isDark ? (
-              <Sun size={16} />
-            ) : (
-              <Sparkles size={16} />
-            )}
+            <Sparkles size={16} />
+          </button>
+          <button
+            onClick={onToggleTheme}
+            title={isDark ? "Light mode" : "Dark mode"}
+            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+            style={{
+              background: isDark
+                ? "rgba(129,140,248,0.14)"
+                : "rgba(99,102,241,0.10)",
+              border: `1px solid ${isDark ? "rgba(129,140,248,0.35)" : "rgba(99,102,241,0.28)"}`,
+              color: isDark ? "#a5b4fc" : "#4f46e5",
+              boxShadow: isDark
+                ? "0 0 12px rgba(129,140,248,0.2)"
+                : "0 2px 8px rgba(99,102,241,0.12)",
+            }}
+          >
+            {isDark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
           <button
             onClick={onRequestLogout}
@@ -516,9 +519,10 @@ export function OrbitalHub({
             <div
               className={`relative w-12 h-12 transition-transform duration-200 ${hoveredId === room.id ? "scale-110" : ""}`}
             >
-              {/* Avatar fill — fades with orbit depth */}
+              {/* Bubble fill — per-user gradient only, no initials; the name
+                  shows in the hover label. Fades with orbit depth. */}
               <div
-                className="w-full h-full rounded-full flex items-center justify-center text-white text-sm font-semibold"
+                className="w-full h-full rounded-full"
                 style={{
                   background: userBg(avatarId),
                   opacity: pos.opacity,
@@ -526,9 +530,7 @@ export function OrbitalHub({
                     ? "0 4px 16px rgba(0,0,0,0.5)"
                     : "0 4px 16px rgba(0,0,0,0.08)",
                 }}
-              >
-                {initials(displayName)}
-              </div>
+              />
               {/* Ring — rendered after fill so it sits on top; always full opacity */}
               <div
                 className="absolute inset-0 rounded-full pointer-events-none transition-all duration-200"

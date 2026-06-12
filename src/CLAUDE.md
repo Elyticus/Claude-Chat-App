@@ -74,8 +74,9 @@ Message deletion is also optimistic: message removed from state immediately, the
 ### Styling / Config
 
 - **Theme system — three modes**, stored in localStorage `linkloop_theme`:
-  `"dark"`, `"light"`, `"special"`. The hub theme button cycles dark → light →
-  special (icon shows the NEXT mode). `special` is the aurora mode: it
+  `"dark"`, `"light"`, `"special"`. Two hub buttons: a Sun/Moon light↔dark
+  toggle, and a separate Sparkles button that toggles special mode on/off
+  (exiting returns to the previous mode). `special` is the aurora mode: it
   **inherits the dark UI palette** (`isDark = theme !== "light"`) so all
   `isDark` styling keeps working, but swaps backgrounds for `specialBg0/1`
   (teal-black, see `constants.js`) and renders `AuroraField` instead of

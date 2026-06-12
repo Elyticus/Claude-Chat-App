@@ -132,15 +132,21 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     });
   }
 
-  // Cycle dark → light → special → dark (button icon in OrbitalHub shows the
-  // NEXT mode in this order).
+  // Light/dark toggle. From special mode (isDark, shows Sun) it lands on light.
   function toggleTheme() {
-    setTheme((prev) => {
-      const next =
-        prev === "dark" ? "light" : prev === "light" ? "special" : "dark";
-      localStorage.setItem("linkloop_theme", next);
-      return next;
-    });
+    const next = theme === "light" ? "dark" : "light";
+    localStorage.setItem("linkloop_theme", next);
+    setTheme(next);
+  }
+
+  // Special (aurora) mode has its own button; toggling it off returns to the
+  // mode the user was in before entering.
+  const prevThemeRef = useRef("dark");
+  function toggleSpecial() {
+    const next = theme === "special" ? prevThemeRef.current : "special";
+    if (theme !== "special") prevThemeRef.current = theme;
+    localStorage.setItem("linkloop_theme", next);
+    setTheme(next);
   }
 
   const socketRef = useRef(null);
@@ -1619,6 +1625,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         isDark={isDark}
         theme={theme}
         onToggleTheme={toggleTheme}
+        onToggleSpecial={toggleSpecial}
         pendingCount={pendingRequestCount}
         pendingUsers={pendingUsers}
         onAcceptContact={handleAcceptContact}
