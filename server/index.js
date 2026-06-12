@@ -8,7 +8,7 @@ import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import webpush from "web-push";
 import "dotenv/config";
-import { randomInt } from "crypto";
+import { randomInt, timingSafeEqual } from "crypto";
 
 import { queries, initDb } from "./db.js";
 import { generateToken, verifyToken } from "./auth.js";
@@ -134,6 +134,15 @@ function generateCode() {
   return randomInt(10_000_000, 100_000_000).toString();
 }
 
+// Constant-time comparison for verification / reset codes.
+function codesMatch(expected, given) {
+  const a = Buffer.from(String(expected));
+  const b = Buffer.from(String(given));
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 // Persists a system message and returns a broadcast-ready object with the real DB id.
 async function saveSystemMsg(roomId, actorId, text) {
   const { lastInsertRowid: id } = await queries.insertMessage.run(roomId, actorId, text, true);
@@ -144,6 +153,7 @@ const io = new Server(httpServer, {
   cors: { origin: CLIENT_ORIGIN, credentials: true },
 });
 
+app.disable("x-powered-by");
 app.use(morgan("dev"));
 app.use(cors({ origin: CLIENT_ORIGIN, credentials: true }));
 app.use(express.json({ limit: "512kb" }));
@@ -209,8 +219,23 @@ app.post("/api/auth/register", registerLimiter, async (req, res) => {
   if (!username?.trim() || !email?.trim() || !password) {
     return res.status(400).json({ error: "username, email, and password are required" });
   }
+  const cleanName = username.trim();
+  if (cleanName.length < 3 || cleanName.length > 32) {
+    return res.status(400).json({ error: "Username must be 3–32 characters" });
+  }
+  // Control characters break the UI and the emails the name is embedded in.
+  // eslint-disable-next-line no-control-regex
+  if (/[\x00-\x1f\x7f<>]/.test(cleanName)) {
+    return res.status(400).json({ error: "Username contains invalid characters" });
+  }
+  if (!EMAIL_RE.test(email.trim()) || email.trim().length > 254) {
+    return res.status(400).json({ error: "Invalid email address" });
+  }
   if (password.length < 8 || !/\d/.test(password)) {
     return res.status(400).json({ error: "Password must be at least 8 characters and contain at least one number" });
+  }
+  if (password.length > 128) {
+    return res.status(400).json({ error: "Password is too long (max 128 characters)" });
   }
 
   const taken = (await queries.getUserByEmail.get(email)) || (await queries.getUserByUsername.get(username));
@@ -235,7 +260,7 @@ app.post("/api/auth/verify", authLimiter, async (req, res) => {
     await queries.deletePending.run(email);
     return res.status(400).json({ error: "Code expired — please register again" });
   }
-  if (pending.code !== code) return res.status(400).json({ error: "Invalid verification code" });
+  if (!codesMatch(pending.code, code)) return res.status(400).json({ error: "Invalid verification code" });
 
   const { lastInsertRowid: id } = await queries.createUser.run(pending.username, pending.email, pending.password_hash);
   await queries.deletePending.run(email);
@@ -282,6 +307,9 @@ app.post("/api/auth/reset-password", authLimiter, async (req, res) => {
   if (password.length < 8 || !/\d/.test(password)) {
     return res.status(400).json({ error: "Password must be at least 8 characters and contain at least one number" });
   }
+  if (password.length > 128) {
+    return res.status(400).json({ error: "Password is too long (max 128 characters)" });
+  }
 
   const token = await queries.getResetToken.get(email);
   if (!token) return res.status(400).json({ error: "No reset request found for this email" });
@@ -289,7 +317,7 @@ app.post("/api/auth/reset-password", authLimiter, async (req, res) => {
     await queries.deleteResetToken.run(email);
     return res.status(400).json({ error: "Code expired — please request a new one" });
   }
-  if (token.code !== code) return res.status(400).json({ error: "Invalid reset code" });
+  if (!codesMatch(token.code, code)) return res.status(400).json({ error: "Invalid reset code" });
 
   const hash = await bcrypt.hash(password, 10);
   await queries.updatePassword.run(hash, email);
@@ -453,6 +481,9 @@ app.post("/api/rooms/group", requireAuth, async (req, res) => {
   if (!name?.trim()) {
     return res.status(400).json({ error: "Group name required" });
   }
+  if (name.trim().length > 60) {
+    return res.status(400).json({ error: "Group name is too long (max 60 characters)" });
+  }
 
   const rels = await Promise.all(userIds.map((uid) => queries.getContactStatus.get(req.user.id, uid)));
   if (rels.some((r) => !r || r.status !== "accepted")) {
@@ -552,6 +583,8 @@ const VALID_SLUG = /^[a-z0-9]([a-z0-9-]{0,48}[a-z0-9])?$/;
 app.post("/api/channels", requireAuth, async (req, res) => {
   const { name, slug, description, isPrivate } = req.body ?? {};
   if (!name?.trim()) return res.status(400).json({ error: "Channel name required" });
+  if (name.trim().length > 60) return res.status(400).json({ error: "Channel name is too long (max 60 characters)" });
+  if (description && description.trim().length > 300) return res.status(400).json({ error: "Description is too long (max 300 characters)" });
   if (!slug?.trim()) return res.status(400).json({ error: "Channel address required" });
   const cleanSlug = slug.trim().toLowerCase();
   if (!VALID_SLUG.test(cleanSlug)) {
@@ -762,6 +795,8 @@ app.patch("/api/channels/:roomId", requireAuth, async (req, res) => {
   const roomId = Number(req.params.roomId);
   const { name, description, slug } = req.body ?? {};
   if (!name?.trim()) return res.status(400).json({ error: "Name is required" });
+  if (name.trim().length > 60) return res.status(400).json({ error: "Channel name is too long (max 60 characters)" });
+  if (description && description.trim().length > 300) return res.status(400).json({ error: "Description is too long (max 300 characters)" });
 
   const myRole = await queries.getMemberRole.get(roomId, req.user.id);
   if (!myRole) return res.status(403).json({ error: "Not a member" });
@@ -802,7 +837,13 @@ app.patch("/api/channels/:roomId/members/:userId/mute", requireAuth, async (req,
   if (!targetRole) return res.status(404).json({ error: "User is not a member" });
   if (ROLE_LEVEL[myRole] <= ROLE_LEVEL[targetRole]) return res.status(403).json({ error: "Insufficient permissions" });
 
-  const mutedUntil = duration > 0 ? Math.floor(Date.now() / 1000) + Number(duration) : null;
+  // 0 (or anything non-positive) means unmute; cap mutes at 30 days so a
+  // bogus huge/Infinity duration can't become a de-facto permanent mute.
+  const dur = Number(duration);
+  if (!Number.isFinite(dur) || dur < 0 || dur > 30 * 24 * 3600) {
+    return res.status(400).json({ error: "Invalid mute duration" });
+  }
+  const mutedUntil = dur > 0 ? Math.floor(Date.now() / 1000) + Math.floor(dur) : null;
   const [, muteTarget, muteRoom] = await Promise.all([
     queries.setMuted.run(roomId, targetId, mutedUntil),
     queries.getUserById.get(targetId),
@@ -895,6 +936,15 @@ app.post("/api/push/subscribe", requireAuth, async (req, res) => {
   if (!endpoint || !keys?.p256dh || !keys?.auth) {
     return res.status(400).json({ error: "Invalid subscription object" });
   }
+  if (
+    typeof endpoint !== "string" ||
+    !endpoint.startsWith("https://") ||
+    endpoint.length > 2000 ||
+    typeof keys.p256dh !== "string" || keys.p256dh.length > 256 ||
+    typeof keys.auth !== "string" || keys.auth.length > 256
+  ) {
+    return res.status(400).json({ error: "Invalid subscription object" });
+  }
   await queries.upsertPushSubscription.run(req.user.id, endpoint, keys.p256dh, keys.auth);
   res.json({ ok: true });
 });
@@ -917,6 +967,17 @@ io.use((socket, next) => {
 
 // ─── Socket.io events ──────────────────────────────────────────────────────────
 
+// Socket.io does NOT catch rejected async handlers — a payload that makes a
+// query throw (e.g. roomId as an object) would become an unhandled rejection
+// and kill the process. Every handler goes through safe(), and incoming ids
+// are validated with isId() before they reach the database.
+const safe = (fn) => (payload, ...rest) => {
+  Promise.resolve(fn(payload ?? {}, ...rest)).catch((err) =>
+    console.error("[socket] handler error:", err.message),
+  );
+};
+const isId = (v) => Number.isInteger(v) && v > 0;
+
 io.on("connection", async (socket) => {
   const { id: userId, username } = socket.user;
 
@@ -924,11 +985,14 @@ io.on("connection", async (socket) => {
   // re-announcing "online" every time the same user opens an extra tab.)
   const wasOffline = !isOnline(userId);
   markOnline(userId, socket.id);
-  await queries.touchUser.run(userId);
-
-  const userRooms = await queries.getUserRoomIds.all(userId);
-  const roomKeys = userRooms.map(({ room_id }) => `room:${room_id}`);
-  roomKeys.forEach((key) => socket.join(key));
+  try {
+    await queries.touchUser.run(userId);
+    const userRooms = await queries.getUserRoomIds.all(userId);
+    userRooms.forEach(({ room_id }) => socket.join(`room:${room_id}`));
+  } catch (err) {
+    // A DB hiccup here must not become an unhandled rejection (process exit).
+    console.error("[socket] connection setup error:", err.message);
+  }
 
   // ── Presence ───────────────────────────────────────────────────────────────
   // Online status is already globally visible (GET /api/users returns every
@@ -948,8 +1012,8 @@ io.on("connection", async (socket) => {
     socket.broadcast.emit("user:status", { userId, online: true });
   }
 
-  socket.on("message:send", async ({ roomId, text, tempId }) => {
-    if (!text?.trim() || !roomId) return;
+  socket.on("message:send", safe(async ({ roomId, text, tempId }) => {
+    if (!isId(roomId) || typeof text !== "string" || !text.trim()) return;
     if (text.trim().length > 4000) {
       socket.emit("message:error", { tempId, error: "Message too long (max 4,000 characters)" });
       return;
@@ -999,9 +1063,12 @@ io.on("connection", async (socket) => {
         console.error("[push] Error sending push:", pushErr.message);
       }
     }
-  });
+  }));
 
-  socket.on("message:react", async ({ messageId, emoji }) => {
+  socket.on("message:react", safe(async ({ messageId, emoji }) => {
+    // A reaction is a short emoji string — reject anything that could be
+    // abused to store arbitrary large payloads on someone's message.
+    if (!isId(messageId) || typeof emoji !== "string" || emoji.length === 0 || emoji.length > 16) return;
     const msg = await queries.getMessageById.get(messageId);
     if (!msg || !(await queries.isMember.get(msg.room_id, userId))) return;
 
@@ -1013,34 +1080,36 @@ io.on("connection", async (socket) => {
       messageId,
       emoji: newReaction,
     });
-  });
+  }));
 
   // Persist that this user has read a room (advances last_read_at), so unread
   // counts survive a reload / app close and reconcile across devices.
-  socket.on("room:read", async ({ roomId }) => {
-    if (!roomId) return;
+  socket.on("room:read", safe(async ({ roomId }) => {
+    if (!isId(roomId)) return;
     if (!(await queries.isMember.get(roomId, userId))) return;
     await queries.markRoomSeen.run(roomId, userId);
-  });
+  }));
 
-  socket.on("typing:start", async ({ roomId }) => {
+  socket.on("typing:start", safe(async ({ roomId }) => {
+    if (!isId(roomId)) return;
     if (!(await queries.isMember.get(roomId, userId))) return;
     socket.to(`room:${roomId}`).emit("typing:update", { roomId, userId, username, typing: true });
-  });
+  }));
 
-  socket.on("typing:stop", async ({ roomId }) => {
+  socket.on("typing:stop", safe(async ({ roomId }) => {
+    if (!isId(roomId)) return;
     if (!(await queries.isMember.get(roomId, userId))) return;
     socket.to(`room:${roomId}`).emit("typing:update", { roomId, userId, username, typing: false });
-  });
+  }));
 
-  socket.on("disconnect", async () => {
+  socket.on("disconnect", safe(async () => {
     markOffline(userId, socket.id);
     await queries.touchUser.run(userId);
     // Only announce "offline" once the user's last tab/socket has gone away.
     if (!isOnline(userId)) {
       io.emit("user:status", { userId, online: false });
     }
-  });
+  }));
 });
 
 // ─── Global error handler ──────────────────────────────────────────────────────

@@ -108,7 +108,10 @@ const q = (sql, params) => pool.query(sql, params);
 export const queries = {
   getUserByEmail:    { get: (email)    => q("SELECT * FROM users WHERE email = $1", [email]).then(r => r.rows[0] ?? null) },
   getUserByUsername: { get: (username) => q("SELECT * FROM users WHERE username = $1", [username]).then(r => r.rows[0] ?? null) },
-  getUserById:       { get: (id)       => q("SELECT id, username, email, last_seen, avatar FROM users WHERE id = $1", [id]).then(r => r.rows[0] ?? null) },
+  // No email here — this feeds GET /api/users/:id (readable by any
+  // authenticated user) and internal username lookups; returning other
+  // users' email addresses would leak PII.
+  getUserById:       { get: (id)       => q("SELECT id, username, last_seen, avatar FROM users WHERE id = $1", [id]).then(r => r.rows[0] ?? null) },
   getUsersWithStatus: {
     all: (currentUserId) =>
       q(`SELECT u.id, u.username, u.last_seen, u.avatar,

@@ -88,6 +88,18 @@ Authentication: token is passed in the handshake `auth` object and validated bef
 
 ## Backend Pitfalls
 
+- **Socket handlers MUST be wrapped in `safe()` and validate ids with `isId()`**
+  (see `server/index.js`). Socket.io does not catch rejected async handlers —
+  an invalid payload (e.g. `roomId: {}`) that makes a pg query throw becomes an
+  unhandled rejection and kills the process. Express 5 routes auto-forward
+  rejections to the error handler; socket handlers do not. Never add a bare
+  `socket.on("x", async ...)`.
+- **`getUserById` deliberately omits `email`** — it feeds `GET /api/users/:id`,
+  which any authenticated user can call. Don't add email (or other PII) back.
+- **All user-supplied strings need length caps** — message text (4,000),
+  username (32), group/channel name (60), description (300), reaction emoji
+  (16), password (128). The JSON body limit (512 KB) alone is not a defense.
+
 - **JWT stored in `localStorage`** — acceptable for a learning project. For production, use httpOnly cookies + refresh token rotation.
 - **Vite proxy** — `/api` and `/socket.io` are proxied to `localhost:4000` in dev only. In production, serve the Vite build from Express directly.
 - **Avatar broadcast scope** — `user:avatar` must be scoped to the user's rooms with `io.to(roomKeys).emit(...)`, never `io.emit(...)` (would broadcast to all connected clients).
