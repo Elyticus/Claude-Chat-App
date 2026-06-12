@@ -94,10 +94,23 @@ fixes already made; reintroducing the old patterns will rebreak the app.
   `OrbitalHub.jsx`).
 - **Main orbital hub icon** shows a single **combined red total** of all unread
   messages, plus separate indicators that are kept distinct: red contact
-  requests, yellow "added to a group", green channel activity.
+  requests (count), yellow "added to a group" (plain dot), green channel
+  activity (plain dot). **Only the red badges show numbers** — the yellow and
+  green indicators are dots with no count.
 - **Channel bubbles** also show a small **green activity dot** when the channel
   has unseen activity for this user (persisted `is_new` / `role_notification`
   or a live channel notif).
+
+### Room removal must clear its notifications
+
+- Whenever a room disappears for this user (deleted by someone else via
+  `room:deleted`, kicked via `channel:member_kicked`, or self-delete/leave in
+  `handleDeleteRoom`), call `clearRoomNotifs(roomId)` in `ChatApp.jsx` — it
+  drops the room's unread badge and its `channelNotifs` entries AND persists
+  the removal to localStorage. `syncRooms` additionally prunes persisted notifs
+  whose room no longer exists (covers deletions that happened while offline).
+  Notifs about a room the user is no longer in (e.g. "You were removed from
+  #X") must be stored with `roomId: null` or the prune will eat them.
 
 ### Channel-activity notifications target the AFFECTED user only
 
