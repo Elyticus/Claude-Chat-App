@@ -86,6 +86,11 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   // Rooms created/joined this session that have no messages yet — hidden from
   // OrbitalHub until the first message is sent or received.
   const [pendingRoomIds, setPendingRoomIds] = useState(new Set());
+  // Per-room "New Messages" divider: unread count + open timestamp captured at
+  // the moment the room is opened (before the unread badge is cleared), so the
+  // divider marks where unseen messages start and doesn't drift when more
+  // messages arrive while the room is open.
+  const [newMsgMarkers, setNewMsgMarkers] = useState({});
 
   function addChannelNotif(message, type = "info", roomId = null) {
     const id = Date.now() + Math.random();
@@ -898,9 +903,17 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     syncRooms().then((loadedRooms) => {
       if (!loadedRooms) return;
       const savedId = Number(localStorage.getItem("linkloop_active_room"));
-      if (savedId && loadedRooms.some((r) => r.id === savedId)) {
+      const savedRoom = loadedRooms.find((r) => r.id === savedId);
+      if (savedRoom) {
         setActiveRoomId(savedId);
         setDisplayRoomId(savedId);
+        setNewMsgMarkers((prev) => ({
+          ...prev,
+          [savedId]: {
+            count: savedRoom.unread_count || 0,
+            openedAt: Math.floor(Date.now() / 1000),
+          },
+        }));
         setUnreadCounts((prev) => ({ ...prev, [savedId]: 0 }));
       }
     });
@@ -1380,6 +1393,16 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     clearTimeout(closeTimerRef.current);
     setDisplayRoomId(roomId);
     setActiveRoomId(roomId);
+    // Snapshot the unread count before clearRoomNotifs wipes it — this is
+    // where the "New Messages" divider goes. A count of 0 clears the divider
+    // from the previous visit.
+    setNewMsgMarkers((prev) => ({
+      ...prev,
+      [roomId]: {
+        count: unreadCounts[roomId] || 0,
+        openedAt: Math.floor(Date.now() / 1000),
+      },
+    }));
     clearRoomNotifs(roomId);
     // Persist the read state server-side so the count stays cleared after a
     // reload, even if this room's messages were already loaded this session.
@@ -1450,6 +1473,24 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             !m.system && m.text.toLowerCase().includes(msgSearch.toLowerCase()),
         )
       : activeMessages;
+
+  // Index of the first unread message — the "New Messages" divider renders
+  // just above it. Walks backwards counting the same messages the server
+  // counts as unread (non-system, from other users), skipping anything that
+  // arrived after the room was opened so the divider doesn't drift. Hidden
+  // while searching (filtered indexes would be misleading).
+  const activeMarker = displayRoomId ? newMsgMarkers[displayRoomId] : null;
+  let newMarkerIndex = -1;
+  if (activeMarker?.count > 0 && !(showMsgSearch && msgSearch.trim())) {
+    let remaining = activeMarker.count;
+    for (let i = displayedMessages.length - 1; i >= 0 && remaining > 0; i--) {
+      const m = displayedMessages[i];
+      if (m.system || m.user_id === currentUser.id) continue;
+      if (m.created_at > activeMarker.openedAt) continue;
+      newMarkerIndex = i;
+      remaining--;
+    }
+  }
 
   const typingNames = displayRoomId
     ? (typingMap[displayRoomId] || [])
@@ -1994,6 +2035,37 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                       return (
                         <Fragment key={msg.id}>
                           {dateSeparator}
+                          {index === newMarkerIndex && (
+                            <div
+                              className="flex items-center gap-3 py-2 select-none"
+                              aria-label="New messages below"
+                            >
+                              <span
+                                className="flex-1 h-px"
+                                style={{
+                                  background: isDark
+                                    ? "rgba(248,113,113,0.35)"
+                                    : "rgba(220,38,38,0.3)",
+                                }}
+                              />
+                              <span
+                                className="text-[10px] font-bold uppercase tracking-widest"
+                                style={{
+                                  color: isDark ? "#f87171" : "#dc2626",
+                                }}
+                              >
+                                New Messages
+                              </span>
+                              <span
+                                className="flex-1 h-px"
+                                style={{
+                                  background: isDark
+                                    ? "rgba(248,113,113,0.35)"
+                                    : "rgba(220,38,38,0.3)",
+                                }}
+                              />
+                            </div>
+                          )}
                           <div
                             className={`relative flex w-full items-end gap-2 animate-fade-in-up ${isMine ? "flex-row-reverse" : "flex-row"} ${msg.reaction ? "mb-3 z-1" : ""}`}
                             onContextMenu={(e) =>
