@@ -39,6 +39,8 @@ import {
   lightBg0,
   lightBg1,
   lightBorderMid,
+  specialBg0,
+  specialBg1,
 } from "./lib/constants.js";
 import {
   userBg,
@@ -62,9 +64,18 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const [showMsgSearch, setShowMsgSearch] = useState(false);
   const [msgSearch, setMsgSearch] = useState("");
   const [unreadCounts, setUnreadCounts] = useState({});
-  const [isDark, setIsDark] = useState(
-    () => localStorage.getItem("linkloop_theme") !== "light",
-  );
+  // Theme: "dark" | "light" | "special". Special is the aurora mode — it
+  // inherits the dark UI palette (isDark stays true) on teal-black backgrounds.
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem("linkloop_theme");
+    return saved === "light" || saved === "special" ? saved : "dark";
+  });
+  const isDark = theme !== "light";
+  const isSpecial = theme === "special";
+  // App-level backgrounds: special mode swaps the deep indigo for teal-black
+  // so the whole app (hub + chat panel) shifts with the aurora scene.
+  const bg0 = isSpecial ? specialBg0 : isDark ? darkBg0 : lightBg0;
+  const bgRaised = isSpecial ? specialBg1 : isDark ? darkBg0 : lightBg1;
   const [myAvatar, setMyAvatar] = useState(() => currentUser.avatar || null);
   const [groupMembersPanel, setGroupMembersPanel] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
@@ -121,10 +132,13 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     });
   }
 
+  // Cycle dark → light → special → dark (button icon in OrbitalHub shows the
+  // NEXT mode in this order).
   function toggleTheme() {
-    setIsDark((prev) => {
-      const next = !prev;
-      localStorage.setItem("linkloop_theme", next ? "dark" : "light");
+    setTheme((prev) => {
+      const next =
+        prev === "dark" ? "light" : prev === "light" ? "special" : "dark";
+      localStorage.setItem("linkloop_theme", next);
       return next;
     });
   }
@@ -1579,7 +1593,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     <div
       data-theme={isDark ? "dark" : "light"}
       className="relative w-full h-dvh overflow-hidden"
-      style={{ background: isDark ? darkBg0 : lightBg0 }}
+      style={{ background: bg0 }}
     >
       {/* Orbital Hub — always in background */}
       <OrbitalHub
@@ -1603,6 +1617,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         onlineIds={onlineIds}
         unreadCounts={unreadCounts}
         isDark={isDark}
+        theme={theme}
         onToggleTheme={toggleTheme}
         pendingCount={pendingRequestCount}
         pendingUsers={pendingUsers}
@@ -1632,7 +1647,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       {displayRoomId && (
         <div
           className="fixed inset-0 z-199 pointer-events-none"
-          style={{ background: isDark ? darkBg0 : lightBg0 }}
+          style={{ background: bg0 }}
         />
       )}
 
@@ -1646,18 +1661,14 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         style={{
           top: "var(--vvt, 0px)",
           height: "100dvh",
-          background: displayRoomId
-            ? isDark
-              ? darkBg0
-              : lightBg0
-            : "transparent",
+          background: displayRoomId ? bg0 : "transparent",
         }}
       >
         <div
           className={`absolute top-0 left-0 right-0 flex flex-col transition-opacity duration-200 ${activeRoomId ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
           style={{
             height: "var(--vvh, 100dvh)",
-            background: isDark ? darkBg0 : lightBg0,
+            background: bg0,
           }}
         >
           {displayRoomId && activeRoom && (
@@ -1667,7 +1678,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                 className="flex items-center gap-1.5 sm:gap-3 px-3 sm:px-4 py-3.5 border-b shrink-0"
                 style={{
                   borderColor: isDark ? darkBorder : lightBorderMid,
-                  background: isDark ? darkBg0 : lightBg1,
+                  background: bgRaised,
                 }}
               >
                 <button
@@ -1957,7 +1968,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
               {/* Messages — layered: dot-grid texture + fade edges + scroll area */}
               <div
                 className="flex-1 relative overflow-hidden"
-                style={{ background: isDark ? darkBg0 : lightBg0 }}
+                style={{ background: bg0 }}
               >
                 {/* Dot grid texture */}
                 <div
@@ -1971,7 +1982,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                 <div
                   className="absolute top-0 left-0 right-0 h-10 z-10 pointer-events-none"
                   style={{
-                    background: `linear-gradient(to bottom, ${isDark ? darkBg0 : lightBg0}, transparent)`,
+                    background: `linear-gradient(to bottom, ${bg0}, transparent)`,
                   }}
                 />
                 {/* Scroll container */}
@@ -2234,7 +2245,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                 <div
                   className="absolute bottom-0 left-0 right-0 h-10 z-10 pointer-events-none"
                   style={{
-                    background: `linear-gradient(to top, ${isDark ? darkBg0 : lightBg0}, transparent)`,
+                    background: `linear-gradient(to top, ${bg0}, transparent)`,
                   }}
                 />
               </div>
@@ -2260,7 +2271,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                 className="px-4 py-3 flex items-end gap-2.5 shrink-0"
                 style={{
                   borderTop: `1px solid ${isDark ? darkBorder : lightBorderMid}`,
-                  background: isDark ? darkBg0 : lightBg1,
+                  background: bgRaised,
                 }}
               >
                 <textarea

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { MessageCircle, LogOut, Sun, Moon, X, Clock } from "lucide-react";
+import { MessageCircle, LogOut, Sun, Moon, X, Sparkles } from "lucide-react";
 import StarField from "./ui/star-field.jsx";
-import TimeOfDayScreen from "./TimeOfDayScreen.jsx";
+import AuroraField from "./ui/aurora-field.jsx";
 import { Avatar } from "./ui/Avatar.jsx";
 import { formatTime, userBg, initials } from "@/lib/helpers.js";
 import {
@@ -12,6 +12,7 @@ import {
   lightBg0,
   lightBg1,
   lightBorderMid,
+  specialBg0,
 } from "@/lib/constants.js";
 
 const isChannel = (r) => r.type === "channel" || r.type === "private_channel";
@@ -50,6 +51,7 @@ export function OrbitalHub({
   onlineIds,
   unreadCounts,
   isDark,
+  theme,
   onToggleTheme,
   pendingCount,
   pendingUsers,
@@ -96,8 +98,9 @@ export function OrbitalHub({
   const containerRef = useRef(null);
   const angleRef = useRef(0);
   const [showContactsList, setShowContactsList] = useState(false);
-  const [showTimeScreen, setShowTimeScreen] = useState(false);
   const [nowMs] = useState(Date.now);
+  const isSpecial = theme === "special";
+  const bg0 = isSpecial ? specialBg0 : isDark ? darkBg0 : lightBg0;
 
   const orbitRooms = useMemo(() => {
     const cutoff = nowMs / 1000 - 86400;
@@ -153,19 +156,13 @@ export function OrbitalHub({
     <div
       ref={containerRef}
       className="relative w-full h-dvh flex items-center justify-center overflow-hidden"
-      style={{ background: isDark ? darkBg0 : lightBg0 }}
+      style={{ background: bg0 }}
     >
-      {/* Star field + atmosphere — all glow drawn on canvas, zero CSS blur layers */}
+      {/* Background canvas — all glow drawn on canvas, zero CSS blur layers.
+          Special mode swaps the starfield for the time-of-day aurora scene. */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <StarField isDark={isDark} />
+        {isSpecial ? <AuroraField /> : <StarField isDark={isDark} />}
       </div>
-
-      {/* Time of day overlay */}
-      {showTimeScreen && (
-        <div className="absolute inset-0 z-170 overflow-hidden">
-          <TimeOfDayScreen onClose={() => setShowTimeScreen(false)} />
-        </div>
-      )}
 
       {/* Top bar */}
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 z-30">
@@ -226,40 +223,49 @@ export function OrbitalHub({
             </span>
           </button>
           <button
-            onClick={() => setShowTimeScreen(true)}
-            title="Time of day"
-            aria-label="Open time of day screen"
-            className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-            style={{
-              background: isDark
-                ? "rgba(99,162,241,0.12)"
-                : "rgba(56,132,230,0.09)",
-              border: `1px solid ${isDark ? "rgba(99,162,241,0.30)" : "rgba(56,132,230,0.24)"}`,
-              color: isDark ? "#93c5fd" : "#2563eb",
-              boxShadow: isDark
-                ? "0 0 12px rgba(99,162,241,0.18)"
-                : "0 2px 8px rgba(56,132,230,0.10)",
-            }}
-          >
-            <Clock size={16} />
-          </button>
-          <button
             onClick={onToggleTheme}
-            title={isDark ? "Light mode" : "Dark mode"}
-            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            title={
+              isSpecial
+                ? "Dark mode"
+                : isDark
+                  ? "Light mode"
+                  : "Special mode"
+            }
+            aria-label={
+              isSpecial
+                ? "Switch to dark mode"
+                : isDark
+                  ? "Switch to light mode"
+                  : "Switch to special mode"
+            }
             className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-            style={{
-              background: isDark
-                ? "rgba(129,140,248,0.14)"
-                : "rgba(99,102,241,0.10)",
-              border: `1px solid ${isDark ? "rgba(129,140,248,0.35)" : "rgba(99,102,241,0.28)"}`,
-              color: isDark ? "#a5b4fc" : "#4f46e5",
-              boxShadow: isDark
-                ? "0 0 12px rgba(129,140,248,0.2)"
-                : "0 2px 8px rgba(99,102,241,0.12)",
-            }}
+            style={
+              isSpecial
+                ? {
+                    background: "rgba(45,212,191,0.14)",
+                    border: "1px solid rgba(45,212,191,0.35)",
+                    color: "#5eead4",
+                    boxShadow: "0 0 12px rgba(45,212,191,0.22)",
+                  }
+                : {
+                    background: isDark
+                      ? "rgba(129,140,248,0.14)"
+                      : "rgba(99,102,241,0.10)",
+                    border: `1px solid ${isDark ? "rgba(129,140,248,0.35)" : "rgba(99,102,241,0.28)"}`,
+                    color: isDark ? "#a5b4fc" : "#4f46e5",
+                    boxShadow: isDark
+                      ? "0 0 12px rgba(129,140,248,0.2)"
+                      : "0 2px 8px rgba(99,102,241,0.12)",
+                  }
+            }
           >
-            {isDark ? <Sun size={16} /> : <Moon size={16} />}
+            {isSpecial ? (
+              <Moon size={16} />
+            ) : isDark ? (
+              <Sun size={16} />
+            ) : (
+              <Sparkles size={16} />
+            )}
           </button>
           <button
             onClick={onRequestLogout}
@@ -536,7 +542,7 @@ export function OrbitalHub({
                 <span
                   className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-emerald-400 rounded-full"
                   style={{
-                    border: `2px solid ${isDark ? darkBg0 : lightBg0}`,
+                    border: `2px solid ${bg0}`,
                     boxShadow: "0 0 6px rgba(52,211,153,0.6)",
                   }}
                 />
@@ -556,7 +562,7 @@ export function OrbitalHub({
                   className="absolute -bottom-0.5 -left-0.5 w-3.5 h-3.5 rounded-full animate-pulse"
                   style={{
                     background: "linear-gradient(135deg,#22c55e,#4ade80)",
-                    border: `2px solid ${isDark ? darkBg0 : lightBg0}`,
+                    border: `2px solid ${bg0}`,
                     boxShadow: "0 0 8px rgba(74,222,128,0.7)",
                   }}
                 />

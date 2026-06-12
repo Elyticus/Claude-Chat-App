@@ -30,6 +30,7 @@ A fully functional real-time chat application. Users register/login with JWT aut
 │   │       ├── badge.jsx                 # shadcn-pattern Badge (cva + cn)
 │   │       ├── button.jsx                # shadcn-pattern Button (cva + cn + Radix Slot)
 │   │       ├── card.jsx                  # shadcn-pattern Card family
+│   │       ├── aurora-field.jsx          # Canvas aurora curtains + motes (special theme, time-of-day reactive)
 │   │       ├── ContactStatusButton.jsx   # Add / remove contact button (status-aware)
 │   │       ├── shader-background.jsx     # Three.js GLSL shader canvas background
 │   │       ├── star-field.jsx            # Canvas starfield + comets (dark) / sunrise + birds (light)

@@ -21,6 +21,7 @@ src/
 │       ├── badge.jsx                 # shadcn-pattern Badge (cva + cn)
 │       ├── button.jsx                # shadcn-pattern Button (cva + cn + Radix Slot)
 │       ├── card.jsx                  # shadcn-pattern Card family
+│       ├── aurora-field.jsx          # Canvas aurora curtains + rising motes (special theme, time-of-day reactive)
 │       ├── ContactStatusButton.jsx   # Add / remove contact button (status-aware)
 │       ├── shader-background.jsx     # Three.js GLSL shader canvas background
 │       ├── star-field.jsx            # Canvas starfield + comets (dark) / sunrise + birds (light)
@@ -72,6 +73,14 @@ Message deletion is also optimistic: message removed from state immediately, the
 
 ### Styling / Config
 
+- **Theme system — three modes**, stored in localStorage `linkloop_theme`:
+  `"dark"`, `"light"`, `"special"`. The hub theme button cycles dark → light →
+  special (icon shows the NEXT mode). `special` is the aurora mode: it
+  **inherits the dark UI palette** (`isDark = theme !== "light"`) so all
+  `isDark` styling keeps working, but swaps backgrounds for `specialBg0/1`
+  (teal-black, see `constants.js`) and renders `AuroraField` instead of
+  `StarField` in the hub. The aurora palettes react to the real time of day
+  (dawn/day/dusk/night). There is no separate clock screen — that was removed.
 - **Tailwind v4 syntax** — this project uses `@import "tailwindcss"` + `@theme {}` blocks in `globals.css`. There is no `tailwind.config.js`. Do not add one.
 - **`@` path alias** — configured in `vite.config.js` via `resolve.alias`. Import as `@/lib/utils`, `@/components/ui/button`, etc.
 
