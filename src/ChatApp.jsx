@@ -50,6 +50,12 @@ import {
   formatDateSeparator,
 } from "./lib/helpers.js";
 
+// Must match the server's message:send limit (server/index.js).
+const MAX_MESSAGE_LENGTH = 4000;
+// Show the live character counter once the user is within this many
+// characters of the limit.
+const LIMIT_WARN_THRESHOLD = 500;
+
 export default function ChatApp({ token, currentUser, onLogout }) {
   const [rooms, setRooms] = useState([]);
   const [activeRoomId, setActiveRoomId] = useState(null);
@@ -1079,7 +1085,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const sendMessage = useCallback(() => {
     const text = inputText.trim();
     if (!text || !activeRoomId || !socketRef.current) return;
-    if (text.length > 4000) return;
+    // Over-limit feedback is shown live by the counter bar above the input;
+    // this guard just makes sure nothing slips through to the server.
+    if (text.length > MAX_MESSAGE_LENGTH) return;
     const tempId = `temp_${Date.now()}`;
     const tempMsg = {
       id: tempId,
@@ -1569,6 +1577,14 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         .filter((u) => u.userId !== currentUser.id)
         .map((u) => u.username)
     : [];
+
+  // Message-length awareness: counts what would actually be sent (trimmed,
+  // same as the server's check). Near the limit a live counter appears; over
+  // it the counter turns into an error and send is blocked.
+  const inputLength = inputText.trim().length;
+  const overLimit = inputLength > MAX_MESSAGE_LENGTH;
+  const nearLimit = inputLength > MAX_MESSAGE_LENGTH - LIMIT_WARN_THRESHOLD;
+  const canSend = inputLength > 0 && !overLimit;
 
   const isActiveChannel =
     activeRoom?.type === "channel" || activeRoom?.type === "private_channel";
@@ -2273,6 +2289,38 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                 </div>
               )}
 
+              {/* Message length counter — appears near the 4,000-char limit,
+                  turns into an error when over it (send is blocked then). */}
+              {nearLimit && (
+                <div
+                  className="px-4 py-1.5 shrink-0 flex items-center justify-between gap-2"
+                  style={{
+                    background: overLimit
+                      ? "rgba(239,68,68,0.08)"
+                      : "rgba(245,158,11,0.08)",
+                  }}
+                >
+                  <span
+                    className="text-xs"
+                    style={{ color: overLimit ? "#f87171" : "#f59e0b" }}
+                  >
+                    {overLimit
+                      ? "Message is too long — shorten it to send"
+                      : "Approaching the message length limit"}
+                  </span>
+                  <span
+                    className="text-xs font-semibold shrink-0"
+                    style={{
+                      color: overLimit ? "#f87171" : "#f59e0b",
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {inputLength.toLocaleString()} /{" "}
+                    {MAX_MESSAGE_LENGTH.toLocaleString()}
+                  </span>
+                </div>
+              )}
+
               {/* Message input */}
               <div
                 className="px-4 py-3 flex items-end gap-2.5 shrink-0"
@@ -2320,16 +2368,16 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                 />
                 <button
                   onClick={sendMessage}
-                  disabled={!inputText.trim()}
+                  disabled={!canSend}
                   aria-label="Send message"
                   className="w-12 h-12 rounded-full flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
                   style={{
-                    background: inputText.trim()
+                    background: canSend
                       ? "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)"
                       : isDark
                         ? "rgba(99,102,241,0.08)"
                         : "#f1f5f9",
-                    boxShadow: inputText.trim()
+                    boxShadow: canSend
                       ? "0 4px 16px rgba(99,102,241,0.45)"
                       : "none",
                   }}
@@ -2337,7 +2385,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                   <Send
                     size={16}
                     style={{
-                      color: inputText.trim()
+                      color: canSend
                         ? "#ffffff"
                         : isDark
                           ? "rgba(165,180,252,0.4)"
