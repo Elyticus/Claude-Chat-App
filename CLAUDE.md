@@ -74,8 +74,18 @@ fixes already made; reintroducing the old patterns will rebreak the app.
   users after `last_read_at`). The client **initializes/rebuilds unread badges
   from `unread_count`** on every load.
 - Mark a room read by emitting `room:read` (→ `markRoomSeen`) on **open**
-  (`selectRoom`) and when a message lands in the **already-open** room. Don't
-  rely solely on the messages GET — it only fires on first open per session.
+  (`selectRoom`) and when a message lands in the **already-open** room — but
+  only if **`document.hasFocus()`**. An open chat in an unfocused/minimized
+  window has NOT been seen (this is the desktop case): count it as unread
+  instead. The foreground (focus) handler and `syncRooms` then convert the
+  open room's unread into the "New Messages" divider (`newMsgMarkers`), clear
+  the badge, and emit `room:read`. Don't rely solely on the messages GET — it
+  only fires on first open per session.
+- **"New Messages" divider**: `newMsgMarkers[roomId] = { count, openedAt }` is
+  snapshotted wherever unread is about to be cleared (selectRoom, startup
+  restore, foreground handler, syncRooms active-room branch). The render walks
+  backwards over non-system messages from other users, skipping any with
+  `created_at > openedAt` so live arrivals don't shift the line.
 
 ### Mobile resilience (notifications "not appearing")
 

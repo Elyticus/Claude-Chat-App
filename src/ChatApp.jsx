@@ -192,6 +192,12 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     activeRoomIdRef.current = activeRoomId;
   }, [activeRoomId]);
 
+  // Mirror unreadCounts for handlers registered once (foreground handler).
+  const unreadCountsRef = useRef(unreadCounts);
+  useEffect(() => {
+    unreadCountsRef.current = unreadCounts;
+  }, [unreadCounts]);
+
   // Fetch rooms and rebuild unread counts from the server's per-room
   // `unread_count` (the room currently open is treated as read). This is the
   // source of truth that makes unread badges survive a reload / app close and
@@ -202,6 +208,23 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       .getRooms()
       .then((loadedRooms) => {
         setRooms(loadedRooms);
+        // The OPEN room can carry server-side unread (socket suspended while
+        // mobile was backgrounded, or messages missed while disconnected).
+        // Its badge is skipped below, so surface the "New Messages" divider
+        // and advance the read marker instead of dropping it silently.
+        const activeRoom = loadedRooms.find(
+          (r) => r.id === activeRoomIdRef.current,
+        );
+        if (activeRoom?.unread_count > 0) {
+          setNewMsgMarkers((prev) => ({
+            ...prev,
+            [activeRoom.id]: {
+              count: activeRoom.unread_count,
+              openedAt: Math.floor(Date.now() / 1000),
+            },
+          }));
+          socketRef.current?.emit("room:read", { roomId: activeRoom.id });
+        }
         setUnreadCounts(() => {
           const next = {};
           for (const r of loadedRooms) {
@@ -353,16 +376,19 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           )
           .sort((a, b) => (b.last_message_at || 0) - (a.last_message_at || 0)),
       );
-      if (roomId !== activeRoomIdRef.current) {
-        setUnreadCounts((prev) => ({
-          ...prev,
-          [roomId]: (prev[roomId] || 0) + 1,
-        }));
-
-        // Alert on messages from other people in a room you're not currently
-        // viewing — whether the tab is backgrounded OR just focused on a
-        // different chat. (Skip echoes of your own messages from another tab.)
+      const seen =
+        roomId === activeRoomIdRef.current && document.hasFocus();
+      if (!seen) {
+        // Not seen: a different room, or this room while the window is
+        // unfocused/minimized (desktop). Count it as unread — for the open
+        // room the foreground handler turns this into the "New Messages"
+        // divider when the user comes back. Own echoes from another tab are
+        // skipped to match the server's unread definition (other users only).
         if (message.user_id !== currentUser.id) {
+          setUnreadCounts((prev) => ({
+            ...prev,
+            [roomId]: (prev[roomId] || 0) + 1,
+          }));
           playPing();
 
           if (
@@ -392,14 +418,18 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             });
             notification.onclick = () => {
               window.focus();
-              selectRoomRef.current?.(roomId);
+              // Already-active room: the focus handler converts its unread
+              // into the divider; re-selecting would wipe that marker.
+              if (activeRoomIdRef.current !== roomId)
+                selectRoomRef.current?.(roomId);
               notification.close();
             };
           }
         }
       } else {
-        // Message landed in the room you're already viewing — keep the server's
-        // read marker current so it doesn't resurface as unread after a reload.
+        // Message landed in the room you're viewing while the window has
+        // focus — actually seen. Keep the server's read marker current so it
+        // doesn't resurface as unread after a reload.
         s.emit("room:read", { roomId });
       }
     });
@@ -927,6 +957,28 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   useEffect(() => {
     function handleForeground() {
       if (document.visibilityState !== "visible") return;
+      // Unread accumulated for the OPEN room while the window was unfocused
+      // (desktop) — now that the user is back and looking at it, surface the
+      // "New Messages" divider, clear the badge and advance the read marker.
+      if (document.hasFocus()) {
+        const roomId = activeRoomIdRef.current;
+        const unseen = roomId ? unreadCountsRef.current[roomId] || 0 : 0;
+        if (unseen > 0) {
+          setNewMsgMarkers((prev) => ({
+            ...prev,
+            [roomId]: {
+              count: unseen,
+              openedAt: Math.floor(Date.now() / 1000),
+            },
+          }));
+          setUnreadCounts((prev) => {
+            const next = { ...prev };
+            delete next[roomId];
+            return next;
+          });
+          socketRef.current?.emit("room:read", { roomId });
+        }
+      }
       const s = socketRef.current;
       if (s && !s.connected) s.connect();
       syncRooms();
