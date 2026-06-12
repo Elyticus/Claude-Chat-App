@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { MessageCircle, LogOut, Sun, Moon, X, Sparkles } from "lucide-react";
 import StarField from "./ui/star-field.jsx";
 import AuroraField from "./ui/aurora-field.jsx";
+import { isAuroraSkyLight } from "@/lib/aurora-palette.js";
 import { Avatar } from "./ui/Avatar.jsx";
 import { formatTime, userBg, initials } from "@/lib/helpers.js";
 import {
@@ -102,6 +103,30 @@ export function OrbitalHub({
   const [nowMs] = useState(Date.now);
   const isSpecial = theme === "special";
   const bg0 = isSpecial ? specialBg0 : isDark ? darkBg0 : lightBg0;
+
+  // In special mode the text color follows the aurora sky's brightness, which
+  // shifts with the time of day: light sky → black text, dark sky → white.
+  // Track the hour with a minute tick so the derived value stays current.
+  const [hour, setHour] = useState(() => new Date().getHours());
+  useEffect(() => {
+    const id = setInterval(() => setHour(new Date().getHours()), 60000);
+    return () => clearInterval(id);
+  }, []);
+  const auroraSkyLight = isAuroraSkyLight(hour);
+
+  // Strong text color for names over the background canvas: white on dark,
+  // black on light, brightness-dependent in special mode.
+  const textStrong = isSpecial
+    ? auroraSkyLight
+      ? "#000000"
+      : "#ffffff"
+    : isDark
+      ? "#ffffff"
+      : "#000000";
+  const textStrongShadow =
+    textStrong === "#ffffff"
+      ? "0 1px 8px rgba(0,0,0,0.7)"
+      : "0 1px 8px rgba(255,255,255,0.7)";
 
   const orbitRooms = useMemo(() => {
     const cutoff = nowMs / 1000 - 86400;
@@ -217,8 +242,8 @@ export function OrbitalHub({
               </span>
             </div>
             <span
-              className="text-sm hidden sm:block"
-              style={{ color: isDark ? "rgba(238,242,255,0.5)" : "#64748b" }}
+              className="text-sm font-semibold hidden sm:block"
+              style={{ color: textStrong, textShadow: textStrongShadow }}
             >
               {currentUser.username}
             </span>
@@ -573,8 +598,11 @@ export function OrbitalHub({
             <span
               className="mt-2 text-[11px] font-semibold max-w-19 truncate text-center leading-tight"
               style={{
-                color: isDark ? "rgba(238,242,255,0.9)" : "#1e293b",
-                opacity: pos.opacity,
+                color: textStrong,
+                textShadow: textStrongShadow,
+                // Keep the orbit-depth fade but floor it so names stay legible
+                // even at the back of the orbit.
+                opacity: Math.max(0.75, pos.opacity),
               }}
             >
               {displayName}

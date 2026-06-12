@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { getPeriod, PALETTES } from "@/lib/aurora-palette.js";
 
 // ─── Special (aurora) mode background ───────────────────────────────────────
 //
@@ -7,58 +8,8 @@ import { useEffect, useRef } from "react";
 // and rising light motes, instead of the stars/clouds/birds the other themes
 // use. Same performance rules as star-field.jsx: gradients are pre-baked on
 // resize / period change, glow uses shadowBlur (GPU), zero CSS blur layers.
-
-function getPeriod(h) {
-  if (h >= 5 && h < 9) return "dawn";
-  if (h >= 9 && h < 18) return "day";
-  if (h >= 18 && h < 21) return "dusk";
-  return "night";
-}
-
-// Sky stays dark in every period (the UI inherits the dark palette); the
-// period swaps the aurora hues, the horizon glow and the mote color.
-const PALETTES = {
-  dawn: {
-    sky: [
-      [0, "#04111f"],
-      [0.55, "#0a2236"],
-      [1, "#16344a"],
-    ],
-    ribbons: ["56,189,248", "45,212,191", "251,191,36"],
-    horizon: "251,191,36",
-    mote: "165,243,252",
-  },
-  day: {
-    sky: [
-      [0, "#03131f"],
-      [0.55, "#07283a"],
-      [1, "#0c3e4e"],
-    ],
-    ribbons: ["34,211,238", "52,211,153", "129,140,248"],
-    horizon: "34,211,238",
-    mote: "186,230,253",
-  },
-  dusk: {
-    sky: [
-      [0, "#120724"],
-      [0.55, "#2a0f3d"],
-      [1, "#46183f"],
-    ],
-    ribbons: ["244,114,182", "192,132,252", "251,146,60"],
-    horizon: "251,146,60",
-    mote: "253,186,216",
-  },
-  night: {
-    sky: [
-      [0, "#020610"],
-      [0.55, "#04101e"],
-      [1, "#09202b"],
-    ],
-    ribbons: ["52,211,153", "45,212,191", "167,139,250"],
-    horizon: "52,211,153",
-    mote: "167,243,208",
-  },
-};
+// Palettes live in @/lib/aurora-palette.js (shared with the hub's
+// text-contrast helper).
 
 // Curtain definitions in viewport fractions; phases offset so bands never sync.
 const RIBBON_DEFS = [

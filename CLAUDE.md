@@ -37,6 +37,7 @@ A fully functional real-time chat application. Users register/login with JWT aut
 │   │       └── TypingIndicator.jsx       # "X is typing…" label
 │   └── lib/
 │       ├── api.js        # fetch() wrappers for every REST endpoint
+│       ├── aurora-palette.js # Special-mode time-of-day palettes + text-contrast helper
 │       ├── constants.js  # Shared style tokens (COLORS, REACTIONS, ROLE_LEVEL, theme vars)
 │       ├── helpers.js    # userBg, initials, formatTime, formatDateSeparator, toSlug
 │       ├── socket.js     # socket.io-client singleton (connect / disconnect)
