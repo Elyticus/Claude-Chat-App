@@ -2137,7 +2137,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                             </div>
                           )}
                           <div
-                            className={`relative flex w-full items-end gap-2 animate-fade-in-up ${isMine ? "flex-row-reverse" : "flex-row"} ${msg.reaction ? "mb-3 z-1" : ""}`}
+                            className={`relative flex items-end gap-2 animate-fade-in-up max-w-[78%] ${isMine ? "self-end" : "self-start"} ${msg.reaction ? "mb-3 z-1" : ""}`}
                             onContextMenu={(e) =>
                               !isTemp && handleContextMenu(e, msg)
                             }
@@ -2161,7 +2161,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                             }
                           >
                             <div
-                              className={`flex flex-col ${isMine ? "items-end" : "items-start"} max-w-[78%]`}
+                              className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}
                             >
                               {!isMine && !!activeRoom.is_group && (
                                 <span
