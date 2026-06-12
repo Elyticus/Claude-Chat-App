@@ -1,7 +1,12 @@
 import { COLORS } from "./constants.js";
 
 export function userBg(id) {
-  return COLORS[Math.abs(id ?? 0) % COLORS.length];
+  // Ids are UUID strings — hash to a stable color index. (Also still works
+  // for any leftover numeric ids.)
+  const s = String(id ?? "");
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return COLORS[Math.abs(h) % COLORS.length];
 }
 
 export function initials(name = "?") {

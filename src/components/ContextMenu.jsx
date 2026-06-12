@@ -16,7 +16,8 @@ export function ContextMenu({
   isChannel,
   myRole,
 }) {
-  const isOwn = Number(msg.user_id) === Number(currentUserId);
+  // Ids are UUID strings — compare directly, never coerce to Number.
+  const isOwn = msg.user_id === currentUserId;
   const canPin = isChannel && ROLE_LEVEL[myRole] >= ROLE_LEVEL.moderator;
   const canDelete =
     isOwn || (isChannel && ROLE_LEVEL[myRole] >= ROLE_LEVEL.moderator);

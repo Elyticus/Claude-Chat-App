@@ -11,15 +11,22 @@ Tables created automatically in `server/db.js` on first run (`initDb()`):
 
 DM rooms have `is_group = 0` and exactly two members. Group rooms have `is_group = 1`.
 
+**All ids are UUIDs**, generated in Node with the `uuid` package (`uuidv4()` in
+every INSERT in `db.js`) — there are no SERIAL columns and the database has no
+id defaults. `initDb()` runs `migrateToUuid()` first: a one-time transactional
+migration that converted the original integer ids (it self-skips once
+`users.id` is `uuid`). JWTs minted before the migration carry integer ids and
+are rejected by `requireAuth` / the socket middleware (clients re-login).
+
 ### Creating a user directly in the database
 
 Never insert a plain text password into `password_hash` — the login handler uses `bcrypt.compare` so the stored value must always be a bcrypt hash.
 
 1. Generate a hash: `node scripts/generate-hash.js <password>` — copies the hash to your terminal.
-2. In TablePlus, run:
+2. In TablePlus, run (ids have no default — supply one with `gen_random_uuid()`):
    ```sql
-   INSERT INTO users (username, email, password_hash)
-   VALUES ('username', 'email@example.com', '<paste-hash-here>');
+   INSERT INTO users (id, username, email, password_hash)
+   VALUES (gen_random_uuid(), 'username', 'email@example.com', '<paste-hash-here>');
    ```
 
 ## REST API
@@ -94,6 +101,12 @@ Authentication: token is passed in the handshake `auth` object and validated bef
   unhandled rejection and kills the process. Express 5 routes auto-forward
   rejections to the error handler; socket handlers do not. Never add a bare
   `socket.on("x", async ...)`.
+- **Ids are UUID strings — never `Number()` them.** `isId()` is a UUID check
+  (`uuid` package's `validate`). REST route params (`:roomId`, `:userId`,
+  `:messageId`, `:contactId`, `:id`) are validated by `app.param` middleware;
+  body ids and socket payload ids must be checked with `isId()` explicitly.
+  On the client the same applies: compare ids with `===` as strings
+  (`userBg()` hashes the string for colors).
 - **`getUserById` deliberately omits `email`** — it feeds `GET /api/users/:id`,
   which any authenticated user can call. Don't add email (or other PII) back.
 - **All user-supplied strings need length caps** — message text (4,000),

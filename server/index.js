@@ -9,6 +9,7 @@ import rateLimit from "express-rate-limit";
 import webpush from "web-push";
 import "dotenv/config";
 import { randomInt, timingSafeEqual } from "crypto";
+import { validate as uuidValidate } from "uuid";
 
 import { queries, initDb } from "./db.js";
 import { generateToken, verifyToken } from "./auth.js";
@@ -201,11 +202,27 @@ function isOnline(userId) {
   return (online.get(userId)?.size ?? 0) > 0;
 }
 
+// ─── Ids ───────────────────────────────────────────────────────────────────────
+// Every id in the database is a UUID generated with the `uuid` package (see
+// db.js). Validate before anything reaches a UUID column — a non-UUID string
+// makes pg throw.
+const isId = (v) => typeof v === "string" && uuidValidate(v);
+
+// Validate UUID route params once for every route that uses them.
+for (const p of ["roomId", "userId", "contactId", "messageId", "id"]) {
+  app.param(p, (req, res, next, value) => {
+    if (!isId(value)) return res.status(400).json({ error: "Invalid id" });
+    next();
+  });
+}
+
 // ─── Auth middleware ───────────────────────────────────────────────────────────
 function requireAuth(req, res, next) {
   const token = req.headers.authorization?.split(" ")[1];
   const decoded = token ? verifyToken(token) : null;
-  if (!decoded) return res.status(401).json({ error: "Unauthorized" });
+  // Tokens minted before the UUID migration carry integer ids — treat them
+  // as expired so those clients fall back to the login screen.
+  if (!decoded || !isId(decoded.id)) return res.status(401).json({ error: "Unauthorized" });
   req.user = decoded;
   next();
 }
@@ -349,7 +366,7 @@ app.get("/api/users", requireAuth, async (req, res) => {
 });
 
 app.get("/api/users/:id", requireAuth, async (req, res) => {
-  const user = await queries.getUserById.get(Number(req.params.id));
+  const user = await queries.getUserById.get(req.params.id);
   if (!user) return res.status(404).json({ error: "User not found" });
   res.json({ ...user, online: isOnline(user.id) });
 });
@@ -371,7 +388,7 @@ app.post("/api/users/me/avatar", requireAuth, async (req, res) => {
 
 app.post("/api/contacts/request", requireAuth, contactLimiter, async (req, res) => {
   const { contactId } = req.body ?? {};
-  if (!contactId || Number(contactId) === req.user.id) {
+  if (!isId(contactId) || contactId === req.user.id) {
     return res.status(400).json({ error: "Invalid contactId" });
   }
   const target = await queries.getUserById.get(contactId);
@@ -389,7 +406,7 @@ app.post("/api/contacts/request", requireAuth, contactLimiter, async (req, res) 
 
 app.post("/api/contacts/accept", requireAuth, async (req, res) => {
   const { requesterId } = req.body ?? {};
-  if (!requesterId) return res.status(400).json({ error: "requesterId required" });
+  if (!isId(requesterId)) return res.status(400).json({ error: "requesterId required" });
 
   await queries.acceptContactRequest.run(req.user.id, requesterId);
 
@@ -402,7 +419,7 @@ app.post("/api/contacts/accept", requireAuth, async (req, res) => {
 });
 
 app.delete("/api/contacts/:contactId", requireAuth, async (req, res) => {
-  const contactId = Number(req.params.contactId);
+  const contactId = req.params.contactId;
   if (!contactId) return res.status(400).json({ error: "Invalid contactId" });
   await queries.removeContact.run(req.user.id, contactId);
   res.json({ ok: true });
@@ -449,7 +466,7 @@ app.get("/api/rooms", requireAuth, async (req, res) => {
 
 app.post("/api/rooms/dm", requireAuth, async (req, res) => {
   const { targetUserId } = req.body ?? {};
-  if (!targetUserId) return res.status(400).json({ error: "targetUserId required" });
+  if (!isId(targetUserId)) return res.status(400).json({ error: "targetUserId required" });
 
   const target = await queries.getUserById.get(targetUserId);
   if (!target) return res.status(404).json({ error: "User not found" });
@@ -478,6 +495,9 @@ app.post("/api/rooms/group", requireAuth, async (req, res) => {
   if (userIds.length > 49) {
     return res.status(400).json({ error: "Groups are limited to 50 members" });
   }
+  if (userIds.some((uid) => !isId(uid))) {
+    return res.status(400).json({ error: "Invalid member id" });
+  }
   if (!name?.trim()) {
     return res.status(400).json({ error: "Group name required" });
   }
@@ -504,7 +524,7 @@ app.post("/api/rooms/group", requireAuth, async (req, res) => {
 });
 
 app.get("/api/rooms/:roomId/members", requireAuth, async (req, res) => {
-  const roomId = Number(req.params.roomId);
+  const roomId = req.params.roomId;
   if (!(await queries.isMember.get(roomId, req.user.id))) {
     return res.status(403).json({ error: "Not a member" });
   }
@@ -512,7 +532,7 @@ app.get("/api/rooms/:roomId/members", requireAuth, async (req, res) => {
 });
 
 app.get("/api/rooms/:roomId/messages", requireAuth, async (req, res) => {
-  const roomId = Number(req.params.roomId);
+  const roomId = req.params.roomId;
   if (!(await queries.isMember.get(roomId, req.user.id))) {
     return res.status(403).json({ error: "Not a member of this room" });
   }
@@ -523,7 +543,7 @@ app.get("/api/rooms/:roomId/messages", requireAuth, async (req, res) => {
 });
 
 app.delete("/api/rooms/:roomId", requireAuth, async (req, res) => {
-  const roomId = Number(req.params.roomId);
+  const roomId = req.params.roomId;
   if (!(await queries.isMember.get(roomId, req.user.id))) {
     return res.status(403).json({ error: "Forbidden" });
   }
@@ -641,8 +661,8 @@ app.get("/api/channels/lookup/:slug", requireAuth, async (req, res) => {
 });
 
 app.patch("/api/channels/:roomId/members/:userId/role", requireAuth, async (req, res) => {
-  const roomId = Number(req.params.roomId);
-  const targetId = Number(req.params.userId);
+  const roomId = req.params.roomId;
+  const targetId = req.params.userId;
   const { role } = req.body ?? {};
 
   if (!role) return res.status(400).json({ error: "Role is required" });
@@ -709,8 +729,8 @@ app.patch("/api/channels/:roomId/members/:userId/role", requireAuth, async (req,
 });
 
 app.delete("/api/channels/:roomId/members/:userId", requireAuth, async (req, res) => {
-  const roomId = Number(req.params.roomId);
-  const targetId = Number(req.params.userId);
+  const roomId = req.params.roomId;
+  const targetId = req.params.userId;
 
   const myRole = await queries.getMemberRole.get(roomId, req.user.id);
   if (!myRole) return res.status(403).json({ error: "Not a member" });
@@ -752,9 +772,9 @@ app.delete("/api/channels/:roomId/members/:userId", requireAuth, async (req, res
 // ─── Add member to channel ─────────────────────────────────────────────────────
 
 app.post("/api/channels/:roomId/members", requireAuth, async (req, res) => {
-  const roomId = Number(req.params.roomId);
+  const roomId = req.params.roomId;
   const { userId } = req.body ?? {};
-  if (!userId) return res.status(400).json({ error: "userId required" });
+  if (!isId(userId)) return res.status(400).json({ error: "userId required" });
 
   const myRole = await queries.getMemberRole.get(roomId, req.user.id);
   if (!myRole) return res.status(403).json({ error: "Not a member" });
@@ -792,7 +812,7 @@ app.post("/api/channels/:roomId/members", requireAuth, async (req, res) => {
 // ─── Edit channel ──────────────────────────────────────────────────────────────
 
 app.patch("/api/channels/:roomId", requireAuth, async (req, res) => {
-  const roomId = Number(req.params.roomId);
+  const roomId = req.params.roomId;
   const { name, description, slug } = req.body ?? {};
   if (!name?.trim()) return res.status(400).json({ error: "Name is required" });
   if (name.trim().length > 60) return res.status(400).json({ error: "Channel name is too long (max 60 characters)" });
@@ -825,8 +845,8 @@ app.patch("/api/channels/:roomId", requireAuth, async (req, res) => {
 // ─── Mute member ──────────────────────────────────────────────────────────────
 
 app.patch("/api/channels/:roomId/members/:userId/mute", requireAuth, async (req, res) => {
-  const roomId = Number(req.params.roomId);
-  const targetId = Number(req.params.userId);
+  const roomId = req.params.roomId;
+  const targetId = req.params.userId;
   const { duration } = req.body ?? {};  // seconds; 0 = unmute
 
   const myRole = await queries.getMemberRole.get(roomId, req.user.id);
@@ -868,8 +888,9 @@ app.patch("/api/channels/:roomId/members/:userId/mute", requireAuth, async (req,
 // ─── Pin messages ─────────────────────────────────────────────────────────────
 
 app.post("/api/channels/:roomId/pins", requireAuth, async (req, res) => {
-  const roomId = Number(req.params.roomId);
+  const roomId = req.params.roomId;
   const { messageId } = req.body ?? {};
+  if (!isId(messageId)) return res.status(400).json({ error: "Invalid messageId" });
 
   const myRole = await queries.getMemberRole.get(roomId, req.user.id);
   if (!myRole) return res.status(403).json({ error: "Not a member" });
@@ -886,8 +907,8 @@ app.post("/api/channels/:roomId/pins", requireAuth, async (req, res) => {
 });
 
 app.delete("/api/channels/:roomId/pins/:messageId", requireAuth, async (req, res) => {
-  const roomId = Number(req.params.roomId);
-  const messageId = Number(req.params.messageId);
+  const roomId = req.params.roomId;
+  const messageId = req.params.messageId;
 
   const myRole = await queries.getMemberRole.get(roomId, req.user.id);
   if (!myRole) return res.status(403).json({ error: "Not a member" });
@@ -899,7 +920,7 @@ app.delete("/api/channels/:roomId/pins/:messageId", requireAuth, async (req, res
 });
 
 app.get("/api/channels/:roomId/pins", requireAuth, async (req, res) => {
-  const roomId = Number(req.params.roomId);
+  const roomId = req.params.roomId;
   if (!(await queries.isMember.get(roomId, req.user.id))) return res.status(403).json({ error: "Not a member" });
   const pins = await queries.getPinnedMessages.all(roomId);
   res.json(pins);
@@ -908,7 +929,7 @@ app.get("/api/channels/:roomId/pins", requireAuth, async (req, res) => {
 // ─── Messages ─────────────────────────────────────────────────────────────────
 
 app.delete("/api/messages/:messageId", requireAuth, async (req, res) => {
-  const messageId = Number(req.params.messageId);
+  const messageId = req.params.messageId;
   const msg = await queries.getMessageById.get(messageId);
   if (!msg) return res.status(404).json({ error: "Not found" });
   if (!(await queries.isMember.get(msg.room_id, req.user.id))) {
@@ -960,7 +981,8 @@ app.delete("/api/push/unsubscribe", requireAuth, async (req, res) => {
 
 io.use((socket, next) => {
   const decoded = verifyToken(socket.handshake.auth?.token);
-  if (!decoded) return next(new Error("Authentication error"));
+  // Reject pre-UUID-migration tokens (integer ids) — client must re-login.
+  if (!decoded || !isId(decoded.id)) return next(new Error("Authentication error"));
   socket.user = decoded;
   next();
 });
@@ -968,15 +990,15 @@ io.use((socket, next) => {
 // ─── Socket.io events ──────────────────────────────────────────────────────────
 
 // Socket.io does NOT catch rejected async handlers — a payload that makes a
-// query throw (e.g. roomId as an object) would become an unhandled rejection
-// and kill the process. Every handler goes through safe(), and incoming ids
-// are validated with isId() before they reach the database.
+// query throw (e.g. roomId as an object or a non-UUID string) would become an
+// unhandled rejection and kill the process. Every handler goes through
+// safe(), and incoming ids are validated with isId() (UUID check, defined
+// above) before they reach the database.
 const safe = (fn) => (payload, ...rest) => {
   Promise.resolve(fn(payload ?? {}, ...rest)).catch((err) =>
     console.error("[socket] handler error:", err.message),
   );
 };
-const isId = (v) => Number.isInteger(v) && v > 0;
 
 io.on("connection", async (socket) => {
   const { id: userId, username } = socket.user;

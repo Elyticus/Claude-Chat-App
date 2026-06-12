@@ -1,4 +1,5 @@
 import pkg from "pg";
+import { v4 as uuidv4 } from "uuid";
 const { Pool } = pkg;
 
 const pool = new Pool({
@@ -10,10 +11,151 @@ const pool = new Pool({
   connectionTimeoutMillis: 5_000,
 });
 
+// One-time migration: converts the original SERIAL integer ids (and every
+// foreign key referencing them) to UUIDs generated with the `uuid` package.
+// Runs inside a single transaction — on any failure the database is left
+// untouched. Detected via the data type of users.id; skipped on fresh
+// databases (no users table yet) and on already-migrated ones.
+async function migrateToUuid() {
+  const { rows } = await pool.query(
+    `SELECT data_type FROM information_schema.columns
+     WHERE table_name = 'users' AND column_name = 'id'`,
+  );
+  if (rows.length === 0 || rows[0].data_type === "uuid") return;
+
+  console.log("[db] Migrating integer ids to UUIDs…");
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // 1) Parent tables: add the new uuid id, backfilled with uuidv4().
+    for (const table of ["users", "rooms", "messages", "pinned_messages", "push_subscriptions"]) {
+      await client.query(`ALTER TABLE ${table} ADD COLUMN id_new UUID`);
+      const ids = (await client.query(`SELECT id FROM ${table}`)).rows.map((r) => r.id);
+      if (ids.length > 0) {
+        const uuids = ids.map(() => uuidv4());
+        await client.query(
+          `UPDATE ${table} t SET id_new = v.uid
+           FROM (SELECT unnest($1::int[]) AS oid, unnest($2::uuid[]) AS uid) v
+           WHERE t.id = v.oid`,
+          [ids, uuids],
+        );
+      }
+    }
+
+    // 2) Remap every foreign key through its parent's new id, drop the old
+    //    integer columns (CASCADE removes their PKs/FKs/indexes), rename the
+    //    uuid columns into place and restore all constraints.
+    await client.query(`
+      ALTER TABLE room_members ADD COLUMN room_id_new UUID;
+      ALTER TABLE room_members ADD COLUMN user_id_new UUID;
+      UPDATE room_members c SET room_id_new = p.id_new FROM rooms p WHERE c.room_id = p.id;
+      UPDATE room_members c SET user_id_new = p.id_new FROM users p WHERE c.user_id = p.id;
+
+      ALTER TABLE messages ADD COLUMN room_id_new UUID;
+      ALTER TABLE messages ADD COLUMN user_id_new UUID;
+      UPDATE messages c SET room_id_new = p.id_new FROM rooms p WHERE c.room_id = p.id;
+      UPDATE messages c SET user_id_new = p.id_new FROM users p WHERE c.user_id = p.id;
+
+      ALTER TABLE contacts ADD COLUMN user_id_new UUID;
+      ALTER TABLE contacts ADD COLUMN contact_id_new UUID;
+      UPDATE contacts c SET user_id_new = p.id_new FROM users p WHERE c.user_id = p.id;
+      UPDATE contacts c SET contact_id_new = p.id_new FROM users p WHERE c.contact_id = p.id;
+
+      ALTER TABLE pinned_messages ADD COLUMN room_id_new UUID;
+      ALTER TABLE pinned_messages ADD COLUMN message_id_new UUID;
+      ALTER TABLE pinned_messages ADD COLUMN pinned_by_new UUID;
+      UPDATE pinned_messages c SET room_id_new = p.id_new FROM rooms p WHERE c.room_id = p.id;
+      UPDATE pinned_messages c SET message_id_new = p.id_new FROM messages p WHERE c.message_id = p.id;
+      UPDATE pinned_messages c SET pinned_by_new = p.id_new FROM users p WHERE c.pinned_by = p.id;
+
+      ALTER TABLE push_subscriptions ADD COLUMN user_id_new UUID;
+      UPDATE push_subscriptions c SET user_id_new = p.id_new FROM users p WHERE c.user_id = p.id;
+
+      ALTER TABLE room_members DROP COLUMN room_id CASCADE;
+      ALTER TABLE room_members DROP COLUMN user_id CASCADE;
+      ALTER TABLE contacts DROP COLUMN user_id CASCADE;
+      ALTER TABLE contacts DROP COLUMN contact_id CASCADE;
+      ALTER TABLE pinned_messages DROP COLUMN id CASCADE;
+      ALTER TABLE pinned_messages DROP COLUMN room_id CASCADE;
+      ALTER TABLE pinned_messages DROP COLUMN message_id CASCADE;
+      ALTER TABLE pinned_messages DROP COLUMN pinned_by CASCADE;
+      ALTER TABLE push_subscriptions DROP COLUMN id CASCADE;
+      ALTER TABLE push_subscriptions DROP COLUMN user_id CASCADE;
+      ALTER TABLE messages DROP COLUMN id CASCADE;
+      ALTER TABLE messages DROP COLUMN room_id CASCADE;
+      ALTER TABLE messages DROP COLUMN user_id CASCADE;
+      ALTER TABLE rooms DROP COLUMN id CASCADE;
+      ALTER TABLE users DROP COLUMN id CASCADE;
+
+      ALTER TABLE users RENAME COLUMN id_new TO id;
+      ALTER TABLE rooms RENAME COLUMN id_new TO id;
+      ALTER TABLE messages RENAME COLUMN id_new TO id;
+      ALTER TABLE messages RENAME COLUMN room_id_new TO room_id;
+      ALTER TABLE messages RENAME COLUMN user_id_new TO user_id;
+      ALTER TABLE room_members RENAME COLUMN room_id_new TO room_id;
+      ALTER TABLE room_members RENAME COLUMN user_id_new TO user_id;
+      ALTER TABLE contacts RENAME COLUMN user_id_new TO user_id;
+      ALTER TABLE contacts RENAME COLUMN contact_id_new TO contact_id;
+      ALTER TABLE pinned_messages RENAME COLUMN id_new TO id;
+      ALTER TABLE pinned_messages RENAME COLUMN room_id_new TO room_id;
+      ALTER TABLE pinned_messages RENAME COLUMN message_id_new TO message_id;
+      ALTER TABLE pinned_messages RENAME COLUMN pinned_by_new TO pinned_by;
+      ALTER TABLE push_subscriptions RENAME COLUMN id_new TO id;
+      ALTER TABLE push_subscriptions RENAME COLUMN user_id_new TO user_id;
+
+      ALTER TABLE users ALTER COLUMN id SET NOT NULL;
+      ALTER TABLE rooms ALTER COLUMN id SET NOT NULL;
+      ALTER TABLE messages ALTER COLUMN id SET NOT NULL;
+      ALTER TABLE pinned_messages ALTER COLUMN id SET NOT NULL;
+      ALTER TABLE push_subscriptions ALTER COLUMN id SET NOT NULL;
+      ALTER TABLE users ADD PRIMARY KEY (id);
+      ALTER TABLE rooms ADD PRIMARY KEY (id);
+      ALTER TABLE messages ADD PRIMARY KEY (id);
+      ALTER TABLE pinned_messages ADD PRIMARY KEY (id);
+      ALTER TABLE push_subscriptions ADD PRIMARY KEY (id);
+
+      ALTER TABLE room_members ALTER COLUMN room_id SET NOT NULL;
+      ALTER TABLE room_members ALTER COLUMN user_id SET NOT NULL;
+      ALTER TABLE room_members ADD PRIMARY KEY (room_id, user_id);
+      ALTER TABLE contacts ALTER COLUMN user_id SET NOT NULL;
+      ALTER TABLE contacts ALTER COLUMN contact_id SET NOT NULL;
+      ALTER TABLE contacts ADD PRIMARY KEY (user_id, contact_id);
+      ALTER TABLE messages ALTER COLUMN room_id SET NOT NULL;
+      ALTER TABLE messages ALTER COLUMN user_id SET NOT NULL;
+      ALTER TABLE pinned_messages ALTER COLUMN room_id SET NOT NULL;
+      ALTER TABLE pinned_messages ALTER COLUMN message_id SET NOT NULL;
+      ALTER TABLE pinned_messages ALTER COLUMN pinned_by SET NOT NULL;
+      ALTER TABLE push_subscriptions ALTER COLUMN user_id SET NOT NULL;
+
+      ALTER TABLE room_members ADD FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE;
+      ALTER TABLE room_members ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+      ALTER TABLE messages ADD FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE;
+      ALTER TABLE messages ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+      ALTER TABLE contacts ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+      ALTER TABLE contacts ADD FOREIGN KEY (contact_id) REFERENCES users(id) ON DELETE CASCADE;
+      ALTER TABLE pinned_messages ADD FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE;
+      ALTER TABLE pinned_messages ADD FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE;
+      ALTER TABLE pinned_messages ADD FOREIGN KEY (pinned_by) REFERENCES users(id);
+      ALTER TABLE pinned_messages ADD UNIQUE (room_id, message_id);
+      ALTER TABLE push_subscriptions ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+    `);
+
+    await client.query("COMMIT");
+    console.log("[db] UUID migration complete");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 export async function initDb() {
+  await migrateToUuid();
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
-      id            SERIAL PRIMARY KEY,
+      id            UUID PRIMARY KEY,
       username      TEXT UNIQUE NOT NULL,
       email         TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
@@ -29,7 +171,7 @@ export async function initDb() {
       expires_at    BIGINT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS rooms (
-      id          SERIAL PRIMARY KEY,
+      id          UUID PRIMARY KEY,
       name        TEXT,
       is_group    SMALLINT DEFAULT 0,
       type        TEXT DEFAULT 'room',
@@ -42,8 +184,8 @@ export async function initDb() {
     ALTER TABLE rooms ADD COLUMN IF NOT EXISTS description TEXT;
     CREATE UNIQUE INDEX IF NOT EXISTS idx_rooms_slug ON rooms(slug) WHERE slug IS NOT NULL;
     CREATE TABLE IF NOT EXISTS room_members (
-      room_id   INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
-      user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      room_id   UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+      user_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       joined_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT,
       is_new    SMALLINT DEFAULT 0,
       added_by  TEXT,
@@ -60,25 +202,25 @@ export async function initDb() {
     -- at join time.
     ALTER TABLE room_members ADD COLUMN IF NOT EXISTS last_read_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT;
     CREATE TABLE IF NOT EXISTS messages (
-      id         SERIAL PRIMARY KEY,
-      room_id    INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
-      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      id         UUID PRIMARY KEY,
+      room_id    UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+      user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       text       TEXT NOT NULL,
       reaction   TEXT,
       created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
     );
     ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_system SMALLINT DEFAULT 0;
     CREATE TABLE IF NOT EXISTS pinned_messages (
-      id         SERIAL PRIMARY KEY,
-      room_id    INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
-      message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
-      pinned_by  INTEGER NOT NULL REFERENCES users(id),
+      id         UUID PRIMARY KEY,
+      room_id    UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+      message_id UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+      pinned_by  UUID NOT NULL REFERENCES users(id),
       pinned_at  BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT,
       UNIQUE (room_id, message_id)
     );
     CREATE TABLE IF NOT EXISTS contacts (
-      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      contact_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      contact_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       status     TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted')),
       created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT,
       PRIMARY KEY (user_id, contact_id)
@@ -89,8 +231,8 @@ export async function initDb() {
       expires_at BIGINT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS push_subscriptions (
-      id         SERIAL PRIMARY KEY,
-      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      id         UUID PRIMARY KEY,
+      user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       endpoint   TEXT NOT NULL UNIQUE,
       p256dh     TEXT NOT NULL,
       auth       TEXT NOT NULL,
@@ -165,7 +307,7 @@ export const queries = {
 
   createUser: {
     run: (username, email, hash) =>
-      q("INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id", [username, email, hash])
+      q("INSERT INTO users (id, username, email, password_hash) VALUES ($1, $2, $3, $4) RETURNING id", [uuidv4(), username, email, hash])
         .then(r => ({ lastInsertRowid: r.rows[0].id })),
   },
   touchUser:      { run: (id)           => q("UPDATE users SET last_seen = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $1", [id]) },
@@ -183,7 +325,7 @@ export const queries = {
 
   createRoom: {
     run: (is_group, name) =>
-      q("INSERT INTO rooms (is_group, name) VALUES ($1, $2) RETURNING id", [is_group, name])
+      q("INSERT INTO rooms (id, is_group, name) VALUES ($1, $2, $3) RETURNING id", [uuidv4(), is_group, name])
         .then(r => ({ lastInsertRowid: r.rows[0].id })),
   },
   addMember: {
@@ -244,7 +386,7 @@ export const queries = {
 
   insertMessage: {
     run: (roomId, userId, text, isSystem = false) =>
-      q("INSERT INTO messages (room_id, user_id, text, is_system) VALUES ($1, $2, $3, $4) RETURNING id", [roomId, userId, text, isSystem ? 1 : 0])
+      q("INSERT INTO messages (id, room_id, user_id, text, is_system) VALUES ($1, $2, $3, $4, $5) RETURNING id", [uuidv4(), roomId, userId, text, isSystem ? 1 : 0])
         .then(r => ({ lastInsertRowid: r.rows[0].id })),
   },
 
@@ -296,8 +438,8 @@ export const queries = {
 
   pinMessage: {
     run: (roomId, messageId, pinnedBy) =>
-      q("INSERT INTO pinned_messages (room_id, message_id, pinned_by) VALUES ($1, $2, $3) ON CONFLICT (room_id, message_id) DO NOTHING",
-        [roomId, messageId, pinnedBy]),
+      q("INSERT INTO pinned_messages (id, room_id, message_id, pinned_by) VALUES ($1, $2, $3, $4) ON CONFLICT (room_id, message_id) DO NOTHING",
+        [uuidv4(), roomId, messageId, pinnedBy]),
   },
 
   unpinMessage: {
@@ -331,8 +473,8 @@ export const queries = {
 
   createChannel: {
     run: (name, slug, description, isPrivate) =>
-      q("INSERT INTO rooms (name, slug, description, is_group, type) VALUES ($1, $2, $3, 1, $4) RETURNING id",
-        [name, slug, description || null, isPrivate ? 'private_channel' : 'channel'])
+      q("INSERT INTO rooms (id, name, slug, description, is_group, type) VALUES ($1, $2, $3, $4, 1, $5) RETURNING id",
+        [uuidv4(), name, slug, description || null, isPrivate ? 'private_channel' : 'channel'])
         .then(r => ({ lastInsertRowid: r.rows[0].id })),
   },
 
@@ -361,10 +503,10 @@ export const queries = {
 
   upsertPushSubscription: {
     run: (userId, endpoint, p256dh, auth) =>
-      q(`INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth)
-         VALUES ($1, $2, $3, $4)
+      q(`INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth)
+         VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (endpoint) DO UPDATE SET user_id = EXCLUDED.user_id, p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth`,
-        [userId, endpoint, p256dh, auth]),
+        [uuidv4(), userId, endpoint, p256dh, auth]),
   },
 
   deletePushSubscription: {

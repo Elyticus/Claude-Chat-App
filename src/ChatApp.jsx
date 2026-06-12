@@ -333,7 +333,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
     function handleSwMessage(event) {
       if (event.data?.type === "OPEN_ROOM") {
-        const roomId = Number(event.data.roomId);
+        const roomId = event.data.roomId;
         if (roomId) selectRoomRef.current?.(roomId);
       }
     }
@@ -958,7 +958,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   useEffect(() => {
     syncRooms().then((loadedRooms) => {
       if (!loadedRooms) return;
-      const savedId = Number(localStorage.getItem("linkloop_active_room"));
+      // Ids are UUID strings — compare as-is. (Old saved integer ids simply
+      // won't match any room and are ignored.)
+      const savedId = localStorage.getItem("linkloop_active_room");
       const savedRoom = loadedRooms.find((r) => r.id === savedId);
       if (savedRoom) {
         setActiveRoomId(savedId);
