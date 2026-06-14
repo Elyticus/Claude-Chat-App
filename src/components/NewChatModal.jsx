@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { Search, X, Globe, Lock } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Search, X, Globe, Lock, Check } from "lucide-react";
 import { Avatar } from "./ui/Avatar.jsx";
 import { ContactStatusButton } from "./ui/ContactStatusButton.jsx";
 import { ConfirmModal } from "./ConfirmModal.jsx";
@@ -35,6 +35,14 @@ export function NewChatModal({
   const [groupName, setGroupName] = useState("");
   const [creating, setCreating] = useState(false);
   const [findError, setFindError] = useState("");
+  const [findSuccess, setFindSuccess] = useState("");
+
+  // Auto-dismiss the "request sent" confirmation after a few seconds.
+  useEffect(() => {
+    if (!findSuccess) return;
+    const t = setTimeout(() => setFindSuccess(""), 4000);
+    return () => clearTimeout(t);
+  }, [findSuccess]);
 
   const [channelMode, setChannelMode] = useState("create");
   const [channelName, setChannelName] = useState("");
@@ -244,6 +252,7 @@ export function NewChatModal({
                 setSelectedIds([]);
                 setSearch("");
                 setFindError("");
+                setFindSuccess("");
                 setChannelError("");
                 setChannelLookupError("");
               }}
@@ -746,6 +755,19 @@ export function NewChatModal({
                     {findError}
                   </div>
                 )}
+                {findSuccess && (
+                  <div
+                    className="mx-1 mb-2 px-3 py-2 rounded-xl text-xs flex items-center gap-2"
+                    style={{
+                      background: "rgba(34,197,94,0.08)",
+                      border: "1px solid rgba(34,197,94,0.2)",
+                      color: "#4ade80",
+                    }}
+                  >
+                    <Check size={13} className="shrink-0" />
+                    {findSuccess}
+                  </div>
+                )}
                 {!searching && (
                   <div className="flex flex-col items-center text-center px-6 py-10">
                     <div
@@ -822,8 +844,12 @@ export function NewChatModal({
                       status={u.contact_status}
                       onAdd={async () => {
                         setFindError("");
+                        setFindSuccess("");
                         try {
                           await onSendRequest(u.id);
+                          setFindSuccess(
+                            `Friend request sent to ${u.username}`,
+                          );
                         } catch (err) {
                           setFindError(err.message || "Failed to send request");
                         }
