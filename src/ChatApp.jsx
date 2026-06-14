@@ -111,15 +111,41 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   // divider marks where unseen messages start and doesn't drift when more
   // messages arrive while the room is open.
   const [newMsgMarkers, setNewMsgMarkers] = useState({});
-  // Transient app-level confirmation banner (e.g. "You're now friends with X"
-  // shown to the request sender when someone accepts). Auto-dismisses.
-  const [appToast, setAppToast] = useState("");
+  // App-level confirmation banners (e.g. "You're now friends with X" shown to
+  // the request sender when someone accepts). Persisted to localStorage and
+  // kept until the sender explicitly clears each one — they never auto-dismiss.
+  const [friendNotifs, setFriendNotifs] = useState(() => {
+    try {
+      return JSON.parse(
+        localStorage.getItem("linkloop_friend_notifs") || "[]",
+      );
+    } catch {
+      return [];
+    }
+  });
 
+  function addFriendNotif(message) {
+    const notif = { id: `${Date.now()}-${Math.random()}`, message };
+    setFriendNotifs((prev) => {
+      const next = [notif, ...prev].slice(0, 30);
+      localStorage.setItem("linkloop_friend_notifs", JSON.stringify(next));
+      return next;
+    });
+  }
+
+  function clearFriendNotif(id) {
+    setFriendNotifs((prev) => {
+      const next = prev.filter((n) => n.id !== id);
+      localStorage.setItem("linkloop_friend_notifs", JSON.stringify(next));
+      return next;
+    });
+  }
+
+  // Stable ref so the once-registered socket handler always calls the latest.
+  const addFriendNotifRef = useRef(addFriendNotif);
   useEffect(() => {
-    if (!appToast) return;
-    const t = setTimeout(() => setAppToast(""), 5000);
-    return () => clearTimeout(t);
-  }, [appToast]);
+    addFriendNotifRef.current = addFriendNotif;
+  });
 
   function addChannelNotif(message, type = "info", roomId = null) {
     const id = Date.now() + Math.random();
@@ -620,9 +646,10 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           setOnlineIds(new Set(users.filter((u) => u.online).map((u) => u.id)));
         })
         .catch(console.error);
-      // Confirm to the sender that the person they requested accepted.
+      // Confirm to the sender that the person they requested accepted. The
+      // banner persists until they clear it.
       if (by?.username) {
-        setAppToast(`You're now friends with ${by.username}`);
+        addFriendNotifRef.current(`You're now friends with ${by.username}`);
         if (
           typeof Notification !== "undefined" &&
           Notification.permission === "granted"
@@ -1647,23 +1674,37 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       className="relative w-full h-dvh overflow-hidden"
       style={{ background: bg0 }}
     >
-      {/* App-level confirmation toast (e.g. friend request accepted). Sits above
-          everything, including the new-chat modal (z-500) and confirm (z-600). */}
-      {appToast && (
-        <button
-          onClick={() => setAppToast("")}
-          className="fixed top-4 left-1/2 -translate-x-1/2 z-700 flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium animate-fade-in-up cursor-pointer"
-          style={{
-            background: isDark ? "rgba(16,25,46,0.95)" : "#ffffff",
-            border: "1px solid rgba(34,197,94,0.35)",
-            color: isDark ? "#4ade80" : "#16a34a",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
-            backdropFilter: "blur(8px)",
-          }}
-        >
-          <Check size={15} className="shrink-0" />
-          {appToast}
-        </button>
+      {/* App-level confirmation banners (e.g. friend request accepted). Each
+          persists until the user clears it — they never auto-dismiss. Sits
+          above everything, including the new-chat modal (z-500) and confirm
+          dialog (z-600). */}
+      {friendNotifs.length > 0 && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-700 flex flex-col items-center gap-2 w-[calc(100%-2rem)] max-w-sm">
+          {friendNotifs.map((n) => (
+            <div
+              key={n.id}
+              className="w-full flex items-center gap-2.5 pl-4 pr-2 py-2.5 rounded-full text-sm font-medium animate-fade-in-up"
+              style={{
+                background: isDark ? "rgba(16,25,46,0.95)" : "#ffffff",
+                border: "1px solid rgba(34,197,94,0.35)",
+                color: isDark ? "#4ade80" : "#16a34a",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
+                backdropFilter: "blur(8px)",
+              }}
+            >
+              <Check size={15} className="shrink-0" />
+              <span className="flex-1 min-w-0 truncate">{n.message}</span>
+              <button
+                onClick={() => clearFriendNotif(n.id)}
+                aria-label="Clear notification"
+                className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-all hover:bg-black/10"
+                style={{ color: isDark ? "rgba(238,242,255,0.5)" : "#64748b" }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
       )}
 
       {/* Orbital Hub — always in background */}
