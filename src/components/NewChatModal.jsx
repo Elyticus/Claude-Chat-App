@@ -161,7 +161,7 @@ export function NewChatModal({
   }
 
   const tabs = [
-    { id: "dm", label: "Direct" },
+    { id: "dm", label: "Friends" },
     { id: "group", label: "Group" },
     { id: "channel", label: "Channel" },
     { id: "find", label: "Find", badge: incoming.length },
@@ -169,7 +169,7 @@ export function NewChatModal({
 
   const headerTitle =
     mode === "dm"
-      ? "New Message"
+      ? "Friends"
       : mode === "group"
         ? "New Group"
         : mode === "channel"
@@ -770,58 +770,109 @@ export function NewChatModal({
                   </p>
                 )}
                 {friends.map((u) => {
-                  const selected = selectedIds.includes(u.id);
+                  // Group mode: a single selectable button toggles membership.
+                  if (mode === "group") {
+                    const selected = selectedIds.includes(u.id);
+                    return (
+                      <button
+                        key={u.id}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left"
+                        style={{
+                          background: selected
+                            ? isDark
+                              ? "rgba(99,102,241,0.14)"
+                              : "rgba(99,102,241,0.08)"
+                            : "transparent",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!selected)
+                            e.currentTarget.style.background = isDark
+                              ? "rgba(99,102,241,0.07)"
+                              : "rgba(99,102,241,0.05)";
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!selected)
+                            e.currentTarget.style.background = "transparent";
+                        }}
+                        onClick={() => toggleSelect(u.id)}
+                      >
+                        <Avatar
+                          userId={u.id}
+                          username={u.username}
+                          size={40}
+                          online={onlineIds.has(u.id)}
+                          avatar={avatarMap[u.id]}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div
+                            className="text-sm font-medium truncate"
+                            style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+                          >
+                            {u.username}
+                          </div>
+                        </div>
+                        {selected && (
+                          <span className="text-indigo-400 font-bold shrink-0">
+                            ✓
+                          </span>
+                        )}
+                      </button>
+                    );
+                  }
+
+                  // Friends tab: click the row to open a DM; a separate Remove
+                  // button unfriends. A button can't nest a button, so this is a
+                  // div row with an inner clickable area + the Remove control.
                   return (
-                    <button
+                    <div
                       key={u.id}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left"
-                      style={{
-                        background: selected
-                          ? isDark
-                            ? "rgba(99,102,241,0.14)"
-                            : "rgba(99,102,241,0.08)"
-                          : "transparent",
-                      }}
+                      className="group/fr flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
                       onMouseEnter={(e) => {
-                        if (!selected)
-                          e.currentTarget.style.background = isDark
-                            ? "rgba(99,102,241,0.07)"
-                            : "rgba(99,102,241,0.05)";
+                        e.currentTarget.style.background = isDark
+                          ? "rgba(99,102,241,0.07)"
+                          : "rgba(99,102,241,0.05)";
                       }}
                       onMouseLeave={(e) => {
-                        if (!selected)
-                          e.currentTarget.style.background = "transparent";
+                        e.currentTarget.style.background = "transparent";
                       }}
-                      onClick={() =>
-                        mode === "dm" ? onSelectUser(u) : toggleSelect(u.id)
-                      }
                     >
-                      <Avatar
-                        userId={u.id}
-                        username={u.username}
-                        size={40}
-                        online={onlineIds.has(u.id)}
-                        avatar={avatarMap[u.id]}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div
-                          className="text-sm font-medium truncate"
-                          style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
-                        >
-                          {u.username}
+                      <button
+                        onClick={() => onSelectUser(u)}
+                        className="flex items-center gap-3 flex-1 min-w-0 text-left cursor-pointer"
+                      >
+                        <Avatar
+                          userId={u.id}
+                          username={u.username}
+                          size={40}
+                          online={onlineIds.has(u.id)}
+                          avatar={avatarMap[u.id]}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div
+                            className="text-sm font-medium truncate"
+                            style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+                          >
+                            {u.username}
+                          </div>
+                          {onlineIds.has(u.id) && (
+                            <div className="text-[11px] text-emerald-400 font-medium">
+                              Online
+                            </div>
+                          )}
                         </div>
-                      </div>
-                      {mode === "dm" && onlineIds.has(u.id) && (
-                        <span className="text-[10px] text-emerald-400 font-semibold shrink-0">
-                          Online
-                        </span>
-                      )}
-                      {mode === "group" && selected && (
-                        <span className="text-indigo-400 font-bold shrink-0">
-                          ✓
-                        </span>
-                      )}
-                    </button>
+                      </button>
+                      <button
+                        onClick={() => onRemoveContact(u.id)}
+                        aria-label={`Remove ${u.username} from friends`}
+                        className={`shrink-0 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                          isDark
+                            ? "bg-white/6 text-white/45 hover:bg-red-500/15 hover:text-red-400"
+                            : "bg-black/5 text-slate-500 hover:bg-red-500/10 hover:text-red-500"
+                        }`}
+                      >
+                        Remove
+                      </button>
+                    </div>
                   );
                 })}
               </div>
