@@ -141,6 +141,11 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     });
   }
 
+  function clearFriendNotifs() {
+    setFriendNotifs([]);
+    localStorage.removeItem("linkloop_friend_notifs");
+  }
+
   // Stable ref so the once-registered socket handler always calls the latest.
   const addFriendNotifRef = useRef(addFriendNotif);
   useEffect(() => {
@@ -1674,39 +1679,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       className="relative w-full h-dvh overflow-hidden"
       style={{ background: bg0 }}
     >
-      {/* App-level confirmation banners (e.g. friend request accepted). Each
-          persists until the user clears it — they never auto-dismiss. Sits
-          above everything, including the new-chat modal (z-500) and confirm
-          dialog (z-600). */}
-      {friendNotifs.length > 0 && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-700 flex flex-col items-center gap-2 w-[calc(100%-2rem)] max-w-sm">
-          {friendNotifs.map((n) => (
-            <div
-              key={n.id}
-              className="w-full flex items-center gap-2.5 pl-4 pr-2 py-2.5 rounded-full text-sm font-medium animate-fade-in-up"
-              style={{
-                background: isDark ? "rgba(16,25,46,0.95)" : "#ffffff",
-                border: "1px solid rgba(34,197,94,0.35)",
-                color: isDark ? "#4ade80" : "#16a34a",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
-                backdropFilter: "blur(8px)",
-              }}
-            >
-              <Check size={15} className="shrink-0" />
-              <span className="flex-1 min-w-0 truncate">{n.message}</span>
-              <button
-                onClick={() => clearFriendNotif(n.id)}
-                aria-label="Clear notification"
-                className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-all hover:bg-black/10"
-                style={{ color: isDark ? "rgba(238,242,255,0.5)" : "#64748b" }}
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Orbital Hub — always in background */}
       <OrbitalHub
         rooms={rooms.filter((r) => !pendingRoomIds.has(r.id))}
@@ -1744,6 +1716,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           setChannelNotifs([]);
           localStorage.removeItem("linkloop_channel_notifs");
         }}
+        friendNotifs={friendNotifs}
+        onClearFriendNotif={clearFriendNotif}
+        onClearFriendNotifs={clearFriendNotifs}
       />
       <input
         ref={avatarFileRef}

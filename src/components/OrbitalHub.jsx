@@ -1,5 +1,13 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { MessageCircle, LogOut, Sun, Moon, X, Sparkles } from "lucide-react";
+import {
+  MessageCircle,
+  LogOut,
+  Sun,
+  Moon,
+  X,
+  Sparkles,
+  Check,
+} from "lucide-react";
 import StarField from "./ui/star-field.jsx";
 import AuroraField from "./ui/aurora-field.jsx";
 import { isAuroraSkyLight } from "@/lib/aurora-palette.js";
@@ -64,6 +72,9 @@ export function OrbitalHub({
   onAvatarClick,
   channelNotifs,
   onClearChannelNotifs,
+  friendNotifs = [],
+  onClearFriendNotif,
+  onClearFriendNotifs,
 }) {
   // Green badge: channel activity notifs (live socket events for this session).
   const channelNotifsCount = channelNotifs.length;
@@ -448,16 +459,20 @@ export function OrbitalHub({
             {totalUnread > 99 ? "99+" : totalUnread}
           </span>
         )}
-        {/* Contact requests — red */}
-        {pendingCount > 0 && (
+        {/* Friend activity — red: incoming requests + accepted-request
+            confirmations. Both surface in the All Chats panel. */}
+        {pendingCount + friendNotifs.length > 0 && (
           <span
             className="absolute -top-1 -right-1 min-w-5 h-5 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 z-20"
             style={{
               background: "linear-gradient(135deg,#ef4444,#dc2626)",
               boxShadow: "0 2px 8px rgba(239,68,68,0.5)",
             }}
+            aria-label={`${pendingCount + friendNotifs.length} friend notifications`}
           >
-            {pendingCount > 9 ? "9+" : pendingCount}
+            {pendingCount + friendNotifs.length > 9
+              ? "9+"
+              : pendingCount + friendNotifs.length}
           </span>
         )}
         {/* Group notification — yellow (plain groups only, not channels) */}
@@ -738,6 +753,80 @@ export function OrbitalHub({
                         Decline
                       </button>
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* New friends — green. Confirmation that a request you sent was
+                accepted. Persists until cleared (per item or all). */}
+            {friendNotifs.length > 0 && (
+              <div
+                className="border-b shrink-0"
+                style={{ borderColor: isDark ? darkBorder : lightBorderMid }}
+              >
+                <div
+                  className="flex items-center justify-between px-5 py-2"
+                  style={{
+                    background: isDark
+                      ? "rgba(74,222,128,0.06)"
+                      : "rgba(240,253,244,0.7)",
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-green-400 shrink-0" />
+                    <span
+                      className="text-[11px] uppercase tracking-widest font-semibold"
+                      style={{
+                        color: isDark ? "rgba(134,239,172,0.8)" : "#15803d",
+                      }}
+                    >
+                      New Friends ({friendNotifs.length})
+                    </span>
+                  </div>
+                  <button
+                    onClick={onClearFriendNotifs}
+                    className="text-[11px] font-medium"
+                    style={{
+                      color: isDark ? "rgba(134,239,172,0.6)" : "#16a34a",
+                    }}
+                  >
+                    Clear all
+                  </button>
+                </div>
+                {friendNotifs.map((n) => (
+                  <div
+                    key={n.id}
+                    className="flex items-center gap-2.5 px-5 py-2.5"
+                    style={{
+                      background: isDark
+                        ? "rgba(74,222,128,0.03)"
+                        : "rgba(240,253,244,0.4)",
+                    }}
+                  >
+                    <Check
+                      size={14}
+                      className="shrink-0"
+                      style={{ color: isDark ? "#4ade80" : "#16a34a" }}
+                    />
+                    <span
+                      className="flex-1 text-xs leading-relaxed"
+                      style={{
+                        color: isDark ? "rgba(238,242,255,0.75)" : "#334155",
+                      }}
+                    >
+                      {n.message}
+                    </span>
+                    <button
+                      onClick={() => onClearFriendNotif(n.id)}
+                      aria-label="Clear notification"
+                      className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-all"
+                      style={{
+                        color: isDark ? "rgba(238,242,255,0.4)" : "#94a3b8",
+                      }}
+                    >
+                      <X size={13} />
+                    </button>
                   </div>
                 ))}
               </div>
