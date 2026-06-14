@@ -51,11 +51,21 @@ export function NewChatModal({
     (u) => u.contact_status === "pending_received",
   );
 
-  const filtered = (
-    mode === "find"
-      ? allUsers.filter((u) => u.contact_status !== "pending_received")
-      : contacts
-  ).filter((u) => u.username.toLowerCase().includes(search.toLowerCase()));
+  const searching = search.trim().length > 0;
+
+  // "Find" is search-driven — never dump the whole user directory. Results
+  // only appear once the user types a username to look someone up, so they
+  // deliberately choose who to add as a friend.
+  const findResults = searching
+    ? allUsers
+        .filter((u) => u.contact_status !== "pending_received")
+        .filter((u) => u.username.toLowerCase().includes(search.toLowerCase()))
+    : [];
+
+  // "Direct" / "Group" tabs list only the user's accepted friends.
+  const friends = contacts.filter((u) =>
+    u.username.toLowerCase().includes(search.toLowerCase()),
+  );
 
   function toggleSelect(id) {
     setSelectedIds((prev) =>
@@ -164,7 +174,7 @@ export function NewChatModal({
         ? "New Group"
         : mode === "channel"
           ? "Channel"
-          : "Find People";
+          : "Add Friends";
 
   const inputCls = `w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-all ${
     isDark
@@ -567,10 +577,10 @@ export function NewChatModal({
                 type="text"
                 placeholder={
                   mode === "dm"
-                    ? "Search contacts…"
+                    ? "Search friends…"
                     : mode === "group"
-                      ? "Add members…"
-                      : "Search people…"
+                      ? "Add friends…"
+                      : "Search by username to add a friend…"
                 }
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -645,16 +655,6 @@ export function NewChatModal({
                     />
                   </div>
                 )}
-                {filtered.length === 0 && (
-                  <p
-                    className="text-center text-sm py-8"
-                    style={{
-                      color: isDark ? "rgba(238,242,255,0.22)" : "#94a3b8",
-                    }}
-                  >
-                    No users found
-                  </p>
-                )}
                 {findError && (
                   <div
                     className="mx-1 mb-2 px-3 py-2 rounded-xl text-xs"
@@ -667,7 +667,51 @@ export function NewChatModal({
                     {findError}
                   </div>
                 )}
-                {filtered.map((u) => (
+                {!searching && (
+                  <div className="flex flex-col items-center text-center px-6 py-10">
+                    <div
+                      className="w-12 h-12 rounded-full flex items-center justify-center mb-3"
+                      style={{
+                        background: isDark
+                          ? "rgba(99,102,241,0.1)"
+                          : "rgba(99,102,241,0.07)",
+                      }}
+                    >
+                      <Search
+                        size={20}
+                        style={{
+                          color: isDark ? "rgba(165,180,252,0.6)" : "#6366f1",
+                        }}
+                      />
+                    </div>
+                    <p
+                      className="text-sm font-medium"
+                      style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+                    >
+                      Find people to add
+                    </p>
+                    <p
+                      className="text-xs mt-1 leading-relaxed max-w-[16rem]"
+                      style={{
+                        color: isDark ? "rgba(238,242,255,0.4)" : "#94a3b8",
+                      }}
+                    >
+                      Search by username to send a friend request. Accepted
+                      friends appear in your Direct and Group lists.
+                    </p>
+                  </div>
+                )}
+                {searching && findResults.length === 0 && (
+                  <p
+                    className="text-center text-sm py-8"
+                    style={{
+                      color: isDark ? "rgba(238,242,255,0.22)" : "#94a3b8",
+                    }}
+                  >
+                    No users found
+                  </p>
+                )}
+                {findResults.map((u) => (
                   <div
                     key={u.id}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
@@ -713,7 +757,7 @@ export function NewChatModal({
               </div>
             ) : (
               <div className="space-y-0.5">
-                {filtered.length === 0 && (
+                {friends.length === 0 && (
                   <p
                     className="text-center text-sm py-10"
                     style={{
@@ -721,11 +765,11 @@ export function NewChatModal({
                     }}
                   >
                     {contacts.length === 0
-                      ? 'No contacts yet — use "Find People" to add some'
-                      : "No contacts match your search"}
+                      ? 'No friends yet — use "Find" to add some'
+                      : "No friends match your search"}
                   </p>
                 )}
-                {filtered.map((u) => {
+                {friends.map((u) => {
                   const selected = selectedIds.includes(u.id);
                   return (
                     <button
