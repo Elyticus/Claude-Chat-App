@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { Search, X, Globe, Lock } from "lucide-react";
 import { Avatar } from "./ui/Avatar.jsx";
 import { ContactStatusButton } from "./ui/ContactStatusButton.jsx";
+import { ConfirmModal } from "./ConfirmModal.jsx";
 import { api } from "@/lib/api.js";
 import { toSlug } from "@/lib/helpers.js";
 import {
@@ -46,6 +47,8 @@ export function NewChatModal({
   const [channelLookupError, setChannelLookupError] = useState("");
   const [channelError, setChannelError] = useState("");
   const lookupTimer = useRef(null);
+  // Pending-request the user is about to cancel — drives the warning dialog.
+  const [cancelTarget, setCancelTarget] = useState(null);
 
   const incoming = allUsers.filter(
     (u) => u.contact_status === "pending_received",
@@ -708,7 +711,7 @@ export function NewChatModal({
                           </div>
                         </div>
                         <button
-                          onClick={() => onRemoveContact(u.id)}
+                          onClick={() => setCancelTarget(u)}
                           aria-label={`Cancel request to ${u.username}`}
                           className={`shrink-0 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
                             isDark
@@ -822,7 +825,13 @@ export function NewChatModal({
                           setFindError(err.message || "Failed to send request");
                         }
                       }}
-                      onRemove={() => onRemoveContact(u.id)}
+                      onRemove={() =>
+                        // Canceling a sent request warns first; removing an
+                        // already-accepted friend stays immediate.
+                        u.contact_status === "pending_sent"
+                          ? setCancelTarget(u)
+                          : onRemoveContact(u.id)
+                      }
                       isDark={isDark}
                     />
                   </div>
@@ -976,6 +985,20 @@ export function NewChatModal({
           </div>
         )}
       </div>
+
+      {/* Warning before canceling a sent friend request. Renders at z-600 (above
+          this modal's z-500) so it sits on top. */}
+      {cancelTarget && (
+        <ConfirmModal
+          title="Cancel friend request?"
+          body={`Cancel your friend request to ${cancelTarget.username}? You can always send it again later.`}
+          confirmLabel="Cancel Request"
+          cancelLabel="Keep"
+          onConfirm={() => onRemoveContact(cancelTarget.id)}
+          onClose={() => setCancelTarget(null)}
+          isDark={isDark}
+        />
+      )}
     </div>
   );
 }

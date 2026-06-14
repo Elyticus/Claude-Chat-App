@@ -1,6 +1,6 @@
 import { darkBg2, darkBorderMid, lightBg1, lightBorderMid } from "@/lib/constants.js";
 
-export function ConfirmModal({ title, body, confirmLabel, onConfirm, onClose, isDark }) {
+export function ConfirmModal({ title, body, confirmLabel, cancelLabel = "Cancel", onConfirm, onClose, isDark }) {
   return (
     <div className="fixed inset-0 z-600 flex items-end sm:items-center justify-center p-4">
       <div
@@ -41,7 +41,7 @@ export function ConfirmModal({ title, body, confirmLabel, onConfirm, onClose, is
               color: isDark ? "rgba(238,242,255,0.7)" : "#475569",
             }}
           >
-            Cancel
+            {cancelLabel}
           </button>
           <button
             onClick={() => {
