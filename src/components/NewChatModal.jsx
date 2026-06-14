@@ -47,8 +47,9 @@ export function NewChatModal({
   const [channelLookupError, setChannelLookupError] = useState("");
   const [channelError, setChannelError] = useState("");
   const lookupTimer = useRef(null);
-  // Pending-request the user is about to cancel — drives the warning dialog.
-  const [cancelTarget, setCancelTarget] = useState(null);
+  // Friend action awaiting confirmation — drives the warning dialog.
+  // Shape: { user, kind: "cancel" (sent request) | "remove" (existing friend) }.
+  const [confirmAction, setConfirmAction] = useState(null);
 
   const incoming = allUsers.filter(
     (u) => u.contact_status === "pending_received",
@@ -711,7 +712,9 @@ export function NewChatModal({
                           </div>
                         </div>
                         <button
-                          onClick={() => setCancelTarget(u)}
+                          onClick={() =>
+                            setConfirmAction({ user: u, kind: "cancel" })
+                          }
                           aria-label={`Cancel request to ${u.username}`}
                           className={`shrink-0 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
                             isDark
@@ -826,11 +829,15 @@ export function NewChatModal({
                         }
                       }}
                       onRemove={() =>
-                        // Canceling a sent request warns first; removing an
-                        // already-accepted friend stays immediate.
-                        u.contact_status === "pending_sent"
-                          ? setCancelTarget(u)
-                          : onRemoveContact(u.id)
+                        // Both warn first: canceling a sent request vs. removing
+                        // an already-accepted friend.
+                        setConfirmAction({
+                          user: u,
+                          kind:
+                            u.contact_status === "pending_sent"
+                              ? "cancel"
+                              : "remove",
+                        })
                       }
                       isDark={isDark}
                     />
@@ -944,7 +951,9 @@ export function NewChatModal({
                         </div>
                       </button>
                       <button
-                        onClick={() => onRemoveContact(u.id)}
+                        onClick={() =>
+                          setConfirmAction({ user: u, kind: "remove" })
+                        }
                         aria-label={`Remove ${u.username} from friends`}
                         className={`shrink-0 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
                           isDark
@@ -986,16 +995,26 @@ export function NewChatModal({
         )}
       </div>
 
-      {/* Warning before canceling a sent friend request. Renders at z-600 (above
-          this modal's z-500) so it sits on top. */}
-      {cancelTarget && (
+      {/* Warning before canceling a sent request or removing a friend. Renders
+          at z-600 (above this modal's z-500) so it sits on top. */}
+      {confirmAction && (
         <ConfirmModal
-          title="Cancel friend request?"
-          body={`Cancel your friend request to ${cancelTarget.username}? You can always send it again later.`}
-          confirmLabel="Cancel Request"
+          title={
+            confirmAction.kind === "cancel"
+              ? "Cancel friend request?"
+              : "Remove friend?"
+          }
+          body={
+            confirmAction.kind === "cancel"
+              ? `Cancel your friend request to ${confirmAction.user.username}? You can always send it again later.`
+              : `Remove ${confirmAction.user.username} from your friends? You'll need to send a new request to reconnect.`
+          }
+          confirmLabel={
+            confirmAction.kind === "cancel" ? "Cancel Request" : "Remove"
+          }
           cancelLabel="Keep"
-          onConfirm={() => onRemoveContact(cancelTarget.id)}
-          onClose={() => setCancelTarget(null)}
+          onConfirm={() => onRemoveContact(confirmAction.user.id)}
+          onClose={() => setConfirmAction(null)}
           isDark={isDark}
         />
       )}
