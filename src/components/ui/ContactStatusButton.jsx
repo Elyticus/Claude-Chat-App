@@ -10,12 +10,16 @@ export function ContactStatusButton({ status, onAdd, onRemove, isDark }) {
     );
   }
   if (status === "pending_sent") {
+    // Cancelable: shows "Pending" at rest, "Cancel" (red) on hover/focus.
     return (
-      <span
-        className={`px-3 py-1 rounded-lg text-xs font-semibold opacity-50 ${isDark ? "bg-white/6 text-white/40" : "bg-black/5 text-slate-500"}`}
+      <button
+        onClick={onRemove}
+        aria-label="Cancel friend request"
+        className={`group/pending px-3 py-1 rounded-lg text-xs font-semibold transition-all ${isDark ? "bg-white/6 text-white/45 hover:bg-red-500/15 hover:text-red-400" : "bg-black/5 text-slate-500 hover:bg-red-500/10 hover:text-red-500"}`}
       >
-        Pending
-      </span>
+        <span className="group-hover/pending:hidden">Pending</span>
+        <span className="hidden group-hover/pending:inline">Cancel</span>
+      </button>
     );
   }
   if (status === "pending_received") {

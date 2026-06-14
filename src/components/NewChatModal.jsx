@@ -51,6 +51,10 @@ export function NewChatModal({
     (u) => u.contact_status === "pending_received",
   );
 
+  // Friend requests you've sent that haven't been accepted yet — shown in Find
+  // so they're visible and cancelable without searching the person up again.
+  const outgoing = allUsers.filter((u) => u.contact_status === "pending_sent");
+
   const searching = search.trim().length > 0;
 
   // "Find" is search-driven — never dump the whole user directory. Results
@@ -645,6 +649,75 @@ export function NewChatModal({
                             Decline
                           </button>
                         </div>
+                      </div>
+                    ))}
+                    <div
+                      className="mx-3 my-2 border-t"
+                      style={{
+                        borderColor: isDark ? darkBorder : lightBorderMid,
+                      }}
+                    />
+                  </div>
+                )}
+                {outgoing.length > 0 && !search && (
+                  <div className="mb-2">
+                    <p
+                      className="text-[10px] uppercase tracking-widest px-3 py-1"
+                      style={{
+                        color: isDark ? "rgba(165,180,252,0.35)" : "#94a3b8",
+                      }}
+                    >
+                      Sent
+                    </p>
+                    {outgoing.map((u) => (
+                      <div
+                        key={u.id}
+                        className="group/sent flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = isDark
+                            ? "rgba(99,102,241,0.06)"
+                            : "rgba(99,102,241,0.04)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "";
+                        }}
+                      >
+                        <Avatar
+                          userId={u.id}
+                          username={u.username}
+                          size={40}
+                          online={onlineIds.has(u.id)}
+                          avatar={avatarMap[u.id]}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div
+                            className="text-sm font-medium truncate"
+                            style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+                          >
+                            {u.username}
+                          </div>
+                          <div
+                            className="text-[11px]"
+                            style={{
+                              color: isDark
+                                ? "rgba(165,180,252,0.45)"
+                                : "#94a3b8",
+                            }}
+                          >
+                            Request sent
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => onRemoveContact(u.id)}
+                          aria-label={`Cancel request to ${u.username}`}
+                          className={`shrink-0 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                            isDark
+                              ? "bg-white/6 text-white/45 hover:bg-red-500/15 hover:text-red-400"
+                              : "bg-black/5 text-slate-500 hover:bg-red-500/10 hover:text-red-500"
+                          }`}
+                        >
+                          Cancel
+                        </button>
                       </div>
                     ))}
                     <div
