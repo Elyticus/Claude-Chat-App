@@ -27,11 +27,28 @@
   color-scheme: dark light;
 }
 
+/* Soft crossfade between dark / light / special modes. ChatApp wraps the theme
+   change in document.startViewTransition(); these rules set the fade timing.
+   Both snapshots are stacked and cross-dissolved (the default root transition),
+   which smoothly blends every background, text color AND the StarField↔
+   AuroraField canvas swap in one pass. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.45s;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  /* Belt-and-suspenders: ChatApp already skips the view transition under
+     reduced-motion, but make sure the pseudo-elements never animate. */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
   }
 }
 

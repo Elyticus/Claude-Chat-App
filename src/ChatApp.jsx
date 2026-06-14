@@ -6,6 +6,7 @@ import {
   useMemo,
   Fragment,
 } from "react";
+import { flushSync } from "react-dom";
 import {
   ArrowLeft,
   Send,
@@ -138,11 +139,28 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     });
   }
 
+  // Apply a theme with a soft crossfade. The View Transitions API snapshots
+  // the whole document (backgrounds, text, AND the StarField/AuroraField canvas
+  // swap) and fades between them — one place handles every mode change without
+  // touching the dozens of inline-styled backgrounds. flushSync makes React
+  // commit synchronously inside the transition callback so the snapshot is
+  // taken at the right moment. Falls back to an instant switch where the API
+  // (or reduced-motion) isn't available; the fade timing lives in globals.css.
+  function applyTheme(next) {
+    localStorage.setItem("linkloop_theme", next);
+    const prefersReduced = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    if (document.startViewTransition && !prefersReduced) {
+      document.startViewTransition(() => flushSync(() => setTheme(next)));
+    } else {
+      setTheme(next);
+    }
+  }
+
   // Light/dark toggle. From special mode (isDark, shows Sun) it lands on light.
   function toggleTheme() {
-    const next = theme === "light" ? "dark" : "light";
-    localStorage.setItem("linkloop_theme", next);
-    setTheme(next);
+    applyTheme(theme === "light" ? "dark" : "light");
   }
 
   // Special (aurora) mode has its own button; toggling it off returns to the
@@ -151,8 +169,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   function toggleSpecial() {
     const next = theme === "special" ? prevThemeRef.current : "special";
     if (theme !== "special") prevThemeRef.current = theme;
-    localStorage.setItem("linkloop_theme", next);
-    setTheme(next);
+    applyTheme(next);
   }
 
   const socketRef = useRef(null);

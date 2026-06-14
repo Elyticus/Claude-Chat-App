@@ -1,5 +1,34 @@
 import { useState, useRef, useEffect } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { api } from "../lib/api.js";
+
+// Password field with a show/hide toggle. Defined at module scope (not inside
+// AuthScreen) so it keeps its identity across parent re-renders — a nested
+// component definition would remount on every keystroke, dropping focus and
+// the show/hide state. Each instance owns its own `show` state, so the reset
+// form's two password fields toggle independently.
+function PasswordInput({ inputCls, focusProps, ...props }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        {...props}
+        type={show ? "text" : "password"}
+        className={`${inputCls} pr-11`}
+        {...focusProps}
+      />
+      <button
+        type="button"
+        onClick={() => setShow((s) => !s)}
+        aria-label={show ? "Hide password" : "Show password"}
+        aria-pressed={show}
+        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md text-indigo-300/45 transition-colors hover:text-indigo-300 cursor-pointer"
+      >
+        {show ? <EyeOff size={16} /> : <Eye size={16} />}
+      </button>
+    </div>
+  );
+}
 
 export default function AuthScreen({ onAuth }) {
   const [mode, setMode] = useState("login");
@@ -514,17 +543,16 @@ export default function AuthScreen({ onAuth }) {
                 >
                   New Password
                 </label>
-                <input
+                <PasswordInput
                   id="reset-new-password"
-                  type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="••••••••"
                   autoComplete="new-password"
                   required
                   minLength={8}
-                  className={inputCls}
-                  {...focusProps}
+                  inputCls={inputCls}
+                  focusProps={focusProps}
                 />
               </div>
 
@@ -536,16 +564,15 @@ export default function AuthScreen({ onAuth }) {
                 >
                   Confirm Password
                 </label>
-                <input
+                <PasswordInput
                   id="reset-confirm-password"
-                  type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
                   autoComplete="new-password"
                   required
-                  className={inputCls}
-                  {...focusProps}
+                  inputCls={inputCls}
+                  focusProps={focusProps}
                 />
               </div>
 
@@ -695,9 +722,8 @@ export default function AuthScreen({ onAuth }) {
                       </button>
                     )}
                   </div>
-                  <input
+                  <PasswordInput
                     id="auth-password"
-                    type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
@@ -706,8 +732,8 @@ export default function AuthScreen({ onAuth }) {
                     }
                     required
                     minLength={8}
-                    className={inputCls}
-                    {...focusProps}
+                    inputCls={inputCls}
+                    focusProps={focusProps}
                   />
                 </div>
 
