@@ -111,6 +111,15 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   // divider marks where unseen messages start and doesn't drift when more
   // messages arrive while the room is open.
   const [newMsgMarkers, setNewMsgMarkers] = useState({});
+  // Transient app-level confirmation banner (e.g. "You're now friends with X"
+  // shown to the request sender when someone accepts). Auto-dismisses.
+  const [appToast, setAppToast] = useState("");
+
+  useEffect(() => {
+    if (!appToast) return;
+    const t = setTimeout(() => setAppToast(""), 5000);
+    return () => clearTimeout(t);
+  }, [appToast]);
 
   function addChannelNotif(message, type = "info", roomId = null) {
     const id = Date.now() + Math.random();
@@ -603,7 +612,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       api.getUsers().then(setAllUsers).catch(console.error);
     });
 
-    s.on("contact:accepted", () => {
+    s.on("contact:accepted", ({ by }) => {
       api
         .getUsers()
         .then((users) => {
@@ -611,6 +620,18 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           setOnlineIds(new Set(users.filter((u) => u.online).map((u) => u.id)));
         })
         .catch(console.error);
+      // Confirm to the sender that the person they requested accepted.
+      if (by?.username) {
+        setAppToast(`You're now friends with ${by.username}`);
+        if (
+          typeof Notification !== "undefined" &&
+          Notification.permission === "granted"
+        ) {
+          new Notification("Friend request accepted", {
+            body: `${by.username} accepted your friend request`,
+          });
+        }
+      }
     });
 
     s.on("user:avatar", ({ userId, avatar }) => {
@@ -1626,6 +1647,25 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       className="relative w-full h-dvh overflow-hidden"
       style={{ background: bg0 }}
     >
+      {/* App-level confirmation toast (e.g. friend request accepted). Sits above
+          everything, including the new-chat modal (z-500) and confirm (z-600). */}
+      {appToast && (
+        <button
+          onClick={() => setAppToast("")}
+          className="fixed top-4 left-1/2 -translate-x-1/2 z-700 flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium animate-fade-in-up cursor-pointer"
+          style={{
+            background: isDark ? "rgba(16,25,46,0.95)" : "#ffffff",
+            border: "1px solid rgba(34,197,94,0.35)",
+            color: isDark ? "#4ade80" : "#16a34a",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
+            backdropFilter: "blur(8px)",
+          }}
+        >
+          <Check size={15} className="shrink-0" />
+          {appToast}
+        </button>
+      )}
+
       {/* Orbital Hub — always in background */}
       <OrbitalHub
         rooms={rooms.filter((r) => !pendingRoomIds.has(r.id))}
