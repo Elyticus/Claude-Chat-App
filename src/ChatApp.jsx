@@ -101,8 +101,10 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       return [];
     }
   });
-  // Rooms created/joined this session that have no messages yet — hidden from
-  // OrbitalHub until the first message is sent or received.
+  // Empty DMs opened this session — hidden from the chat list until the first
+  // message is sent/received, so clicking a user to start a DM doesn't leave a
+  // stray empty conversation. Groups and channels are NEVER pending: being
+  // added to one is a deliberate assignment that must show immediately.
   const [pendingRoomIds, setPendingRoomIds] = useState(new Set());
   // Per-room "New Messages" divider: unread count + open timestamp captured at
   // the moment the room is opened (before the unread badge is cleared), so the
@@ -537,8 +539,11 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         .getRooms()
         .then((loadedRooms) => {
           const prevIds = new Set(roomsRef.current.map((r) => r.id));
+          // Only empty DMs are hidden until a first message — a group or
+          // channel is a deliberate assignment and must appear in the chat
+          // list the instant you're added, without a refresh.
           const newPending = loadedRooms
-            .filter((r) => !prevIds.has(r.id) && !r.last_message)
+            .filter((r) => !prevIds.has(r.id) && !r.last_message && !r.is_group)
             .map((r) => r.id);
           setRooms(loadedRooms);
           if (newPending.length > 0) {
@@ -899,19 +904,10 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
     s.on("channel:added", ({ room, addedBy }) => {
       if (room) {
-        api
-          .getRooms()
-          .then((loadedRooms) => {
-            const isNewRoom = !roomsRef.current.some((r) => r.id === room.id);
-            setRooms(loadedRooms);
-            if (isNewRoom) {
-              const freshRoom = loadedRooms.find((r) => r.id === room.id);
-              if (!freshRoom?.last_message) {
-                setPendingRoomIds((prev) => new Set([...prev, room.id]));
-              }
-            }
-          })
-          .catch(console.error);
+        // Being added to a channel is a deliberate assignment — refresh the
+        // room list so it shows up immediately. Never mark it pending (that
+        // would hide it until a first message, forcing a manual refresh).
+        api.getRooms().then(setRooms).catch(console.error);
       }
       if (addedBy && addedBy !== currentUser.username) {
         if (
@@ -1334,7 +1330,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       description,
       isPrivate,
     );
-    setPendingRoomIds((prev) => new Set([...prev, roomId]));
+    // Channels show in the list immediately (not pending) — they're a
+    // deliberate, named space, unlike a freshly-opened empty DM.
     selectRoom(roomId);
     api.getRooms().then(setRooms).catch(console.error);
   }
@@ -1342,17 +1339,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   async function handleJoinChannel(slug) {
     const { roomId } = await api.joinChannel(slug);
     setShowNewChat(false);
+    // A joined channel is a real membership — show it right away, never pending.
     selectRoom(roomId);
-    api
-      .getRooms()
-      .then((loadedRooms) => {
-        setRooms(loadedRooms);
-        const joinedRoom = loadedRooms.find((r) => r.id === roomId);
-        if (!joinedRoom?.last_message) {
-          setPendingRoomIds((prev) => new Set([...prev, roomId]));
-        }
-      })
-      .catch(console.error);
+    api.getRooms().then(setRooms).catch(console.error);
   }
 
   async function handleKickMember(userId) {
@@ -1480,7 +1469,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     setShowNewChat(false);
     try {
       const { roomId } = await api.createGroup(userIds, name);
-      setPendingRoomIds((prev) => new Set([...prev, roomId]));
+      // Groups show in the list immediately (not pending) — a named group with
+      // members is a deliberate assignment, unlike an empty one-on-one DM.
       selectRoom(roomId);
       api.getRooms().then(setRooms).catch(console.error);
     } catch (err) {
