@@ -1533,6 +1533,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     const user = allUsers.find((u) => u.id === userId);
     setProfile(null);
     setGroupMembersPanel(null);
+    setShowFriends(false);
     if (user) handleSelectUser(user);
   }
 
