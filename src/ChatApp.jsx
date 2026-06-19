@@ -2810,6 +2810,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           online={onlineIds.has(profile.userId)}
           contactStatus={profileUser.contact_status}
           manage={profileManage}
+          inMemberList={!!profile.roomId}
           groups={profileGroups}
           channels={profileChannels}
           isDark={isDark}
