@@ -141,8 +141,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     }
   });
 
-  function addFriendNotif(message) {
-    const notif = { id: `${Date.now()}-${Math.random()}`, message };
+  function addFriendNotif(message, type = "accepted") {
+    const notif = { id: `${Date.now()}-${Math.random()}`, message, type };
     setFriendNotifs((prev) => {
       const next = [notif, ...prev].slice(0, 30);
       localStorage.setItem("linkloop_friend_notifs", JSON.stringify(next));
@@ -756,13 +756,36 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       // Confirm to the sender that the person they requested accepted. The
       // banner persists until they clear it.
       if (by?.username) {
-        addFriendNotifRef.current(`You're now friends with ${by.username}`);
+        addFriendNotifRef.current(
+          `You're now friends with ${by.username}`,
+          "accepted",
+        );
         if (
           typeof Notification !== "undefined" &&
           Notification.permission === "granted"
         ) {
           new Notification("Friend request accepted", {
             body: `${by.username} accepted your friend request`,
+          });
+        }
+      }
+    });
+
+    s.on("contact:declined", ({ by }) => {
+      // The recipient declined; clear the now-gone pending_sent state.
+      api.getUsers().then(setAllUsers).catch(console.error);
+      // Confirm to the sender that their request was denied.
+      if (by?.username) {
+        addFriendNotifRef.current(
+          `${by.username} declined your friend request`,
+          "declined",
+        );
+        if (
+          typeof Notification !== "undefined" &&
+          Notification.permission === "granted"
+        ) {
+          new Notification("Friend request declined", {
+            body: `${by.username} declined your friend request`,
           });
         }
       }
@@ -1104,6 +1127,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       s.off("room:member_joined");
       s.off("contact:request");
       s.off("contact:accepted");
+      s.off("contact:declined");
       s.off("user:avatar");
       s.off("message:error");
       s.off("channel:member_kicked");
