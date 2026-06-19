@@ -13,9 +13,10 @@ src/
 │   ├── ContextMenu.jsx          # Right-click menu (react, copy, delete messages)
 │   ├── ConfirmModal.jsx         # Generic confirmation dialog
 │   ├── EditChannelModal.jsx     # Edit channel name / settings
-│   ├── GroupMembersPanel.jsx    # Group member list + role management
+│   ├── GroupMembersPanel.jsx    # Member list; each row opens UserProfileModal
 │   ├── NewChatModal.jsx         # Sheet overlay for DM / group creation
 │   ├── OrbitalHub.jsx           # Full-screen radial orbital canvas (room nodes)
+│   ├── UserProfileModal.jsx     # User profile sheet — all per-user actions live here
 │   └── ui/
 │       ├── Avatar.jsx                # User avatar with gradient bg + initials
 │       ├── badge.jsx                 # shadcn-pattern Badge (cva + cn)
@@ -50,6 +51,7 @@ The app uses a **radial orbital timeline** layout:
 Orbital nodes:   zIndex 50–150  (computed per-node via sinusoidal trig)
 Chat panel:      z-[200]        — always covers orbital nodes
 NewChatModal:    z-[500]        — always covers chat panel and orbital nodes
+UserProfileModal:z-[600]        — opens ABOVE NewChatModal / GroupMembersPanel (z-500); its own ConfirmModal also z-[600], stacked by DOM order
 ContextMenu:     z-50           — rendered inside the panel's stacking context (effectively z-[250])
 ```
 

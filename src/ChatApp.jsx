@@ -29,6 +29,7 @@ import { NewChatModal } from "./components/NewChatModal.jsx";
 import { ConfirmModal } from "./components/ConfirmModal.jsx";
 import { EditChannelModal } from "./components/EditChannelModal.jsx";
 import { GroupMembersPanel } from "./components/GroupMembersPanel.jsx";
+import { UserProfileModal } from "./components/UserProfileModal.jsx";
 import { Avatar } from "./components/ui/Avatar.jsx";
 import { TypingIndicator } from "./components/ui/TypingIndicator.jsx";
 import {
@@ -85,6 +86,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const bgRaised = isSpecial ? specialBg1 : isDark ? darkBg0 : lightBg1;
   const [myAvatar, setMyAvatar] = useState(() => currentUser.avatar || null);
   const [groupMembersPanel, setGroupMembersPanel] = useState(null);
+  // User profile modal: { userId, roomId } — roomId is set when opened from a
+  // channel's member list so the profile can also surface moderation actions.
+  const [profile, setProfile] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
   const [pinnedMessages, setPinnedMessages] = useState({});
   const [editChannelModal, setEditChannelModal] = useState(null);
@@ -1413,6 +1417,23 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     }
   }
 
+  // Open the profile sheet for another user. `roomId` is passed when opening
+  // from a channel's member list so the profile can also show moderation
+  // actions; it's null everywhere else (friends list, DM header).
+  function openProfile(userId, roomId = null) {
+    if (!userId || userId === currentUser.id) return;
+    setProfile({ userId, roomId });
+  }
+
+  // "Message" from the profile: open (or create) the DM and dismiss the
+  // overlays the profile may have been launched from.
+  function handleProfileMessage(userId) {
+    const user = allUsers.find((u) => u.id === userId);
+    setProfile(null);
+    setGroupMembersPanel(null);
+    if (user) handleSelectUser(user);
+  }
+
   async function handleCreateChannel(name, slug, description, isPrivate) {
     setShowNewChat(false);
     const { roomId } = await api.createChannel(
@@ -1709,6 +1730,40 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       : activeRoom.other_user_id
     : null;
 
+  // Clicking the DM header (a one-on-one chat) opens the other user's profile.
+  const isDmHeader = !!activeRoom && !activeRoom.is_group && !isActiveChannel;
+
+  // Resolve the clicked user + (optional) channel-management context from the
+  // live lists so the profile's badges and actions stay in sync. Merge the
+  // member record (role / muted_until) under the directory record (contact
+  // status / online / avatar).
+  const profileUser = (() => {
+    if (!profile) return null;
+    const fromUsers = allUsers.find((u) => u.id === profile.userId);
+    const fromMembers = groupMembersPanel?.members.find(
+      (m) => m.id === profile.userId,
+    );
+    if (!fromUsers && !fromMembers) return null;
+    const merged = { ...(fromMembers || {}), ...(fromUsers || {}) };
+    return { ...merged, avatar: avatarMap[profile.userId] || merged.avatar };
+  })();
+  let profileManage = null;
+  if (profile?.roomId && groupMembersPanel?.roomId === profile.roomId) {
+    const room = rooms.find((r) => r.id === profile.roomId);
+    const isCh =
+      room?.type === "channel" || room?.type === "private_channel";
+    const member = groupMembersPanel.members.find(
+      (m) => m.id === profile.userId,
+    );
+    if (isCh && member) {
+      profileManage = {
+        myRole: room?.role || null,
+        targetRole: member.role || "member",
+        mutedUntil: member.muted_until || null,
+      };
+    }
+  }
+
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
@@ -1831,15 +1886,27 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                 >
                   <ArrowLeft size={18} />
                 </button>
-                <Avatar
-                  userId={activeAvatarId}
-                  username={activeRoomName}
-                  size={40}
-                  online={activeRoomOnline}
-                  avatar={avatarMap[activeAvatarId]}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 min-w-0">
+                <div
+                  className={`flex items-center gap-1.5 sm:gap-3 flex-1 min-w-0 ${isDmHeader ? "cursor-pointer" : ""}`}
+                  onClick={
+                    isDmHeader
+                      ? () => openProfile(activeRoom.other_user_id)
+                      : undefined
+                  }
+                  role={isDmHeader ? "button" : undefined}
+                  title={
+                    isDmHeader ? `View ${activeRoomName}'s profile` : undefined
+                  }
+                >
+                  <Avatar
+                    userId={activeAvatarId}
+                    username={activeRoomName}
+                    size={40}
+                    online={activeRoomOnline}
+                    avatar={avatarMap[activeAvatarId]}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0">
                     <span
                       className="font-semibold text-sm truncate"
                       style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
@@ -1884,6 +1951,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                               : "Offline"}
                       </span>
                     )}
+                  </div>
                   </div>
                 </div>
 
@@ -2508,7 +2576,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           contacts={contacts}
           allUsers={allUsers}
           onlineIds={onlineIds}
-          onSelectUser={handleSelectUser}
+          onOpenProfile={(u) => openProfile(u.id)}
           onCreateGroup={handleCreateGroup}
           onCreateChannel={handleCreateChannel}
           onJoinChannel={handleJoinChannel}
@@ -2532,12 +2600,36 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           isChannel={!!isActiveChannel}
           myRole={myActiveRole}
           currentUserId={currentUser.id}
-          onKick={handleKickMember}
-          onRoleChange={handleRoleChange}
-          onMute={handleMuteUser}
-          onTransferOwnership={handleTransferOwnership}
+          onOpenProfile={(memberId) =>
+            openProfile(memberId, groupMembersPanel.roomId)
+          }
           onAddMember={handleAddMember}
           allUsers={allUsers}
+        />
+      )}
+
+      {/* User Profile — every action available on a user lives here */}
+      {profile && profileUser && (
+        <UserProfileModal
+          user={profileUser}
+          online={onlineIds.has(profile.userId)}
+          contactStatus={profileUser.contact_status}
+          manage={profileManage}
+          isDark={isDark}
+          onClose={() => setProfile(null)}
+          onMessage={() => handleProfileMessage(profile.userId)}
+          onAddContact={() =>
+            handleSendRequest(profile.userId).catch(console.error)
+          }
+          onAcceptContact={() => handleAcceptContact(profile.userId)}
+          onCancelRequest={() => handleRemoveContact(profile.userId)}
+          onRemoveContact={() => handleRemoveContact(profile.userId)}
+          onRoleChange={(role) => handleRoleChange(profile.userId, role)}
+          onMute={(duration) => handleMuteUser(profile.userId, duration)}
+          onKick={() => handleKickMember(profile.userId)}
+          onTransferOwnership={() =>
+            handleTransferOwnership(profile.userId, profileUser.username)
+          }
         />
       )}
 

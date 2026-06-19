@@ -18,7 +18,7 @@ export function NewChatModal({
   contacts,
   allUsers,
   onlineIds,
-  onSelectUser,
+  onOpenProfile,
   onCreateGroup,
   onCreateChannel,
   onJoinChannel,
@@ -935,13 +935,13 @@ export function NewChatModal({
                     );
                   }
 
-                  // Friends tab: click the row to open a DM; a separate Remove
-                  // button unfriends. A button can't nest a button, so this is a
-                  // div row with an inner clickable area + the Remove control.
+                  // Friends tab: click the row to open the user's profile, where
+                  // Message, Remove and every other action lives.
                   return (
-                    <div
+                    <button
                       key={u.id}
-                      className="group/fr flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
+                      onClick={() => onOpenProfile(u)}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left"
                       onMouseEnter={(e) => {
                         e.currentTarget.style.background = isDark
                           ? "rgba(99,102,241,0.07)"
@@ -951,45 +951,27 @@ export function NewChatModal({
                         e.currentTarget.style.background = "transparent";
                       }}
                     >
-                      <button
-                        onClick={() => onSelectUser(u)}
-                        className="flex items-center gap-3 flex-1 min-w-0 text-left cursor-pointer"
-                      >
-                        <Avatar
-                          userId={u.id}
-                          username={u.username}
-                          size={40}
-                          online={onlineIds.has(u.id)}
-                          avatar={avatarMap[u.id]}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div
-                            className="text-sm font-medium truncate"
-                            style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
-                          >
-                            {u.username}
-                          </div>
-                          {onlineIds.has(u.id) && (
-                            <div className="text-[11px] text-emerald-400 font-medium">
-                              Online
-                            </div>
-                          )}
+                      <Avatar
+                        userId={u.id}
+                        username={u.username}
+                        size={40}
+                        online={onlineIds.has(u.id)}
+                        avatar={avatarMap[u.id]}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className="text-sm font-medium truncate"
+                          style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+                        >
+                          {u.username}
                         </div>
-                      </button>
-                      <button
-                        onClick={() =>
-                          setConfirmAction({ user: u, kind: "remove" })
-                        }
-                        aria-label={`Remove ${u.username} from friends`}
-                        className={`shrink-0 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                          isDark
-                            ? "bg-white/6 text-white/45 hover:bg-red-500/15 hover:text-red-400"
-                            : "bg-black/5 text-slate-500 hover:bg-red-500/10 hover:text-red-500"
-                        }`}
-                      >
-                        Remove
-                      </button>
-                    </div>
+                        {onlineIds.has(u.id) && (
+                          <div className="text-[11px] text-emerald-400 font-medium">
+                            Online
+                          </div>
+                        )}
+                      </div>
+                    </button>
                   );
                 })}
               </div>
