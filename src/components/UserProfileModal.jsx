@@ -11,6 +11,10 @@ import {
   User,
   VolumeX,
   Volume2,
+  Users,
+  Hash,
+  Plus,
+  ChevronRight,
 } from "lucide-react";
 import { Avatar } from "./ui/Avatar.jsx";
 import { ConfirmModal } from "./ConfirmModal.jsx";
@@ -56,6 +60,8 @@ export function UserProfileModal({
   online,
   contactStatus,
   manage = null, // { myRole, targetRole, mutedUntil } when in a channel
+  groups = [],
+  channels = [],
   isDark,
   onClose,
   onMessage,
@@ -63,6 +69,8 @@ export function UserProfileModal({
   onAcceptContact,
   onCancelRequest,
   onRemoveContact,
+  onAddToGroup,
+  onAddToChannel,
   onRoleChange,
   onMute,
   onKick,
@@ -70,6 +78,10 @@ export function UserProfileModal({
 }) {
   const [confirm, setConfirm] = useState(null);
   const [pickingMute, setPickingMute] = useState(false);
+  const [expandAdd, setExpandAdd] = useState(null); // "group" | "channel" | null
+  const [busyRoom, setBusyRoom] = useState(null);
+  const [addedRooms, setAddedRooms] = useState(() => new Set());
+  const [addError, setAddError] = useState(null); // { roomId, msg }
   const [nowSec] = useState(() => Math.floor(Date.now() / 1000));
 
   if (!user) return null;
@@ -109,6 +121,105 @@ export function UserProfileModal({
   );
 
   const targetMeta = targetRole ? ROLE_META[targetRole] : null;
+
+  // Groups require the target be a contact; channels are already filtered to
+  // ones this user can administer.
+  const canAddToGroup = contactStatus === "accepted" && groups.length > 0;
+  const canAddToChannel = channels.length > 0;
+  const showAddSection = canAddToGroup || canAddToChannel;
+
+  async function doAdd(kind, room) {
+    setBusyRoom(room.id);
+    setAddError(null);
+    try {
+      await (kind === "group" ? onAddToGroup(room.id) : onAddToChannel(room.id));
+      setAddedRooms((prev) => new Set(prev).add(room.id));
+    } catch (e) {
+      setAddError({ roomId: room.id, msg: e.message || "Couldn't add to this room" });
+    } finally {
+      setBusyRoom(null);
+    }
+  }
+
+  // Collapsible "Add to a group / channel" picker.
+  const addPicker = (kind, label, Icon, list) => {
+    const open = expandAdd === kind;
+    return (
+      <div>
+        <button
+          onClick={() => {
+            setExpandAdd(open ? null : kind);
+            setAddError(null);
+          }}
+          className="w-full flex items-center gap-2 py-2.5 px-3 rounded-xl text-sm font-medium transition-all"
+          style={{
+            background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.025)",
+            color: headerColor,
+          }}
+        >
+          <Icon size={15} style={{ color: isDark ? "#a5b4fc" : "#6366f1" }} />
+          <span className="flex-1 text-left">{label}</span>
+          <ChevronRight
+            size={15}
+            style={{ color: subColor, transform: open ? "rotate(90deg)" : "none" }}
+          />
+        </button>
+        {open && (
+          <div className="mt-1 max-h-40 overflow-y-auto space-y-0.5 pl-1 pr-0.5">
+            {list.map((r) => {
+              const name =
+                kind === "channel" ? `#${r.name || r.slug}` : r.name || "Group";
+              const added = addedRooms.has(r.id);
+              const busy = busyRoom === r.id;
+              return (
+                <button
+                  key={r.id}
+                  disabled={added || busy}
+                  onClick={() => doAdd(kind, r)}
+                  className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm text-left transition-all"
+                  style={{
+                    color: headerColor,
+                    background: added
+                      ? isDark
+                        ? "rgba(34,197,94,0.10)"
+                        : "rgba(34,197,94,0.08)"
+                      : "transparent",
+                    cursor: added ? "default" : "pointer",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!added && !busy)
+                      e.currentTarget.style.background = isDark
+                        ? "rgba(99,102,241,0.08)"
+                        : "rgba(99,102,241,0.06)";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!added && !busy)
+                      e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  <span className="truncate">{name}</span>
+                  {added ? (
+                    <Check size={15} style={{ color: "#4ade80" }} />
+                  ) : busy ? (
+                    <span className="text-xs" style={{ color: subColor }}>
+                      Adding…
+                    </span>
+                  ) : (
+                    <Plus size={15} style={{ color: subColor }} />
+                  )}
+                </button>
+              );
+            })}
+            {addError && (
+              <p className="text-xs px-3 pt-1" style={{ color: "#f87171" }}>
+                {addError.msg}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="fixed inset-0 z-600 flex items-end sm:items-center justify-center p-4">
@@ -275,6 +386,18 @@ export function UserProfileModal({
             )}
           </div>
 
+          {/* Add to a group / channel */}
+          {showAddSection && (
+            <div className="pt-1" style={{ borderTop: `1px solid ${divider}` }}>
+              <div className="pt-3 space-y-1.5">
+                {sectionLabel("Add to")}
+                {canAddToGroup && addPicker("group", "Add to a group", Users, groups)}
+                {canAddToChannel &&
+                  addPicker("channel", "Add to a channel", Hash, channels)}
+              </div>
+            </div>
+          )}
+
           {/* Channel management */}
           {showManageSection && (
             <div className="pt-1" style={{ borderTop: `1px solid ${divider}` }}>
@@ -408,7 +531,7 @@ export function UserProfileModal({
             </div>
           )}
 
-          {!contactStatus && !showManageSection && (
+          {!contactStatus && !showManageSection && !showAddSection && (
             <p className="text-xs text-center pb-1" style={{ color: subColor }}>
               Not in your contacts yet.
             </p>

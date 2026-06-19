@@ -39,6 +39,7 @@ Never insert a plain text password into `password_hash` — the login handler us
 | GET    | `/api/rooms`                      | JWT  | All rooms the current user is in         |
 | POST   | `/api/rooms/dm`                   | JWT  | Get or create a DM room                  |
 | POST   | `/api/rooms/group`                | JWT  | Create a group room                      |
+| POST   | `/api/rooms/:roomId/members`      | JWT  | Add a contact to an existing group; broadcasts `room:member_joined` |
 | GET    | `/api/rooms/:id/messages`         | JWT  | Last 200 messages for a room             |
 | DELETE | `/api/rooms/:roomId`              | JWT  | Leave (and optionally delete) a room     |
 | DELETE | `/api/messages/:messageId`        | JWT  | Delete own message; broadcasts `message:deleted` |
@@ -66,6 +67,7 @@ Authentication: token is passed in the handshake `auth` object and validated bef
 | `message:reaction`  | `{ roomId, messageId, emoji }`              | Broadcast to all room members            |
 | `message:deleted`   | `{ roomId, messageId }`                     | Broadcast to all room members            |
 | `typing:update`     | `{ roomId, userId, username, typing }`      | Broadcast to others in room              |
+| `room:member_joined`| `{ roomId, userId, username, addedBy, systemMessage }` | Group only — broadcast to existing members when someone is added; the added user gets `room:new` instead |
 | `user:status`       | `{ userId, online }`                        | **Global** broadcast on first connect / last disconnect; plus a per-user snapshot to each newly connected socket |
 
 ## Presence / Online Status
