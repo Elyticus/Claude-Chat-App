@@ -351,6 +351,37 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       });
   }, []);
 
+  // Re-fetch the messages of the currently-open room and merge in anything we
+  // don't already have. This is the piece that makes a conversation catch up
+  // WITHOUT a page refresh: mobile browsers suspend the socket when the app is
+  // backgrounded/locked, so live `message:new` events for the open thread are
+  // missed while suspended. syncRooms only refreshes the room list + unread
+  // badges; the messages effect is guarded by loadedRoomsRef and won't reload
+  // an already-loaded room. Without this, missed DMs/group/channel messages
+  // only appeared after a full reload. Merge (instead of replace) so optimistic
+  // temp messages and any earlier pages loaded via pagination are preserved.
+  const refreshActiveRoomMessages = useCallback(() => {
+    const roomId = activeRoomIdRef.current;
+    if (!roomId) return Promise.resolve();
+    return api
+      .getMessages(roomId)
+      .then(({ messages: msgs }) => {
+        setMessages((prev) => {
+          const existing = prev[roomId] || [];
+          const existingIds = new Set(existing.map((m) => m.id));
+          const toAppend = msgs.filter((m) => !existingIds.has(m.id));
+          if (toAppend.length === 0) return prev;
+          const merged = [...existing, ...toAppend].sort(
+            (a, b) => (a.created_at || 0) - (b.created_at || 0),
+          );
+          return { ...prev, [roomId]: merged };
+        });
+      })
+      .catch((err) => {
+        console.error(err);
+      });
+  }, []);
+
   useEffect(() => {
     function urlBase64ToUint8Array(base64String) {
       const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -980,7 +1011,10 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     // mobile and the connection was suspended), pull fresh rooms/unread and
     // presence so anything missed while disconnected shows up right away.
     const onReconnect = () => {
-      syncRooms();
+      // Order matters: syncRooms() reads each room's unread_count (and snapshots
+      // the open room's "New Messages" divider) before refreshActiveRoomMessages
+      // re-fetches messages, which advances the server read marker.
+      syncRooms().then(() => refreshActiveRoomMessages());
       syncPresence();
     };
     s.io.on("reconnect", onReconnect);
@@ -1018,6 +1052,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     playPing,
     syncRooms,
     syncPresence,
+    refreshActiveRoomMessages,
   ]);
 
   // ── Load rooms + users ────────────────────────────────────────────────────────
@@ -1075,7 +1110,10 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       }
       const s = socketRef.current;
       if (s && !s.connected) s.connect();
-      syncRooms();
+      // Re-pull rooms/unread first, then catch the open conversation up with any
+      // messages that arrived while the socket was suspended in the background —
+      // so the user doesn't have to refresh the page to see them.
+      syncRooms().then(() => refreshActiveRoomMessages());
       syncPresence();
     }
     document.addEventListener("visibilitychange", handleForeground);
@@ -1084,7 +1122,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       document.removeEventListener("visibilitychange", handleForeground);
       window.removeEventListener("focus", handleForeground);
     };
-  }, [syncRooms, syncPresence]);
+  }, [syncRooms, syncPresence, refreshActiveRoomMessages]);
 
   // ── Load messages on room change ──────────────────────────────────────────────
   useEffect(() => {
