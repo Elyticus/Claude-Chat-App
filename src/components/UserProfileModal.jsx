@@ -60,6 +60,7 @@ export function UserProfileModal({
   online,
   contactStatus,
   manage = null, // { myRole, targetRole, mutedUntil } when in a channel
+  inMemberList = false, // opened from a channel/group member list
   groups = [],
   channels = [],
   isDark,
@@ -128,6 +129,16 @@ export function UserProfileModal({
   const canAddToGroup = contactStatus === "accepted";
   const canAddToChannel = channels.length > 0;
   const showAddSection = canAddToGroup || canAddToChannel;
+
+  // In a channel/group member list, hide the friend-list actions (Message and
+  // Remove Friend). Adding a non-contact as a friend is still allowed.
+  const showMessage = !inMemberList && contactStatus === "accepted";
+  const showRemoveFriend = !inMemberList && contactStatus === "accepted";
+  const showAddFriend = !contactStatus || contactStatus === "none";
+  const showAccept = contactStatus === "pending_received";
+  const showCancel = contactStatus === "pending_sent";
+  const hasContactActions =
+    showMessage || showRemoveFriend || showAddFriend || showAccept || showCancel;
 
   async function doAdd(kind, room) {
     setBusyRoom(room.id);
@@ -320,8 +331,9 @@ export function UserProfileModal({
           style={{ borderTop: `1px solid ${divider}` }}
         >
           {/* Contact actions */}
+          {hasContactActions && (
           <div className="pt-4">
-            {contactStatus === "accepted" && (
+            {showMessage && (
               <button
                 onClick={onMessage}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90 mb-2"
@@ -334,7 +346,7 @@ export function UserProfileModal({
               </button>
             )}
 
-            {contactStatus === "pending_received" && (
+            {showAccept && (
               <div className="flex gap-2">
                 <button
                   onClick={onAcceptContact}
@@ -351,7 +363,7 @@ export function UserProfileModal({
               </div>
             )}
 
-            {contactStatus === "pending_sent" && (
+            {showCancel && (
               <button
                 onClick={onCancelRequest}
                 className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all ${
@@ -364,7 +376,7 @@ export function UserProfileModal({
               </button>
             )}
 
-            {(!contactStatus || contactStatus === "none") && (
+            {showAddFriend && (
               <button
                 onClick={onAddContact}
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-indigo-500/15 text-indigo-400 hover:bg-indigo-500/25 transition-all"
@@ -373,7 +385,7 @@ export function UserProfileModal({
               </button>
             )}
 
-            {contactStatus === "accepted" && (
+            {showRemoveFriend && (
               <button
                 onClick={() =>
                   setConfirm({
@@ -393,6 +405,7 @@ export function UserProfileModal({
               </button>
             )}
           </div>
+          )}
 
           {/* Add to a group / channel */}
           {showAddSection && (
