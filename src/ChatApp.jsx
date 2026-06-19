@@ -2670,20 +2670,17 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                   onClick={sendMessage}
                   disabled={!canSend}
                   aria-label="Send message"
-                  className="w-12 h-12 rounded-full flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                  className="w-12 h-12 rounded-full flex items-center justify-center transition-[background,opacity] disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
                   style={{
                     background: canSend
                       ? "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)"
                       : isDark
                         ? "rgba(99,102,241,0.08)"
                         : "#f1f5f9",
-                    // Fade to a fully transparent shadow (same geometry) rather
-                    // than "none": iOS (esp. the standalone/shortcut webview)
-                    // drops a transitioned box-shadow's compositor layer without
-                    // repainting it, leaving a ghost of the glow after sending.
-                    boxShadow: canSend
-                      ? "0 4px 16px rgba(99,102,241,0.45)"
-                      : "0 4px 16px rgba(99,102,241,0)",
+                    // No box-shadow at all — a glow that transitioned to/from
+                    // here left a ghost on iOS (incl. the home-screen shortcut),
+                    // so the send button stays flat on every platform.
+                    boxShadow: "none",
                     WebkitTapHighlightColor: "transparent",
                   }}
                 >

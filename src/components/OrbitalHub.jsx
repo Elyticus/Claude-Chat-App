@@ -138,6 +138,16 @@ export function OrbitalHub({
     return rooms.filter((r) => r.last_message_at && r.last_message_at > cutoff);
   }, [rooms, nowMs]);
 
+  // All-chats list: most recently active conversations first (rooms with no
+  // messages yet fall to the bottom).
+  const sortedRooms = useMemo(
+    () =>
+      [...rooms].sort(
+        (a, b) => (b.last_message_at || 0) - (a.last_message_at || 0),
+      ),
+    [rooms],
+  );
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -857,7 +867,7 @@ export function OrbitalHub({
                 </p>
               ) : (
                 <div className="space-y-0.5 px-2">
-                  {rooms.map((room) => {
+                  {sortedRooms.map((room) => {
                     const isRoomChannel = isChannel(room);
                     const displayName = isRoomChannel
                       ? room.name || `#${room.slug}`
