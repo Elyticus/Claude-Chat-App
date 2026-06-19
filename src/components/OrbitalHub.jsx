@@ -339,26 +339,28 @@ export function OrbitalHub({
           >
             {isDark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
-          <button
-            onClick={onRequestLogout}
-            title="Sign out"
-            aria-label="Sign out"
-            className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-            style={{
-              background: isDark
-                ? "rgba(239,68,68,0.10)"
-                : "rgba(239,68,68,0.07)",
-              border: `1px solid ${isDark ? "rgba(239,68,68,0.28)" : "rgba(239,68,68,0.22)"}`,
-              color: isDark ? "#fca5a5" : "#ef4444",
-              boxShadow: isDark
-                ? "0 0 10px rgba(239,68,68,0.14)"
-                : "0 2px 8px rgba(239,68,68,0.08)",
-            }}
-          >
-            <LogOut size={16} />
-          </button>
         </div>
       </div>
+
+      {/* Sign out — anchored to the bottom-right corner of the hub */}
+      <button
+        onClick={onRequestLogout}
+        title="Sign out"
+        aria-label="Sign out"
+        className="absolute z-30 w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+        style={{
+          right: "calc(env(safe-area-inset-right, 0px) + 16px)",
+          bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
+          background: isDark ? "rgba(239,68,68,0.10)" : "rgba(239,68,68,0.07)",
+          border: `1px solid ${isDark ? "rgba(239,68,68,0.28)" : "rgba(239,68,68,0.22)"}`,
+          color: isDark ? "#fca5a5" : "#ef4444",
+          boxShadow: isDark
+            ? "0 0 10px rgba(239,68,68,0.14)"
+            : "0 2px 8px rgba(239,68,68,0.08)",
+        }}
+      >
+        <LogOut size={16} />
+      </button>
 
       {/* Outer orbit ring */}
       <div
