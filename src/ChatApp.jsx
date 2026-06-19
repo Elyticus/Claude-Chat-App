@@ -26,6 +26,7 @@ import { connectSocket, disconnectSocket } from "./lib/socket.js";
 import { OrbitalHub } from "./components/OrbitalHub.jsx";
 import { ContextMenu } from "./components/ContextMenu.jsx";
 import { NewChatModal } from "./components/NewChatModal.jsx";
+import { FriendsModal } from "./components/FriendsModal.jsx";
 import { ConfirmModal } from "./components/ConfirmModal.jsx";
 import { EditChannelModal } from "./components/EditChannelModal.jsx";
 import { GroupMembersPanel } from "./components/GroupMembersPanel.jsx";
@@ -67,6 +68,10 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const [onlineIds, setOnlineIds] = useState(new Set());
   const [allUsers, setAllUsers] = useState([]);
   const [showNewChat, setShowNewChat] = useState(false);
+  // Which tab New Chat opens on (e.g. "find" when launched from Friends → Add).
+  const [newChatTab, setNewChatTab] = useState("group");
+  // The Friends list now lives in its own modal, not inside New Chat.
+  const [showFriends, setShowFriends] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
   const [inputText, setInputText] = useState("");
   const [showMsgSearch, setShowMsgSearch] = useState(false);
@@ -1480,6 +1485,13 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   // Open the profile sheet for another user. `roomId` is passed when opening
   // from a channel's member list so the profile can also show moderation
   // actions; it's null everywhere else (friends list, DM header).
+  // Open the New Chat modal on a specific tab ("group" default, "find" when
+  // launched from the Friends modal's Add button).
+  function openNewChat(tab = "group") {
+    setNewChatTab(tab);
+    setShowNewChat(true);
+  }
+
   function openProfile(userId, roomId = null) {
     if (!userId || userId === currentUser.id) return;
     // Clear any previous user's shared-room set so stale entries don't briefly
@@ -1879,7 +1891,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         rooms={rooms.filter((r) => !pendingRoomIds.has(r.id))}
         hasGroupNewNotif={hasGroupNewNotif}
         onSelectRoom={selectRoom}
-        onNewChat={() => setShowNewChat(true)}
+        onNewChat={() => openNewChat()}
+        onOpenFriends={() => setShowFriends(true)}
         onLogout={onLogout}
         onRequestLogout={() =>
           setConfirmModal({
@@ -2672,13 +2685,32 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         </div>
       </div>
 
+      {/* Friends Modal — the friends list, lifted out of New Chat */}
+      {showFriends && (
+        <FriendsModal
+          contacts={contacts}
+          pendingUsers={pendingUsers}
+          onlineIds={onlineIds}
+          avatarMap={avatarMap}
+          isDark={isDark}
+          onOpenProfile={(u) => openProfile(u.id)}
+          onAcceptContact={handleAcceptContact}
+          onRemoveContact={handleRemoveContact}
+          onAddFriend={() => {
+            setShowFriends(false);
+            openNewChat("find");
+          }}
+          onClose={() => setShowFriends(false)}
+        />
+      )}
+
       {/* New Chat Modal */}
       {showNewChat && (
         <NewChatModal
           contacts={contacts}
           allUsers={allUsers}
           onlineIds={onlineIds}
-          onOpenProfile={(u) => openProfile(u.id)}
+          initialMode={newChatTab}
           onCreateGroup={handleCreateGroup}
           onCreateChannel={handleCreateChannel}
           onJoinChannel={handleJoinChannel}

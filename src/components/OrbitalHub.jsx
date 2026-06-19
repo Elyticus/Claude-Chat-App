@@ -7,6 +7,7 @@ import {
   X,
   Sparkles,
   Check,
+  Users,
 } from "lucide-react";
 import StarField from "./ui/star-field.jsx";
 import SpecialField from "./ui/special-field.jsx";
@@ -55,6 +56,7 @@ export function OrbitalHub({
   hasGroupNewNotif,
   onSelectRoom,
   onNewChat,
+  onOpenFriends,
   onRequestLogout,
   currentUser,
   onlineIds,
@@ -258,6 +260,37 @@ export function OrbitalHub({
             >
               {currentUser.username}
             </span>
+          </button>
+          <button
+            onClick={onOpenFriends}
+            title="Friends"
+            aria-label="Friends"
+            className="relative w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+            style={{
+              background: isDark
+                ? "rgba(99,102,241,0.12)"
+                : "rgba(99,102,241,0.08)",
+              border: `1px solid ${isDark ? "rgba(129,140,248,0.32)" : "rgba(99,102,241,0.24)"}`,
+              color: isDark ? "#a5b4fc" : "#4f46e5",
+              boxShadow: isDark
+                ? "0 0 10px rgba(99,102,241,0.14)"
+                : "0 2px 8px rgba(99,102,241,0.1)",
+            }}
+          >
+            <Users size={16} />
+            {/* Incoming friend requests — red count */}
+            {pendingCount > 0 && (
+              <span
+                className="absolute -top-1 -right-1 min-w-4 h-4 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1"
+                style={{
+                  background: "linear-gradient(135deg,#ef4444,#dc2626)",
+                  boxShadow: "0 2px 6px rgba(239,68,68,0.5)",
+                }}
+                aria-label={`${pendingCount} friend request${pendingCount === 1 ? "" : "s"}`}
+              >
+                {pendingCount > 9 ? "9+" : pendingCount}
+              </span>
+            )}
           </button>
           <button
             onClick={onToggleSpecial}
