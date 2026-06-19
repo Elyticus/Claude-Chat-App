@@ -403,6 +403,7 @@ export const queries = {
   memberCount:    { get: (roomId)         => q("SELECT COUNT(*)::INT AS cnt FROM room_members WHERE room_id = $1", [roomId]).then(r => r.rows[0]) },
   deleteRoom:     { run: (roomId)         => q("DELETE FROM rooms WHERE id = $1", [roomId]) },
   getUserRoomIds: { all: (userId)         => q("SELECT room_id FROM room_members WHERE user_id = $1", [userId]).then(r => r.rows) },
+  getSharedRoomIds: { all: (userA, userB) => q("SELECT room_id FROM room_members WHERE user_id = $1 AND room_id IN (SELECT room_id FROM room_members WHERE user_id = $2)", [userA, userB]).then(r => r.rows) },
   setRoomNew:          { run: (roomId, userId, addedBy) => q("UPDATE room_members SET is_new = 1, added_by = $3 WHERE room_id = $1 AND user_id = $2", [roomId, userId, addedBy]) },
   setRoleNotification: { run: (roomId, userId, text)    => q("UPDATE room_members SET role_notification = $3 WHERE room_id = $1 AND user_id = $2", [roomId, userId, text]) },
   markRoomSeen:        { run: (roomId, userId)          => q("UPDATE room_members SET is_new = 0, role_notification = NULL, last_read_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE room_id = $1 AND user_id = $2", [roomId, userId]) },

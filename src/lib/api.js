@@ -60,6 +60,8 @@ export const api = {
   addGroupMember: (roomId, userId) =>
     request("POST", `/rooms/${roomId}/members`, { userId }),
 
+  getSharedRooms: (userId) => request("GET", `/users/${userId}/shared-rooms`),
+
   deleteMessage: (messageId) => request("DELETE", `/messages/${messageId}`),
 
   deleteRoom: (roomId) => request("DELETE", `/rooms/${roomId}`),
