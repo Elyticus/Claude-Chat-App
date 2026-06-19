@@ -22,9 +22,10 @@ A fully functional real-time chat application. Users register/login with JWT aut
 │   │   ├── ContextMenu.jsx          # Right-click menu (react, copy, delete messages)
 │   │   ├── ConfirmModal.jsx         # Generic confirmation dialog
 │   │   ├── EditChannelModal.jsx     # Edit channel name / settings
-│   │   ├── GroupMembersPanel.jsx    # Group member list + role management
+│   │   ├── GroupMembersPanel.jsx    # Member list; each row opens UserProfileModal
 │   │   ├── NewChatModal.jsx         # Sheet overlay for DM / group creation
 │   │   ├── OrbitalHub.jsx           # Full-screen radial orbital canvas (room nodes)
+│   │   ├── UserProfileModal.jsx     # User profile sheet — every action on a user (message, add/remove contact, channel role/mute/kick/transfer)
 │   │   └── ui/
 │   │       ├── Avatar.jsx                # User avatar with gradient bg + initials
 │   │       ├── badge.jsx                 # shadcn-pattern Badge (cva + cn)
