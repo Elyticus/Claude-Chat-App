@@ -1940,8 +1940,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           localStorage.removeItem("linkloop_channel_notifs");
         }}
         friendNotifs={friendNotifs}
-        onClearFriendNotif={clearFriendNotif}
-        onClearFriendNotifs={clearFriendNotifs}
       />
       <input
         ref={avatarFileRef}
@@ -2705,12 +2703,15 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         <FriendsModal
           contacts={contacts}
           pendingUsers={pendingUsers}
+          friendNotifs={friendNotifs}
           onlineIds={onlineIds}
           avatarMap={avatarMap}
           isDark={isDark}
           onOpenProfile={(u) => openProfile(u.id)}
           onAcceptContact={handleAcceptContact}
           onRemoveContact={handleRemoveContact}
+          onClearFriendNotif={clearFriendNotif}
+          onClearFriendNotifs={clearFriendNotifs}
           onAddFriend={() => {
             setShowFriends(false);
             openNewChat("find");
