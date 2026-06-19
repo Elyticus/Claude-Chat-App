@@ -2677,9 +2677,14 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                       : isDark
                         ? "rgba(99,102,241,0.08)"
                         : "#f1f5f9",
+                    // Fade to a fully transparent shadow (same geometry) rather
+                    // than "none": iOS (esp. the standalone/shortcut webview)
+                    // drops a transitioned box-shadow's compositor layer without
+                    // repainting it, leaving a ghost of the glow after sending.
                     boxShadow: canSend
                       ? "0 4px 16px rgba(99,102,241,0.45)"
-                      : "none",
+                      : "0 4px 16px rgba(99,102,241,0)",
+                    WebkitTapHighlightColor: "transparent",
                   }}
                 >
                   <Send
