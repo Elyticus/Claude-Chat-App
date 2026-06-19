@@ -275,6 +275,13 @@ export const queries = {
       q(`SELECT status FROM contacts WHERE (user_id = $1 AND contact_id = $2) OR (user_id = $2 AND contact_id = $1) LIMIT 1`,
         [uid1, uid2]).then(r => r.rows[0] ?? null),
   },
+  // Full row (incl. direction) for a pair — lets the delete handler tell a
+  // "decline incoming request" apart from "cancel my request" / "unfriend".
+  getContactPair: {
+    get: (uid1, uid2) =>
+      q(`SELECT user_id, contact_id, status FROM contacts WHERE (user_id = $1 AND contact_id = $2) OR (user_id = $2 AND contact_id = $1) LIMIT 1`,
+        [uid1, uid2]).then(r => r.rows[0] ?? null),
+  },
   sendContactRequest: {
     run: (userId, contactId) =>
       q(`INSERT INTO contacts (user_id, contact_id, status) VALUES ($1, $2, 'pending') ON CONFLICT (user_id, contact_id) DO NOTHING`,

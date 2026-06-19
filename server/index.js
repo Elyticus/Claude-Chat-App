@@ -428,7 +428,27 @@ app.post("/api/contacts/accept", requireAuth, async (req, res) => {
 app.delete("/api/contacts/:contactId", requireAuth, async (req, res) => {
   const contactId = req.params.contactId;
   if (!contactId) return res.status(400).json({ error: "Invalid contactId" });
+
+  // A "decline" is deleting a still-pending request the OTHER user sent to me
+  // (row: user_id = them, contact_id = me, status = pending). Detect it before
+  // deleting so we can tell the requester their request was denied — but NOT
+  // when I'm cancelling my own sent request or unfriending an accepted contact.
+  const pair = await queries.getContactPair.get(req.user.id, contactId);
+  const isDecline =
+    pair &&
+    pair.status === "pending" &&
+    pair.user_id === contactId &&
+    pair.contact_id === req.user.id;
+
   await queries.removeContact.run(req.user.id, contactId);
+
+  if (isDecline) {
+    online.get(contactId)?.forEach((sid) => {
+      io.sockets.sockets.get(sid)?.emit("contact:declined", {
+        by: { id: req.user.id, username: req.user.username },
+      });
+    });
+  }
   res.json({ ok: true });
 });
 
