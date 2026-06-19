@@ -36,6 +36,7 @@ Never insert a plain text password into `password_hash` — the login handler us
 | POST   | `/api/auth/register`              | —    | Register; returns `{ token, user }`      |
 | POST   | `/api/auth/login`                 | —    | Login; returns `{ token, user }`         |
 | GET    | `/api/users`                      | JWT  | All users except self (with online flag) |
+| GET    | `/api/users/:id/shared-rooms`     | JWT  | Room ids the requester and target both belong to |
 | GET    | `/api/rooms`                      | JWT  | All rooms the current user is in         |
 | POST   | `/api/rooms/dm`                   | JWT  | Get or create a DM room                  |
 | POST   | `/api/rooms/group`                | JWT  | Create a group room                      |

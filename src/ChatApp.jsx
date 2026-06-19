@@ -89,6 +89,11 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   // User profile modal: { userId, roomId } — roomId is set when opened from a
   // channel's member list so the profile can also surface moderation actions.
   const [profile, setProfile] = useState(null);
+  // Rooms the profiled user already shares with us — hidden from the profile's
+  // "Add to group / channel" pickers so you can't try to add a current member.
+  const [profileShared, setProfileShared] = useState(() => new Set());
+  // Transient confirmation pill (e.g. "Added X to Y").
+  const [toast, setToast] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
   const [pinnedMessages, setPinnedMessages] = useState({});
   const [editChannelModal, setEditChannelModal] = useState(null);
@@ -280,6 +285,30 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId;
   }, [activeRoomId]);
+
+  // Auto-dismiss the confirmation toast.
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2600);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  // When a profile opens, fetch which of our rooms the user is already in so the
+  // "Add to" pickers can hide them. openProfile() resets the set up front, so
+  // this effect only needs to populate it.
+  useEffect(() => {
+    if (!profile?.userId) return;
+    let cancelled = false;
+    api
+      .getSharedRooms(profile.userId)
+      .then((ids) => {
+        if (!cancelled) setProfileShared(new Set(ids));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.userId]);
 
   // Mirror unreadCounts for handlers registered once (foreground handler).
   const unreadCountsRef = useRef(unreadCounts);
@@ -1453,6 +1482,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   // actions; it's null everywhere else (friends list, DM header).
   function openProfile(userId, roomId = null) {
     if (!userId || userId === currentUser.id) return;
+    // Clear any previous user's shared-room set so stale entries don't briefly
+    // hide the wrong rooms before the fresh fetch resolves.
+    setProfileShared(new Set());
     setProfile({ userId, roomId });
   }
 
@@ -1466,13 +1498,26 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   }
 
   // Add a user to an existing group / channel from their profile. Both return
-  // the promise so the profile can show per-room success / error. The server's
-  // room:member_joined / channel:member_joined events keep everyone in sync.
+  // the promise so the profile can show per-room success / error, and pop a
+  // confirmation toast. The server's room:member_joined / channel:member_joined
+  // events keep everyone in sync.
   function addUserToGroup(roomId, userId) {
-    return api.addGroupMember(roomId, userId);
+    return api.addGroupMember(roomId, userId).then((res) => {
+      const u = allUsers.find((x) => x.id === userId);
+      const room = rooms.find((r) => r.id === roomId);
+      setToast(`Added ${u?.username || "user"} to ${room?.name || "the group"}`);
+      return res;
+    });
   }
   function addUserToChannel(roomId, userId) {
-    return api.addChannelMember(roomId, userId);
+    return api.addChannelMember(roomId, userId).then((res) => {
+      const u = allUsers.find((x) => x.id === userId);
+      const room = rooms.find((r) => r.id === roomId);
+      setToast(
+        `Added ${u?.username || "user"} to #${room?.name || room?.slug || "channel"}`,
+      );
+      return res;
+    });
   }
 
   async function handleCreateChannel(name, slug, description, isPrivate) {
@@ -1790,14 +1835,19 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   })();
   // Groups the user can be added to (groups require the target be a contact);
   // channels where this user is an admin/owner (only they can add members).
+  // Rooms the target is already in are filtered out via profileShared.
   const profileGroups = rooms.filter(
     (r) =>
-      !!r.is_group && r.type !== "channel" && r.type !== "private_channel",
+      !!r.is_group &&
+      r.type !== "channel" &&
+      r.type !== "private_channel" &&
+      !profileShared.has(r.id),
   );
   const profileChannels = rooms.filter(
     (r) =>
       (r.type === "channel" || r.type === "private_channel") &&
-      ROLE_LEVEL[r.role] >= ROLE_LEVEL.admin,
+      ROLE_LEVEL[r.role] >= ROLE_LEVEL.admin &&
+      !profileShared.has(r.id),
   );
   let profileManage = null;
   if (profile?.roomId && groupMembersPanel?.roomId === profile.roomId) {
@@ -2733,6 +2783,24 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           onClose={() => setConfirmModal(null)}
           isDark={isDark}
         />
+      )}
+
+      {/* Confirmation toast (e.g. "Added X to Y") — above every overlay */}
+      {toast && (
+        <div
+          className="fixed left-1/2 -translate-x-1/2 z-700 flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium animate-scale-in pointer-events-none"
+          style={{
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
+            maxWidth: "calc(100vw - 32px)",
+            background: isDark ? "#10192e" : "#0f172a",
+            color: "#ffffff",
+            boxShadow: "0 8px 30px rgba(0,0,0,0.4)",
+            border: `1px solid ${isDark ? darkBorder : "rgba(255,255,255,0.08)"}`,
+          }}
+        >
+          <Check size={15} style={{ color: "#4ade80", flexShrink: 0 }} />
+          <span className="truncate">{toast}</span>
+        </div>
       )}
 
     </div>

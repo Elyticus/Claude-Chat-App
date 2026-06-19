@@ -371,6 +371,13 @@ app.get("/api/users/:id", requireAuth, async (req, res) => {
   res.json({ ...user, online: isOnline(user.id) });
 });
 
+// Room ids that both the requester and the target user belong to — lets the
+// profile UI hide groups/channels the person is already in.
+app.get("/api/users/:id/shared-rooms", requireAuth, async (req, res) => {
+  const rows = await queries.getSharedRoomIds.all(req.user.id, req.params.id);
+  res.json(rows.map((r) => r.room_id));
+});
+
 app.post("/api/users/me/avatar", requireAuth, async (req, res) => {
   const { avatar } = req.body ?? {};
   if (!avatar || !/^data:image\/(jpeg|png|webp|gif);base64,/.test(avatar)) {
