@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, X, UserPlus, Users } from "lucide-react";
+import { Search, X, UserPlus, Users, Check, UserX } from "lucide-react";
 import { Avatar } from "./ui/Avatar.jsx";
 import {
   darkBg1,
@@ -18,12 +18,15 @@ import {
 export function FriendsModal({
   contacts,
   pendingUsers = [],
+  friendNotifs = [],
   onlineIds,
   avatarMap,
   isDark,
   onOpenProfile,
   onAcceptContact,
   onRemoveContact,
+  onClearFriendNotif,
+  onClearFriendNotifs,
   onAddFriend,
   onClose,
 }) {
@@ -144,6 +147,74 @@ export function FriendsModal({
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Friend updates — confirmation that a request you sent was accepted
+            (green) or declined (red). Persists until cleared. */}
+        {friendNotifs.length > 0 && (
+          <div
+            className="border-b shrink-0"
+            style={{ borderColor: isDark ? darkBorder : lightBorderMid }}
+          >
+            <div className="flex items-center justify-between px-5 pt-2.5 pb-1">
+              <span
+                className="text-[10px] uppercase tracking-widest"
+                style={{ color: isDark ? "rgba(165,180,252,0.7)" : "#4338ca" }}
+              >
+                Updates ({friendNotifs.length})
+              </span>
+              <button
+                onClick={onClearFriendNotifs}
+                className="text-[11px] font-medium"
+                style={{ color: isDark ? "rgba(165,180,252,0.6)" : "#4f46e5" }}
+              >
+                Clear all
+              </button>
+            </div>
+            <div className="max-h-44 overflow-y-auto px-2 pb-2">
+              {friendNotifs.map((n) => {
+                const declined = n.type === "declined";
+                return (
+                  <div
+                    key={n.id}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
+                  >
+                    {declined ? (
+                      <UserX
+                        size={15}
+                        className="shrink-0"
+                        style={{ color: "#f87171" }}
+                      />
+                    ) : (
+                      <Check
+                        size={15}
+                        className="shrink-0"
+                        style={{ color: isDark ? "#4ade80" : "#16a34a" }}
+                      />
+                    )}
+                    <span
+                      className="flex-1 text-xs leading-relaxed"
+                      style={{
+                        color: isDark ? "rgba(238,242,255,0.75)" : "#334155",
+                      }}
+                    >
+                      {n.message}
+                    </span>
+                    <button
+                      onClick={() => onClearFriendNotif(n.id)}
+                      aria-label="Clear notification"
+                      className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-all"
+                      style={{
+                        color: isDark ? "rgba(238,242,255,0.4)" : "#94a3b8",
+                      }}
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

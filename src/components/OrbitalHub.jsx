@@ -1,14 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import {
-  MessageCircle,
-  Sun,
-  Moon,
-  X,
-  Sparkles,
-  Check,
-  Users,
-  UserX,
-} from "lucide-react";
+import { MessageCircle, Sun, Moon, X, Sparkles, Users } from "lucide-react";
 import StarField from "./ui/star-field.jsx";
 import SpecialField from "./ui/special-field.jsx";
 import { isSpecialSkyLight } from "@/lib/special-scenes.js";
@@ -74,8 +65,6 @@ export function OrbitalHub({
   channelNotifs,
   onClearChannelNotifs,
   friendNotifs = [],
-  onClearFriendNotif,
-  onClearFriendNotifs,
 }) {
   // Green badge: channel activity notifs (live socket events for this session).
   const channelNotifsCount = channelNotifs.length;
@@ -102,6 +91,10 @@ export function OrbitalHub({
   // no count — only the red unread badge shows numbers.
   const hasChannelActivity =
     channelNotifsCount > 0 || channelActivityRoomIds.size > 0;
+
+  // Friends-icon badge: pending incoming requests + accepted/declined
+  // confirmations — every friend notification, all viewable in the Friends modal.
+  const friendBadge = pendingCount + friendNotifs.length;
 
   const [rotationAngle, setRotationAngle] = useState(0);
   const [hoveredId, setHoveredId] = useState(null);
@@ -273,17 +266,18 @@ export function OrbitalHub({
             }}
           >
             <Users size={16} />
-            {/* Incoming friend requests — red count */}
-            {pendingCount > 0 && (
+            {/* Friend activity — incoming requests + accepted/declined
+                confirmations, all surfaced inside the Friends modal. */}
+            {friendBadge > 0 && (
               <span
                 className="absolute -top-1 -right-1 min-w-4 h-4 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1"
                 style={{
                   background: "linear-gradient(135deg,#ef4444,#dc2626)",
                   boxShadow: "0 2px 6px rgba(239,68,68,0.5)",
                 }}
-                aria-label={`${pendingCount} friend request${pendingCount === 1 ? "" : "s"}`}
+                aria-label={`${friendBadge} friend notification${friendBadge === 1 ? "" : "s"}`}
               >
-                {pendingCount > 9 ? "9+" : pendingCount}
+                {friendBadge > 9 ? "9+" : friendBadge}
               </span>
             )}
           </button>
@@ -751,95 +745,6 @@ export function OrbitalHub({
                     </div>
                   </div>
                 ))}
-              </div>
-            )}
-
-            {/* Friend updates — confirmations that a request you sent was
-                accepted (green) or declined (red). Persist until cleared. */}
-            {friendNotifs.length > 0 && (
-              <div
-                className="border-b shrink-0"
-                style={{ borderColor: isDark ? darkBorder : lightBorderMid }}
-              >
-                <div
-                  className="flex items-center justify-between px-5 py-2"
-                  style={{
-                    background: isDark
-                      ? "rgba(129,140,248,0.06)"
-                      : "rgba(238,242,255,0.7)",
-                  }}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0" />
-                    <span
-                      className="text-[11px] uppercase tracking-widest font-semibold"
-                      style={{
-                        color: isDark ? "rgba(165,180,252,0.85)" : "#4338ca",
-                      }}
-                    >
-                      Friend Updates ({friendNotifs.length})
-                    </span>
-                  </div>
-                  <button
-                    onClick={onClearFriendNotifs}
-                    className="text-[11px] font-medium"
-                    style={{
-                      color: isDark ? "rgba(165,180,252,0.6)" : "#4f46e5",
-                    }}
-                  >
-                    Clear all
-                  </button>
-                </div>
-                {friendNotifs.map((n) => {
-                  const declined = n.type === "declined";
-                  return (
-                    <div
-                      key={n.id}
-                      className="flex items-center gap-2.5 px-5 py-2.5"
-                      style={{
-                        background: declined
-                          ? isDark
-                            ? "rgba(248,113,113,0.05)"
-                            : "rgba(254,242,242,0.6)"
-                          : isDark
-                            ? "rgba(74,222,128,0.03)"
-                            : "rgba(240,253,244,0.4)",
-                      }}
-                    >
-                      {declined ? (
-                        <UserX
-                          size={14}
-                          className="shrink-0"
-                          style={{ color: "#f87171" }}
-                        />
-                      ) : (
-                        <Check
-                          size={14}
-                          className="shrink-0"
-                          style={{ color: isDark ? "#4ade80" : "#16a34a" }}
-                        />
-                      )}
-                      <span
-                        className="flex-1 text-xs leading-relaxed"
-                        style={{
-                          color: isDark ? "rgba(238,242,255,0.75)" : "#334155",
-                        }}
-                      >
-                        {n.message}
-                      </span>
-                      <button
-                        onClick={() => onClearFriendNotif(n.id)}
-                        aria-label="Clear notification"
-                        className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-all"
-                        style={{
-                          color: isDark ? "rgba(238,242,255,0.4)" : "#94a3b8",
-                        }}
-                      >
-                        <X size={13} />
-                      </button>
-                    </div>
-                  );
-                })}
               </div>
             )}
 
