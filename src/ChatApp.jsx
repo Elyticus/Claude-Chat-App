@@ -674,6 +674,36 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       }));
     });
 
+    // Someone was added to a group this user is already in — append the system
+    // message (the added user themselves gets room:new instead). If the members
+    // panel is open for this room, refresh it so the new person shows up.
+    s.on("room:member_joined", ({ roomId, username, addedBy, systemMessage }) => {
+      const msg = systemMessage ?? {
+        id: `sys_${Date.now()}`,
+        text: addedBy
+          ? `${username} was added by ${addedBy}`
+          : `${username} joined the group`,
+        system: true,
+        created_at: Math.floor(Date.now() / 1000),
+      };
+      setMessages((prev) => ({
+        ...prev,
+        [roomId]: [...(prev[roomId] || []), msg],
+      }));
+      setGroupMembersPanel((prev) => {
+        if (prev?.roomId !== roomId) return prev;
+        api
+          .getRoomMembers(roomId)
+          .then((members) =>
+            setGroupMembersPanel((cur) =>
+              cur?.roomId === roomId ? { ...cur, members } : cur,
+            ),
+          )
+          .catch(console.error);
+        return prev;
+      });
+    });
+
     s.on("contact:request", () => {
       api.getUsers().then(setAllUsers).catch(console.error);
     });
@@ -1034,6 +1064,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       s.off("message:deleted");
       s.off("room:deleted");
       s.off("room:member_left");
+      s.off("room:member_joined");
       s.off("contact:request");
       s.off("contact:accepted");
       s.off("user:avatar");
@@ -1434,6 +1465,16 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     if (user) handleSelectUser(user);
   }
 
+  // Add a user to an existing group / channel from their profile. Both return
+  // the promise so the profile can show per-room success / error. The server's
+  // room:member_joined / channel:member_joined events keep everyone in sync.
+  function addUserToGroup(roomId, userId) {
+    return api.addGroupMember(roomId, userId);
+  }
+  function addUserToChannel(roomId, userId) {
+    return api.addChannelMember(roomId, userId);
+  }
+
   async function handleCreateChannel(name, slug, description, isPrivate) {
     setShowNewChat(false);
     const { roomId } = await api.createChannel(
@@ -1747,6 +1788,17 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     const merged = { ...(fromMembers || {}), ...(fromUsers || {}) };
     return { ...merged, avatar: avatarMap[profile.userId] || merged.avatar };
   })();
+  // Groups the user can be added to (groups require the target be a contact);
+  // channels where this user is an admin/owner (only they can add members).
+  const profileGroups = rooms.filter(
+    (r) =>
+      !!r.is_group && r.type !== "channel" && r.type !== "private_channel",
+  );
+  const profileChannels = rooms.filter(
+    (r) =>
+      (r.type === "channel" || r.type === "private_channel") &&
+      ROLE_LEVEL[r.role] >= ROLE_LEVEL.admin,
+  );
   let profileManage = null;
   if (profile?.roomId && groupMembersPanel?.roomId === profile.roomId) {
     const room = rooms.find((r) => r.id === profile.roomId);
@@ -2615,9 +2667,13 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           online={onlineIds.has(profile.userId)}
           contactStatus={profileUser.contact_status}
           manage={profileManage}
+          groups={profileGroups}
+          channels={profileChannels}
           isDark={isDark}
           onClose={() => setProfile(null)}
           onMessage={() => handleProfileMessage(profile.userId)}
+          onAddToGroup={(roomId) => addUserToGroup(roomId, profile.userId)}
+          onAddToChannel={(roomId) => addUserToChannel(roomId, profile.userId)}
           onAddContact={() =>
             handleSendRequest(profile.userId).catch(console.error)
           }

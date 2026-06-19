@@ -523,6 +523,62 @@ app.post("/api/rooms/group", requireAuth, async (req, res) => {
   res.status(201).json({ roomId });
 });
 
+// Add an existing contact to a group the requester already belongs to. Channels
+// have their own admin-gated add route; this is the group equivalent (any
+// member can add, and only contacts — mirroring group creation's rules).
+app.post("/api/rooms/:roomId/members", requireAuth, async (req, res) => {
+  const roomId = req.params.roomId;
+  const { userId } = req.body ?? {};
+  if (!isId(userId) || userId === req.user.id) {
+    return res.status(400).json({ error: "Invalid userId" });
+  }
+
+  const room = await queries.getRoomById.get(roomId);
+  if (!room) return res.status(404).json({ error: "Room not found" });
+  const isChannel = room.type === "channel" || room.type === "private_channel";
+  if (isChannel || !room.is_group) {
+    return res.status(400).json({ error: "Not a group" });
+  }
+  if (!(await queries.isMember.get(roomId, req.user.id))) {
+    return res.status(403).json({ error: "Not a member" });
+  }
+  if (await queries.isMember.get(roomId, userId)) {
+    return res.status(409).json({ error: "User is already a member" });
+  }
+
+  const rel = await queries.getContactStatus.get(req.user.id, userId);
+  if (!rel || rel.status !== "accepted") {
+    return res.status(403).json({ error: "You can only add your contacts" });
+  }
+
+  const count = await queries.memberCount.get(roomId);
+  if (count.cnt >= 50) {
+    return res.status(400).json({ error: "Groups are limited to 50 members" });
+  }
+
+  await queries.addMember.run(roomId, userId);
+  await queries.setRoomNew.run(roomId, userId, req.user.username);
+
+  // The added user gets room:new (joins their sockets + surfaces the group).
+  notifyNewRoom(roomId, [userId], {
+    isGroup: true,
+    groupName: room.name,
+    addedBy: req.user.username,
+  });
+
+  // Existing members get a system message — symmetric with room:member_left.
+  const addedUser = await queries.getUserById.get(userId);
+  const systemMessage = await saveSystemMsg(
+    roomId, req.user.id,
+    `${addedUser?.username} was added by ${req.user.username}`,
+  );
+  io.to(`room:${roomId}`).emit("room:member_joined", {
+    roomId, userId, username: addedUser?.username,
+    addedBy: req.user.username, systemMessage,
+  });
+  res.json({ ok: true });
+});
+
 app.get("/api/rooms/:roomId/members", requireAuth, async (req, res) => {
   const roomId = req.params.roomId;
   if (!(await queries.isMember.get(roomId, req.user.id))) {

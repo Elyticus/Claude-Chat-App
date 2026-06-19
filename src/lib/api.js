@@ -57,6 +57,9 @@ export const api = {
   createGroup: (userIds, name) =>
     request("POST", "/rooms/group", { userIds, name }),
 
+  addGroupMember: (roomId, userId) =>
+    request("POST", `/rooms/${roomId}/members`, { userId }),
+
   deleteMessage: (messageId) => request("DELETE", `/messages/${messageId}`),
 
   deleteRoom: (roomId) => request("DELETE", `/rooms/${roomId}`),
