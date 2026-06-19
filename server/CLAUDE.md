@@ -67,7 +67,7 @@ Authentication: token is passed in the handshake `auth` object and validated bef
 | `message:ack`       | `{ tempId, message, roomId }`               | Sent only to sender; replaces temp msg   |
 | `message:reaction`  | `{ roomId, messageId, emoji }`              | Broadcast to all room members            |
 | `message:deleted`   | `{ roomId, messageId }`                     | Broadcast to all room members            |
-| `typing:update`     | `{ roomId, userId, username, typing }`      | Broadcast to others in room              |
+| `typing:update`     | `{ roomId, userId, username, typing }`      | Broadcast to others in room; also emitted with `typing:false` to every room a socket was in when it disconnects, so a "typing…" indicator never sticks after the typer drops |
 | `contact:accepted`  | `{ by: { id, username } }`                  | To the requester when their friend request is accepted |
 | `contact:declined`  | `{ by: { id, username } }`                  | To the requester when their friend request is declined (only a pending incoming request being deleted — not a cancel/unfriend) |
 | `room:member_joined`| `{ roomId, userId, username, addedBy, systemMessage }` | Group only — broadcast to existing members when someone is added; the added user gets `room:new` instead |

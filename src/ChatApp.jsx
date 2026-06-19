@@ -644,6 +644,20 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         online ? next.add(userId) : next.delete(userId);
         return next;
       });
+      // A user who just went offline can't be typing — drop any stale indicator
+      // (covers a typing:stop that never arrived because they dropped abruptly).
+      if (!online) {
+        setTypingMap((prev) => {
+          let changed = false;
+          const next = {};
+          for (const [roomId, users] of Object.entries(prev)) {
+            const filtered = users.filter((u) => u.userId !== userId);
+            if (filtered.length !== users.length) changed = true;
+            next[roomId] = filtered;
+          }
+          return changed ? next : prev;
+        });
+      }
     });
 
     s.on("room:new", (data) => {
@@ -1110,6 +1124,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       // re-fetches messages, which advances the server read marker.
       syncRooms().then(() => refreshActiveRoomMessages());
       syncPresence();
+      // Typing is ephemeral — drop anything that may have gone stale while the
+      // socket was down (a typing:stop could have been missed).
+      setTypingMap({});
     };
     s.io.on("reconnect", onReconnect);
 
@@ -1211,6 +1228,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       // so the user doesn't have to refresh the page to see them.
       syncRooms().then(() => refreshActiveRoomMessages());
       syncPresence();
+      // Clear any stale "typing…" indicators that may have lingered while away.
+      setTypingMap({});
     }
     document.addEventListener("visibilitychange", handleForeground);
     window.addEventListener("focus", handleForeground);

@@ -1207,6 +1207,22 @@ io.on("connection", async (socket) => {
     socket.to(`room:${roomId}`).emit("typing:update", { roomId, userId, username, typing: false });
   }));
 
+  // If a socket drops while its user was mid-type, no typing:stop was ever
+  // sent — clear the "typing…" indicator for that user in every room they were
+  // in. `disconnecting` fires while socket.rooms is still populated.
+  socket.on("disconnecting", () => {
+    for (const room of socket.rooms) {
+      if (typeof room === "string" && room.startsWith("room:")) {
+        socket.to(room).emit("typing:update", {
+          roomId: room.slice(5),
+          userId,
+          username,
+          typing: false,
+        });
+      }
+    }
+  });
+
   socket.on("disconnect", safe(async () => {
     markOffline(userId, socket.id);
     await queries.touchUser.run(userId);
