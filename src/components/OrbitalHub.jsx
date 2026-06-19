@@ -9,8 +9,8 @@ import {
   Check,
 } from "lucide-react";
 import StarField from "./ui/star-field.jsx";
-import AuroraField from "./ui/aurora-field.jsx";
-import { isAuroraSkyLight } from "@/lib/aurora-palette.js";
+import SpecialField from "./ui/special-field.jsx";
+import { isSpecialSkyLight } from "@/lib/special-scenes.js";
 import { Avatar } from "./ui/Avatar.jsx";
 import { formatTime, userBg, initials } from "@/lib/helpers.js";
 import {
@@ -115,20 +115,20 @@ export function OrbitalHub({
   const isSpecial = theme === "special";
   const bg0 = isSpecial ? specialBg0 : isDark ? darkBg0 : lightBg0;
 
-  // In special mode the text color follows the aurora sky's brightness, which
-  // shifts with the time of day: light sky → black text, dark sky → white.
-  // Track the hour with a minute tick so the derived value stays current.
+  // In special mode the text color follows the active scene's sky brightness,
+  // which shifts with the time of day: light sky → black text, dark sky →
+  // white. Track the hour with a minute tick so the derived value stays current.
   const [hour, setHour] = useState(() => new Date().getHours());
   useEffect(() => {
     const id = setInterval(() => setHour(new Date().getHours()), 60000);
     return () => clearInterval(id);
   }, []);
-  const auroraSkyLight = isAuroraSkyLight(hour);
+  const specialSkyLight = isSpecialSkyLight(hour);
 
   // Strong text color for names over the background canvas: white on dark,
   // black on light, brightness-dependent in special mode.
   const textStrong = isSpecial
-    ? auroraSkyLight
+    ? specialSkyLight
       ? "#000000"
       : "#ffffff"
     : isDark
@@ -198,7 +198,7 @@ export function OrbitalHub({
       {/* Background canvas — all glow drawn on canvas, zero CSS blur layers.
           Special mode swaps the starfield for the time-of-day aurora scene. */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {isSpecial ? <AuroraField /> : <StarField isDark={isDark} />}
+        {isSpecial ? <SpecialField /> : <StarField isDark={isDark} />}
       </div>
 
       {/* Top bar */}
