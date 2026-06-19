@@ -30,14 +30,14 @@ A fully functional real-time chat application. Users register/login with JWT aut
 │   │       ├── badge.jsx                 # shadcn-pattern Badge (cva + cn)
 │   │       ├── button.jsx                # shadcn-pattern Button (cva + cn + Radix Slot)
 │   │       ├── card.jsx                  # shadcn-pattern Card family
-│   │       ├── aurora-field.jsx          # Canvas aurora curtains + motes (special theme, time-of-day reactive)
+│   │       ├── special-field.jsx         # Canvas special-mode background — 3 time-of-day scenes (blue hour / golden hour / aurora)
 │   │       ├── ContactStatusButton.jsx   # Add / remove contact button (status-aware)
 │   │       ├── shader-background.jsx     # Three.js GLSL shader canvas background
 │   │       ├── star-field.jsx            # Canvas starfield + comets (dark) / sunrise + birds (light)
 │   │       └── TypingIndicator.jsx       # "X is typing…" label
 │   └── lib/
 │       ├── api.js        # fetch() wrappers for every REST endpoint
-│       ├── aurora-palette.js # Special-mode time-of-day palettes + text-contrast helper
+│       ├── special-scenes.js # Special-mode scene selector (getScene) + per-scene palettes + text-contrast helper
 │       ├── constants.js  # Shared style tokens (COLORS, REACTIONS, ROLE_LEVEL, theme vars)
 │       ├── helpers.js    # userBg, initials, formatTime, formatDateSeparator, toSlug
 │       ├── socket.js     # socket.io-client singleton (connect / disconnect)

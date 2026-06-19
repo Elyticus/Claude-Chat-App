@@ -80,7 +80,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const isDark = theme !== "light";
   const isSpecial = theme === "special";
   // App-level backgrounds: special mode swaps the deep indigo for teal-black
-  // so the whole app (hub + chat panel) shifts with the aurora scene.
+  // so the whole app (hub + chat panel) shifts with the time-of-day scene.
   const bg0 = isSpecial ? specialBg0 : isDark ? darkBg0 : lightBg0;
   const bgRaised = isSpecial ? specialBg1 : isDark ? darkBg0 : lightBg1;
   const [myAvatar, setMyAvatar] = useState(() => currentUser.avatar || null);
@@ -182,7 +182,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   }
 
   // Apply a theme with a soft crossfade. The View Transitions API snapshots
-  // the whole document (backgrounds, text, AND the StarField/AuroraField canvas
+  // the whole document (backgrounds, text, AND the StarField/SpecialField canvas
   // swap) and fades between them — one place handles every mode change without
   // touching the dozens of inline-styled backgrounds. flushSync makes React
   // commit synchronously inside the transition callback so the snapshot is
@@ -205,8 +205,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     applyTheme(theme === "light" ? "dark" : "light");
   }
 
-  // Special (aurora) mode has its own button; toggling it off returns to the
-  // mode the user was in before entering.
+  // Special mode (the time-of-day scenes) has its own button; toggling it off
+  // returns to the mode the user was in before entering.
   const prevThemeRef = useRef("dark");
   function toggleSpecial() {
     const next = theme === "special" ? prevThemeRef.current : "special";
