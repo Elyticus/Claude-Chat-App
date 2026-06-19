@@ -468,22 +468,8 @@ export function OrbitalHub({
             {totalUnread > 99 ? "99+" : totalUnread}
           </span>
         )}
-        {/* Friend activity — red: incoming requests + accepted-request
-            confirmations. Both surface in the All Chats panel. */}
-        {pendingCount + friendNotifs.length > 0 && (
-          <span
-            className="absolute -top-1 -right-1 min-w-5 h-5 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 z-20"
-            style={{
-              background: "linear-gradient(135deg,#ef4444,#dc2626)",
-              boxShadow: "0 2px 8px rgba(239,68,68,0.5)",
-            }}
-            aria-label={`${pendingCount + friendNotifs.length} friend notifications`}
-          >
-            {pendingCount + friendNotifs.length > 9
-              ? "9+"
-              : pendingCount + friendNotifs.length}
-          </span>
-        )}
+        {/* Friend activity is intentionally NOT shown here — incoming friend
+            requests are surfaced only on the Friends icon in the top bar. */}
         {/* Group notification — yellow (plain groups only, not channels) */}
         {hasGroupNewNotif && (
           <span
