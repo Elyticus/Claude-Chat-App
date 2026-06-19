@@ -18,7 +18,6 @@ export function NewChatModal({
   contacts,
   allUsers,
   onlineIds,
-  onOpenProfile,
   onCreateGroup,
   onCreateChannel,
   onJoinChannel,
@@ -28,8 +27,9 @@ export function NewChatModal({
   onClose,
   isDark,
   avatarMap,
+  initialMode = "group",
 }) {
-  const [mode, setMode] = useState("dm");
+  const [mode, setMode] = useState(initialMode);
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
   const [groupName, setGroupName] = useState("");
@@ -177,20 +177,17 @@ export function NewChatModal({
   }
 
   const tabs = [
-    { id: "dm", label: "Friends" },
     { id: "group", label: "Group" },
     { id: "channel", label: "Channel" },
     { id: "find", label: "Find", badge: incoming.length },
   ];
 
   const headerTitle =
-    mode === "dm"
-      ? "Friends"
-      : mode === "group"
-        ? "New Group"
-        : mode === "channel"
-          ? "Channel"
-          : "Add Friends";
+    mode === "group"
+      ? "New Group"
+      : mode === "channel"
+        ? "Channel"
+        : "Add Friends";
 
   const inputCls = `w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-all ${
     isDark
@@ -593,11 +590,9 @@ export function NewChatModal({
               <input
                 type="text"
                 placeholder={
-                  mode === "dm"
-                    ? "Search friends…"
-                    : mode === "group"
-                      ? "Add friends…"
-                      : "Search by username to add a friend…"
+                  mode === "group"
+                    ? "Add friends…"
+                    : "Search by username to add a friend…"
                 }
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -885,71 +880,30 @@ export function NewChatModal({
                   </p>
                 )}
                 {friends.map((u) => {
-                  // Group mode: a single selectable button toggles membership.
-                  if (mode === "group") {
-                    const selected = selectedIds.includes(u.id);
-                    return (
-                      <button
-                        key={u.id}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left"
-                        style={{
-                          background: selected
-                            ? isDark
-                              ? "rgba(99,102,241,0.14)"
-                              : "rgba(99,102,241,0.08)"
-                            : "transparent",
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!selected)
-                            e.currentTarget.style.background = isDark
-                              ? "rgba(99,102,241,0.07)"
-                              : "rgba(99,102,241,0.05)";
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!selected)
-                            e.currentTarget.style.background = "transparent";
-                        }}
-                        onClick={() => toggleSelect(u.id)}
-                      >
-                        <Avatar
-                          userId={u.id}
-                          username={u.username}
-                          size={40}
-                          online={onlineIds.has(u.id)}
-                          avatar={avatarMap[u.id]}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div
-                            className="text-sm font-medium truncate"
-                            style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
-                          >
-                            {u.username}
-                          </div>
-                        </div>
-                        {selected && (
-                          <span className="text-indigo-400 font-bold shrink-0">
-                            ✓
-                          </span>
-                        )}
-                      </button>
-                    );
-                  }
-
-                  // Friends tab: click the row to open the user's profile, where
-                  // Message, Remove and every other action lives.
+                  // Group mode: a single selectable row toggles membership.
+                  const selected = selectedIds.includes(u.id);
                   return (
                     <button
                       key={u.id}
-                      onClick={() => onOpenProfile(u)}
                       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left"
+                      style={{
+                        background: selected
+                          ? isDark
+                            ? "rgba(99,102,241,0.14)"
+                            : "rgba(99,102,241,0.08)"
+                          : "transparent",
+                      }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = isDark
-                          ? "rgba(99,102,241,0.07)"
-                          : "rgba(99,102,241,0.05)";
+                        if (!selected)
+                          e.currentTarget.style.background = isDark
+                            ? "rgba(99,102,241,0.07)"
+                            : "rgba(99,102,241,0.05)";
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent";
+                        if (!selected)
+                          e.currentTarget.style.background = "transparent";
                       }}
+                      onClick={() => toggleSelect(u.id)}
                     >
                       <Avatar
                         userId={u.id}
@@ -965,12 +919,12 @@ export function NewChatModal({
                         >
                           {u.username}
                         </div>
-                        {onlineIds.has(u.id) && (
-                          <div className="text-[11px] text-emerald-400 font-medium">
-                            Online
-                          </div>
-                        )}
                       </div>
+                      {selected && (
+                        <span className="text-indigo-400 font-bold shrink-0">
+                          ✓
+                        </span>
+                      )}
                     </button>
                   );
                 })}

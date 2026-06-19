@@ -13,8 +13,9 @@ src/
 │   ├── ContextMenu.jsx          # Right-click menu (react, copy, delete messages)
 │   ├── ConfirmModal.jsx         # Generic confirmation dialog
 │   ├── EditChannelModal.jsx     # Edit channel name / settings
+│   ├── FriendsModal.jsx         # Friends list + incoming requests (own surface, opened from the hub)
 │   ├── GroupMembersPanel.jsx    # Member list; each row opens UserProfileModal
-│   ├── NewChatModal.jsx         # Sheet overlay for DM / group creation
+│   ├── NewChatModal.jsx         # Group / channel creation + Find (add friends)
 │   ├── OrbitalHub.jsx           # Full-screen radial orbital canvas (room nodes)
 │   ├── UserProfileModal.jsx     # User profile sheet — all per-user actions live here
 │   └── ui/
