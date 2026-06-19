@@ -27,6 +27,7 @@ import { OrbitalHub } from "./components/OrbitalHub.jsx";
 import { ContextMenu } from "./components/ContextMenu.jsx";
 import { NewChatModal } from "./components/NewChatModal.jsx";
 import { FriendsModal } from "./components/FriendsModal.jsx";
+import { AccountModal } from "./components/AccountModal.jsx";
 import { ConfirmModal } from "./components/ConfirmModal.jsx";
 import { EditChannelModal } from "./components/EditChannelModal.jsx";
 import { GroupMembersPanel } from "./components/GroupMembersPanel.jsx";
@@ -72,6 +73,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const [newChatTab, setNewChatTab] = useState("group");
   // The Friends list now lives in its own modal, not inside New Chat.
   const [showFriends, setShowFriends] = useState(false);
+  // The current user's own profile (change picture / sign out).
+  const [showAccount, setShowAccount] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
   const [inputText, setInputText] = useState("");
   const [showMsgSearch, setShowMsgSearch] = useState(false);
@@ -1893,18 +1896,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         onSelectRoom={selectRoom}
         onNewChat={() => openNewChat()}
         onOpenFriends={() => setShowFriends(true)}
-        onLogout={onLogout}
-        onRequestLogout={() =>
-          setConfirmModal({
-            title: "Sign out",
-            body: "Are you sure you want to sign out?",
-            confirmLabel: "Sign out",
-            onConfirm: () => {
-              setConfirmModal(null);
-              onLogout();
-            },
-          })
-        }
+        onOpenAccount={() => setShowAccount(true)}
         currentUser={currentUser}
         onlineIds={onlineIds}
         unreadCounts={unreadCounts}
@@ -1918,7 +1910,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         onRemoveContact={handleRemoveContact}
         avatarMap={avatarMap}
         myAvatar={myAvatar}
-        onAvatarClick={() => avatarFileRef.current?.click()}
         channelNotifs={channelNotifs}
         onClearChannelNotifs={() => {
           setChannelNotifs([]);
@@ -2701,6 +2692,29 @@ export default function ChatApp({ token, currentUser, onLogout }) {
             openNewChat("find");
           }}
           onClose={() => setShowFriends(false)}
+        />
+      )}
+
+      {/* Account / self profile — change picture, sign out */}
+      {showAccount && (
+        <AccountModal
+          currentUser={currentUser}
+          myAvatar={myAvatar}
+          isDark={isDark}
+          onChangeAvatar={() => avatarFileRef.current?.click()}
+          onLogout={() => {
+            setShowAccount(false);
+            setConfirmModal({
+              title: "Sign out",
+              body: "Are you sure you want to sign out?",
+              confirmLabel: "Sign out",
+              onConfirm: () => {
+                setConfirmModal(null);
+                onLogout();
+              },
+            });
+          }}
+          onClose={() => setShowAccount(false)}
         />
       )}
 

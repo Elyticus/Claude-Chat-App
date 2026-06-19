@@ -122,9 +122,10 @@ export function UserProfileModal({
 
   const targetMeta = targetRole ? ROLE_META[targetRole] : null;
 
-  // Groups require the target be a contact; channels are already filtered to
-  // ones this user can administer.
-  const canAddToGroup = contactStatus === "accepted" && groups.length > 0;
+  // Groups require the target be a contact (the picker shows even with no
+  // eligible groups yet, with a hint); channels are already filtered to ones
+  // this user can administer.
+  const canAddToGroup = contactStatus === "accepted";
   const canAddToChannel = channels.length > 0;
   const showAddSection = canAddToGroup || canAddToChannel;
 
@@ -166,6 +167,13 @@ export function UserProfileModal({
         </button>
         {open && (
           <div className="mt-1 max-h-40 overflow-y-auto space-y-0.5 pl-1 pr-0.5">
+            {list.length === 0 && (
+              <p className="text-xs px-3 py-2" style={{ color: subColor }}>
+                {kind === "group"
+                  ? "No groups to add them to — create one in New Chat."
+                  : "No channels you manage."}
+              </p>
+            )}
             {list.map((r) => {
               const name =
                 kind === "channel" ? `#${r.name || r.slug}` : r.name || "Group";
