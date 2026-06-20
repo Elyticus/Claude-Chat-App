@@ -13,7 +13,8 @@ src/
 │   ├── useContactActions.js # Friend/contact handlers (send / accept / remove)
 │   ├── useChannelActions.js # Channel create/join + member moderation (kick/role/mute/add/transfer) + edit/pin
 │   ├── useMessageActions.js # Per-message handlers (context menu, react, copy, optimistic delete)
-│   └── useAvatarUpload.js   # Avatar file → downscaled 256px JPEG, local + server persist
+│   ├── useAvatarUpload.js   # Avatar file → downscaled 256px JPEG, local + server persist
+│   └── useNotificationState.js # channelNotifs/friendNotifs state + add/clear helpers + socket-facing refs
 ├── components/
 │   ├── AccountModal.jsx         # Current user's own profile — change picture, sign out (opens from hub avatar)
 │   ├── AllChatsPanel.jsx        # Slide-up "All Chats" sheet (requests + channel activity + room list) — used by OrbitalHub
@@ -29,7 +30,8 @@ src/
 │   ├── chat/                    # ChatApp's chat-panel render pieces
 │   │   ├── ChatHeader.jsx           # Conversation header (back, identity, action buttons)
 │   │   ├── MessageComposer.jsx      # Input row + mute/error banner + length counter
-│   │   └── MessageList.jsx          # Scrollable message area (bubbles, separators, divider)
+│   │   ├── MessageList.jsx          # Scrollable message area (bubbles, separators, divider)
+│   │   └── ChatModals.jsx           # All top-level overlays (friends, account, new chat, members, profile, context menu, edit channel, confirm, toast)
 │   └── ui/
 │       ├── Avatar.jsx                # User avatar with gradient bg + initials
 │       ├── badge.jsx                 # shadcn-pattern Badge (cva + cn)
