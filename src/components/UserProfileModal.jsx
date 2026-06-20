@@ -128,12 +128,12 @@ export function UserProfileModal({
 
   const targetMeta = targetRole ? ROLE_META[targetRole] : null;
 
-  // Groups require the target be a contact (the picker shows even with no
-  // eligible groups yet, with a hint); channels are already filtered to ones
-  // this user can administer. "Add to a group" is hidden in a member-list
-  // context (a channel/group member profile) — it doesn't belong there.
-  const canAddToGroup = !inMemberList && contactStatus === "accepted";
-  const canAddToChannel = channels.length > 0;
+  // "Add to a group" only when the viewer is in at least one group; "Add to a
+  // channel" only when the viewer owns/manages at least one channel. Both are
+  // also hidden in a member-list context (a channel/group member profile).
+  const canAddToGroup =
+    !inMemberList && contactStatus === "accepted" && groups.length > 0;
+  const canAddToChannel = !inMemberList && channels.length > 0;
   const showAddSection = canAddToGroup || canAddToChannel;
 
   // In a channel/group member list, hide the friend-list actions (Message and
