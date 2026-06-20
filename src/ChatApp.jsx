@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { flushSync } from "react-dom";
-import { Search, X, Pin } from "lucide-react";
 import { api } from "./lib/api.js";
 import { useChatSocket } from "./hooks/useChatSocket.js";
 import { useContactActions } from "./hooks/useContactActions.js";
@@ -14,18 +13,12 @@ import {
   MAX_MESSAGE_LENGTH,
 } from "./hooks/useChatDerivedState.js";
 import { OrbitalHub } from "./components/OrbitalHub.jsx";
-import { MessageComposer } from "./components/chat/MessageComposer.jsx";
-import { ChatHeader } from "./components/chat/ChatHeader.jsx";
-import { MessageList } from "./components/chat/MessageList.jsx";
+import { ChatPanel } from "./components/chat/ChatPanel.jsx";
 import { ChatModals } from "./components/chat/ChatModals.jsx";
 import {
-  ROLE_LEVEL,
   darkBg0,
-  darkBg2,
-  darkBorder,
   lightBg0,
   lightBg1,
-  lightBorderMid,
   specialBg0,
   specialBg1,
 } from "./lib/constants.js";
@@ -790,205 +783,57 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         onChange={handleAvatarFile}
       />
 
-      {/* Solid backdrop — covers the orbital hub completely whenever a chat is
-          open, including during the fade-in transition and the iOS keyboard
-          accessory-bar gap that sits below --vvh */}
-      {displayRoomId && (
-        <div
-          className="fixed inset-0 z-199 pointer-events-none"
-          style={{ background: bg0 }}
-        />
-      )}
-
-      {/* Chat Panel
-          Outer: top=--vvt so the panel tracks iOS visual viewport pan.
-          Inner: height=--vvh (actual visible height above keyboard) so the
-          flex column is sized to exactly what the user can see. Without this,
-          justify-end pushes messages below the keyboard fold. */}
-      <div
-        className="fixed left-0 right-0 z-200 pointer-events-none"
-        style={{
-          top: "var(--vvt, 0px)",
-          height: "100dvh",
-          background: displayRoomId ? bg0 : "transparent",
-        }}
-      >
-        <div
-          className={`absolute top-0 left-0 right-0 flex flex-col transition-opacity duration-200 ${activeRoomId ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
-          style={{
-            height: "var(--vvh, 100dvh)",
-            background: bg0,
-          }}
-        >
-          {displayRoomId && activeRoom && (
-            <>
-              <ChatHeader
-                activeRoom={activeRoom}
-                activeRoomName={activeRoomName}
-                activeAvatarId={activeAvatarId}
-                activeRoomOnline={activeRoomOnline}
-                avatarMap={avatarMap}
-                isActiveChannel={isActiveChannel}
-                isDmHeader={isDmHeader}
-                typingNames={typingNames}
-                myActiveRole={myActiveRole}
-                isDark={isDark}
-                bgRaised={bgRaised}
-                onClose={closeRoom}
-                onOpenProfile={() => openProfile(activeRoom.other_user_id)}
-                searchActive={showMsgSearch}
-                onToggleSearch={() => {
-                  setShowMsgSearch((v) => !v);
-                  setMsgSearch("");
-                }}
-                onEditChannel={() =>
-                  setEditChannelModal({
-                    name: activeRoom.name || "",
-                    description: activeRoom.description || "",
-                    slug: activeRoom.slug || "",
-                  })
-                }
-                copiedSlug={copiedSlug}
-                onCopySlug={() => {
-                  navigator.clipboard
-                    .writeText(`#${activeRoom.slug}`)
-                    .catch(console.error);
-                  setCopiedSlug(true);
-                  setTimeout(() => setCopiedSlug(false), 2000);
-                }}
-                onOpenMembers={openGroupMembers}
-                onDeleteRoom={() => handleDeleteRoom(activeRoomId)}
-              />
-
-              {/* Message search bar */}
-              {showMsgSearch && (
-                <div
-                  className="flex items-center gap-2 px-4 py-2.5 border-b shrink-0"
-                  style={{
-                    borderColor: isDark ? darkBorder : lightBorderMid,
-                    background: isDark ? darkBg2 : "#f8fafc",
-                  }}
-                >
-                  <Search
-                    size={13}
-                    className="shrink-0"
-                    style={{
-                      color: isDark ? "rgba(165,180,252,0.4)" : "#94a3b8",
-                    }}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Search messages…"
-                    value={msgSearch}
-                    onChange={(e) => setMsgSearch(e.target.value)}
-                    className="flex-1 bg-transparent text-sm outline-none"
-                    style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
-                  />
-                  <button
-                    onClick={() => {
-                      setShowMsgSearch(false);
-                      setMsgSearch("");
-                    }}
-                    aria-label="Close search"
-                    className="w-11 h-11 flex items-center justify-center shrink-0"
-                    style={{
-                      color: isDark ? "rgba(165,180,252,0.4)" : "#94a3b8",
-                    }}
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              )}
-
-              {/* Pinned message banner (channels only) */}
-              {isActiveChannel &&
-                (pinnedMessages[displayRoomId] || []).length > 0 &&
-                (() => {
-                  const latest = pinnedMessages[displayRoomId][0];
-                  return (
-                    <div
-                      className="flex items-center gap-2.5 px-4 py-2 border-b shrink-0"
-                      style={{
-                        borderColor: isDark ? darkBorder : lightBorderMid,
-                        background: isDark
-                          ? "rgba(251,191,36,0.05)"
-                          : "rgba(251,191,36,0.06)",
-                      }}
-                    >
-                      <Pin
-                        size={12}
-                        style={{ color: "#fbbf24", flexShrink: 0 }}
-                      />
-                      <p
-                        className="flex-1 text-xs truncate"
-                        style={{
-                          color: isDark ? "rgba(238,242,255,0.7)" : "#475569",
-                        }}
-                      >
-                        <span
-                          className="font-semibold"
-                          style={{ color: isDark ? "#fbbf24" : "#b45309" }}
-                        >
-                          Pinned:{" "}
-                        </span>
-                        {latest.text}
-                      </p>
-                      {ROLE_LEVEL[myActiveRole] >= ROLE_LEVEL.moderator && (
-                        <button
-                          onClick={() => handleUnpinMessage(latest.message_id)}
-                          className="shrink-0 transition-all"
-                          style={{
-                            color: isDark ? "rgba(238,242,255,0.3)" : "#94a3b8",
-                          }}
-                          title="Unpin"
-                        >
-                          <X size={12} />
-                        </button>
-                      )}
-                    </div>
-                  );
-                })()}
-
-              <MessageList
-                bg0={bg0}
-                isDark={isDark}
-                displayedMessages={displayedMessages}
-                roomLoaded={messages[activeRoomId] !== undefined}
-                hasMore={!!hasMoreMessages[displayRoomId]}
-                loadingMore={!!loadingMore[displayRoomId]}
-                onLoadEarlier={loadEarlierMessages}
-                activeAvatarId={activeAvatarId}
-                activeRoomName={activeRoomName}
-                isGroup={!!activeRoom.is_group}
-                msgSearch={msgSearch}
-                newMarkerIndex={newMarkerIndex}
-                currentUserId={currentUser.id}
-                onContextMenu={handleContextMenu}
-                setContextMenu={setContextMenu}
-                longPressTimerRef={longPressTimerRef}
-                messagesEndRef={messagesEndRef}
-              />
-
-              <MessageComposer
-                inputRef={inputRef}
-                inputText={inputText}
-                onInputChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                onBlur={stopTyping}
-                onSend={sendMessage}
-                canSend={canSend}
-                inputError={inputError}
-                nearLimit={nearLimit}
-                overLimit={overLimit}
-                inputLength={inputLength}
-                maxLength={MAX_MESSAGE_LENGTH}
-                isDark={isDark}
-                bgRaised={bgRaised}
-              />
-            </>
-          )}
-        </div>
-      </div>
+      <ChatPanel
+        bg0={bg0}
+        bgRaised={bgRaised}
+        isDark={isDark}
+        displayRoomId={displayRoomId}
+        activeRoomId={activeRoomId}
+        activeRoom={activeRoom}
+        activeRoomName={activeRoomName}
+        activeAvatarId={activeAvatarId}
+        activeRoomOnline={activeRoomOnline}
+        avatarMap={avatarMap}
+        isActiveChannel={isActiveChannel}
+        isDmHeader={isDmHeader}
+        typingNames={typingNames}
+        myActiveRole={myActiveRole}
+        showMsgSearch={showMsgSearch}
+        setShowMsgSearch={setShowMsgSearch}
+        msgSearch={msgSearch}
+        setMsgSearch={setMsgSearch}
+        copiedSlug={copiedSlug}
+        setCopiedSlug={setCopiedSlug}
+        setEditChannelModal={setEditChannelModal}
+        setContextMenu={setContextMenu}
+        pinnedMessages={pinnedMessages}
+        displayedMessages={displayedMessages}
+        messages={messages}
+        hasMoreMessages={hasMoreMessages}
+        loadingMore={loadingMore}
+        newMarkerIndex={newMarkerIndex}
+        currentUser={currentUser}
+        inputText={inputText}
+        canSend={canSend}
+        inputError={inputError}
+        nearLimit={nearLimit}
+        overLimit={overLimit}
+        inputLength={inputLength}
+        inputRef={inputRef}
+        longPressTimerRef={longPressTimerRef}
+        messagesEndRef={messagesEndRef}
+        closeRoom={closeRoom}
+        openProfile={openProfile}
+        openGroupMembers={openGroupMembers}
+        handleDeleteRoom={handleDeleteRoom}
+        handleUnpinMessage={handleUnpinMessage}
+        loadEarlierMessages={loadEarlierMessages}
+        handleContextMenu={handleContextMenu}
+        handleInputChange={handleInputChange}
+        handleKeyDown={handleKeyDown}
+        stopTyping={stopTyping}
+        sendMessage={sendMessage}
+      />
 
       <ChatModals
         isDark={isDark}

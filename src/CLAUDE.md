@@ -33,6 +33,7 @@ src/
 │   │   ├── ChatHeader.jsx           # Conversation header (back, identity, action buttons)
 │   │   ├── MessageComposer.jsx      # Input row + mute/error banner + length counter
 │   │   ├── MessageList.jsx          # Scrollable message area (bubbles, separators, divider)
+│   │   ├── ChatPanel.jsx            # Open-conversation surface: backdrop + header + search bar + pinned banner + MessageList + MessageComposer (iOS --vvt/--vvh sizing)
 │   │   └── ChatModals.jsx           # All top-level overlays (friends, account, new chat, members, profile, context menu, edit channel, confirm, toast)
 │   └── ui/
 │       ├── Avatar.jsx                # User avatar with gradient bg + initials
