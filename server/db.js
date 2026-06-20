@@ -2,9 +2,30 @@ import pkg from "pg";
 import { v4 as uuidv4 } from "uuid";
 const { Pool } = pkg;
 
+// TLS for the database connection. The default (managed providers such as
+// Render/Supabase terminate TLS with their own CA) keeps `rejectUnauthorized:
+// false` for backward compatibility, but operators can — and in production
+// should — opt into real certificate validation so the link carrying password
+// hashes and message contents can't be silently MITM'd:
+//   DATABASE_SSL=strict   → validate the server cert (supply DATABASE_CA if the
+//                           provider uses a private/self-signed root)
+//   DATABASE_SSL=disable  → no TLS (local Postgres only)
+//   unset / anything else → TLS on, cert not verified (previous behaviour)
+function buildSsl() {
+  if (!process.env.DATABASE_URL) return false;
+  const mode = (process.env.DATABASE_SSL || "").toLowerCase();
+  if (["disable", "false", "off", "0"].includes(mode)) return false;
+  if (["strict", "verify", "true", "1"].includes(mode)) {
+    return process.env.DATABASE_CA
+      ? { rejectUnauthorized: true, ca: process.env.DATABASE_CA }
+      : { rejectUnauthorized: true };
+  }
+  return { rejectUnauthorized: false };
+}
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+  ssl: buildSsl(),
   min: 0,
   max: 10,
   idleTimeoutMillis: 30_000,
@@ -239,6 +260,7 @@ export async function initDb() {
       created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
     );
     CREATE INDEX IF NOT EXISTS idx_messages_room ON messages(room_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_id);
     CREATE INDEX IF NOT EXISTS idx_room_members_user ON room_members(user_id);
     CREATE INDEX IF NOT EXISTS idx_contacts_contact ON contacts(contact_id);
     CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id);
@@ -329,6 +351,12 @@ export const queries = {
   },
   getResetToken:    { get: (email) => q("SELECT * FROM password_reset_tokens WHERE email = $1", [email]).then(r => r.rows[0] ?? null) },
   deleteResetToken: { run: (email) => q("DELETE FROM password_reset_tokens WHERE email = $1", [email]) },
+
+  // Sweep stale rows so unfinished signups / reset requests don't leave password
+  // hashes and verification codes sitting in the DB forever. `expires_at` is
+  // epoch milliseconds, matching how the auth handlers write it.
+  deleteExpiredPending:     { run: () => q("DELETE FROM pending_verifications WHERE expires_at < $1", [Date.now()]) },
+  deleteExpiredResetTokens: { run: () => q("DELETE FROM password_reset_tokens WHERE expires_at < $1", [Date.now()]) },
 
   createRoom: {
     run: (is_group, name) =>

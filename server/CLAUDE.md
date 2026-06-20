@@ -123,3 +123,11 @@ Authentication: token is passed in the handshake `auth` object and validated bef
 - **Avatar broadcast scope** — `user:avatar` must be scoped to the user's rooms with `io.to(roomKeys).emit(...)`, never `io.emit(...)` (would broadcast to all connected clients).
 - **Group size limit** — `POST /api/rooms/group` enforces a 50-member cap. Never remove this guard.
 - **`typing:stop` membership check** — always verify `isMember` before broadcasting typing events, just as `typing:start` does. An unverified stop event would let any socket silence another user's typing indicator.
+
+- **`message:send` is rate-limited per socket** — a token bucket (`createTokenBucket`, ~5/sec sustained, burst 10) lives in the connection closure and gates `message:send`. It's the only thing stopping a client from flooding the DB with writes; the length cap and JSON body limit don't bound message *frequency*. Don't remove it, and key any similar high-write socket events the same way.
+
+- **Login runs bcrypt even when the email is unknown** — `/api/auth/login` compares against `DUMMY_PASSWORD_HASH` when no user row is found, so response time is uniform and can't be used to enumerate registered emails. Never short-circuit before the compare.
+
+- **DB TLS is configurable, not hard-disabled** — `buildSsl()` in `db.js` honours `DATABASE_SSL` (`strict`/`disable`) and `DATABASE_CA`. Keep the default backward-compatible, but production should run `DATABASE_SSL=strict`. Don't revert to an unconditional `rejectUnauthorized: false`.
+
+- **Expired auth rows are swept** — `purgeExpiredAuthRows()` (startup + hourly) drops expired `pending_verifications` / `password_reset_tokens` so password hashes and codes don't linger. The on-access deletes in the handlers are still required; the sweep only covers abandoned flows.

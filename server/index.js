@@ -144,6 +144,13 @@ function codesMatch(expected, given) {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// A real bcrypt hash (same cost as stored passwords) of a value no password
+// will ever match. Login compares against this when the email is unknown so the
+// response takes the same ~bcrypt time whether or not the account exists —
+// closing the timing side-channel that would otherwise let an attacker
+// enumerate which emails are registered.
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync("unused-placeholder-password", 10);
+
 // Persists a system message and returns a broadcast-ready object with the real DB id.
 async function saveSystemMsg(roomId, actorId, text) {
   const { lastInsertRowid: id } = await queries.insertMessage.run(roomId, actorId, text, true);
@@ -155,6 +162,34 @@ const io = new Server(httpServer, {
 });
 
 app.disable("x-powered-by");
+
+// Behind a reverse proxy (Render, Heroku, Nginx, …) the client IP arrives in
+// X-Forwarded-For; without trusting it express-rate-limit keys every request to
+// the single proxy IP (one shared bucket for everyone). Off by default so we
+// never blindly trust a spoofable header on an untrusted topology — set
+// TRUST_PROXY=1 (hop count) or a subnet string when deployed behind a proxy.
+if (process.env.TRUST_PROXY) {
+  const tp = process.env.TRUST_PROXY;
+  app.set("trust proxy", /^\d+$/.test(tp) ? Number(tp) : tp);
+}
+
+// Baseline security headers (kept dependency-free — this is a JSON API, so a
+// handful of static headers covers it without pulling in helmet).
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("Cross-Origin-Resource-Policy", "same-site");
+  res.setHeader("X-DNS-Prefetch-Control", "off");
+  res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+  // Only assert HSTS when the request actually arrived over TLS, so local HTTP
+  // dev isn't pinned to https.
+  if (req.secure || req.headers["x-forwarded-proto"] === "https") {
+    res.setHeader("Strict-Transport-Security", "max-age=15552000; includeSubDomains");
+  }
+  next();
+});
+
 app.use(morgan("dev"));
 app.use(cors({ origin: CLIENT_ORIGIN, credentials: true }));
 app.use(express.json({ limit: "512kb" }));
@@ -350,7 +385,10 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
   }
 
   const row = await queries.getUserByEmail.get(email);
-  if (!row || !(await bcrypt.compare(password, row.password_hash))) {
+  // Always run a bcrypt comparison (against a dummy hash when the email is
+  // unknown) so login timing doesn't reveal whether an account exists.
+  const passwordOk = await bcrypt.compare(password, row?.password_hash || DUMMY_PASSWORD_HASH);
+  if (!row || !passwordOk) {
     return res.status(401).json({ error: "Invalid email or password" });
   }
 
@@ -1083,8 +1121,31 @@ const safe = (fn) => (payload, ...rest) => {
   );
 };
 
+// Token-bucket rate limiter (one per socket). The JSON body limit and per-field
+// length caps stop oversized payloads, but nothing stopped a client from
+// hammering `message:send` thousands of times a second — flooding the DB with
+// writes and every room-mate with events. This caps sustained throughput while
+// still allowing a short burst (paste / fast typing).
+function createTokenBucket(capacity, refillPerSec) {
+  let tokens = capacity;
+  let last = Date.now();
+  return () => {
+    const now = Date.now();
+    tokens = Math.min(capacity, tokens + ((now - last) / 1000) * refillPerSec);
+    last = now;
+    if (tokens < 1) return false;
+    tokens -= 1;
+    return true;
+  };
+}
+
 io.on("connection", async (socket) => {
   const { id: userId, username } = socket.user;
+
+  // ~5 messages/sec sustained, burst of 10 — generous for real chatting, but a
+  // hard ceiling on write floods. Lives in the connection closure, so it's
+  // per-socket and garbage-collected on disconnect.
+  const allowMessage = createTokenBucket(10, 5);
 
   // Was this user fully offline before this socket connected? (Used to avoid
   // re-announcing "online" every time the same user opens an extra tab.)
@@ -1119,6 +1180,10 @@ io.on("connection", async (socket) => {
 
   socket.on("message:send", safe(async ({ roomId, text, tempId }) => {
     if (!isId(roomId) || typeof text !== "string" || !text.trim()) return;
+    if (!allowMessage()) {
+      socket.emit("message:error", { tempId, error: "You're sending messages too fast — slow down" });
+      return;
+    }
     if (text.trim().length > 4000) {
       socket.emit("message:error", { tempId, error: "Message too long (max 4,000 characters)" });
       return;
@@ -1243,11 +1308,27 @@ app.use((err, req, res, next) => {
 
 // ─── Start ─────────────────────────────────────────────────────────────────────
 
+// Drop expired pending verifications and password-reset tokens so abandoned
+// signups / reset requests don't leave password hashes and codes in the DB.
+async function purgeExpiredAuthRows() {
+  try {
+    await Promise.all([
+      queries.deleteExpiredPending.run(),
+      queries.deleteExpiredResetTokens.run(),
+    ]);
+  } catch (err) {
+    console.error("[cleanup] purge failed:", err.message);
+  }
+}
+
 async function start() {
   if (!process.env.JWT_SECRET) {
     throw new Error("JWT_SECRET environment variable is required — server will not start without it");
   }
   await initDb();
+  await purgeExpiredAuthRows();
+  // Re-sweep hourly. unref() so the timer never keeps the process alive on its own.
+  setInterval(purgeExpiredAuthRows, 60 * 60 * 1000).unref();
   httpServer.listen(PORT, () => console.log(`Linkloop server → http://localhost:${PORT}`));
 }
 
