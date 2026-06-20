@@ -1894,19 +1894,20 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   })();
   // Groups the user can be added to (groups require the target be a contact);
   // channels where this user is an admin/owner (only they can add members).
-  // Rooms the target is already in are filtered out via profileShared.
+  // These lists are NOT filtered by profileShared so the "Add to" buttons don't
+  // flicker (appear, then vanish) while the shared-rooms fetch resolves — the
+  // profile filters already-joined rooms out of the picker list via
+  // sharedRoomIds instead.
   const profileGroups = rooms.filter(
     (r) =>
       !!r.is_group &&
       r.type !== "channel" &&
-      r.type !== "private_channel" &&
-      !profileShared.has(r.id),
+      r.type !== "private_channel",
   );
   const profileChannels = rooms.filter(
     (r) =>
       (r.type === "channel" || r.type === "private_channel") &&
-      ROLE_LEVEL[r.role] >= ROLE_LEVEL.admin &&
-      !profileShared.has(r.id),
+      ROLE_LEVEL[r.role] >= ROLE_LEVEL.admin,
   );
   let profileManage = null;
   if (profile?.roomId && groupMembersPanel?.roomId === profile.roomId) {
@@ -2813,6 +2814,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
           inMemberList={!!profile.roomId}
           groups={profileGroups}
           channels={profileChannels}
+          sharedRoomIds={profileShared}
           isDark={isDark}
           onClose={() => setProfile(null)}
           onMessage={() => handleProfileMessage(profile.userId)}
