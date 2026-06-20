@@ -9,7 +9,9 @@ src/
 ├── globals.css        # Tailwind v4 entry + dark theme tokens + keyframes
 ├── main.jsx           # React root (imports globals.css)
 ├── hooks/
-│   └── useChatSocket.js     # All Socket.io event wiring (extracted from ChatApp; takes setters/refs as params)
+│   ├── useChatSocket.js     # All Socket.io event wiring (extracted from ChatApp; takes setters/refs as params)
+│   ├── useContactActions.js # Friend/contact handlers (send / accept / remove)
+│   └── useChannelActions.js # Channel create/join + member moderation (kick/role/mute/add/transfer) + edit/pin
 ├── components/
 │   ├── AccountModal.jsx         # Current user's own profile — change picture, sign out (opens from hub avatar)
 │   ├── AllChatsPanel.jsx        # Slide-up "All Chats" sheet (requests + channel activity + room list) — used by OrbitalHub
