@@ -99,8 +99,11 @@ fixes already made; reintroducing the old patterns will rebreak the app.
   live events) until a full reload.
 - **Re-sync on return to foreground.** A `visibilitychange`/`focus` effect must
   reconnect the socket if dropped and re-pull rooms/unread/presence. Also
-  re-sync on the socket manager's `reconnect` event. This recovers anything
-  missed while suspended.
+  re-sync on the socket's **`connect`** event (skip the first one) — it fires on
+  EVERY (re)connection, including the manual reconnect the foreground handler
+  triggers, which the manager's `reconnect` event misses. This recovers anything
+  missed while suspended without a page refresh. `syncPresence` re-pulls users,
+  which also recovers pending friend requests.
 
 ### Notification color system
 
