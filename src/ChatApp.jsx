@@ -1,13 +1,18 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { flushSync } from "react-dom";
 import { Search, X, Pin } from "lucide-react";
 import { api } from "./lib/api.js";
 import { useChatSocket } from "./hooks/useChatSocket.js";
 import { useContactActions } from "./hooks/useContactActions.js";
+import { useRoomNavigation } from "./hooks/useRoomNavigation.js";
 import { useChannelActions } from "./hooks/useChannelActions.js";
 import { useMessageActions } from "./hooks/useMessageActions.js";
 import { useAvatarUpload } from "./hooks/useAvatarUpload.js";
 import { useNotificationState } from "./hooks/useNotificationState.js";
+import {
+  useChatDerivedState,
+  MAX_MESSAGE_LENGTH,
+} from "./hooks/useChatDerivedState.js";
 import { OrbitalHub } from "./components/OrbitalHub.jsx";
 import { MessageComposer } from "./components/chat/MessageComposer.jsx";
 import { ChatHeader } from "./components/chat/ChatHeader.jsx";
@@ -24,12 +29,6 @@ import {
   specialBg0,
   specialBg1,
 } from "./lib/constants.js";
-
-// Must match the server's message:send limit (server/index.js).
-const MAX_MESSAGE_LENGTH = 4000;
-// Show the live character counter once the user is within this many
-// characters of the limit.
-const LIMIT_WARN_THRESHOLD = 500;
 
 export default function ChatApp({ token, currentUser, onLogout }) {
   const [rooms, setRooms] = useState([]);
@@ -148,9 +147,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const audioCtxRef = useRef(null);
 
   const selectRoomRef = useRef(null);
-  useEffect(() => {
-    selectRoomRef.current = selectRoom;
-  });
 
   // Mirror `rooms` into a ref so socket listeners (registered once) can read the
   // latest room metadata — e.g. to title a new-message notification with the
@@ -636,124 +632,53 @@ export default function ChatApp({ token, currentUser, onLogout }) {
 
   const { handleAvatarFile } = useAvatarUpload({ setMyAvatar, currentUser });
 
-  function handleDeleteRoom(roomId) {
-    const room = rooms.find((r) => r.id === roomId);
-    const isGroup = !!room?.is_group;
-    const isChannel =
-      room?.type === "channel" || room?.type === "private_channel";
-    const amOwner = isChannel && room?.role === "owner";
-    setConfirmModal({
-      title: isChannel
-        ? amOwner
-          ? "Delete channel?"
-          : "Leave channel?"
-        : isGroup
-          ? "Leave group?"
-          : "Delete conversation?",
-      body: isChannel
-        ? amOwner
-          ? "This will permanently delete the channel and all its messages for everyone."
-          : "You'll be removed from the channel."
-        : isGroup
-          ? "You'll be removed from the group. If only one member remains after you leave, the group will be deleted for everyone."
-          : "This conversation will be permanently deleted. Neither of you will be able to see the messages again.",
-      confirmLabel: amOwner ? "Delete" : isGroup ? "Leave" : "Delete",
-      onConfirm: async () => {
-        closeRoom();
-        setRooms((prev) => prev.filter((r) => r.id !== roomId));
-        clearRoomNotifs(roomId);
-        try {
-          await api.deleteRoom(roomId);
-        } catch (err) {
-          console.error(err);
-          api.getRooms().then(setRooms).catch(console.error);
-        }
-      },
-    });
-  }
+  const {
+    selectRoom,
+    closeRoom,
+    handleDeleteRoom,
+    openGroupMembers,
+    openNewChat,
+    openProfile,
+    handleProfileMessage,
+    addUserToGroup,
+    addUserToChannel,
+    handleCreateGroup,
+  } = useRoomNavigation({
+    rooms,
+    allUsers,
+    displayRoomId,
+    unreadCounts,
+    currentUser,
+    closeTimerRef,
+    socketRef,
+    clearRoomNotifs,
+    stopTyping,
+    setConfirmModal,
+    setRooms,
+    setShowNewChat,
+    setPendingRoomIds,
+    setGroupMembersPanel,
+    setNewMsgMarkers,
+    setDisplayRoomId,
+    setActiveRoomId,
+    setShowMsgSearch,
+    setMsgSearch,
+    setPinnedMessages,
+    setNewChatTab,
+    setProfileShared,
+    setProfile,
+    setShowFriends,
+    setToast,
+  });
 
-  async function handleSelectUser(user) {
-    setShowNewChat(false);
-    const existing = rooms.find(
-      (r) => !r.is_group && r.other_user_id === user.id,
-    );
-    if (existing) {
-      selectRoom(existing.id);
-      return;
-    }
-    try {
-      const { roomId } = await api.createDM(user.id);
-      setPendingRoomIds((prev) => new Set([...prev, roomId]));
-      selectRoom(roomId);
-      api.getRooms().then(setRooms).catch(console.error);
-    } catch (err) {
-      console.error(err);
-    }
-  }
+  // Mirror selectRoom into the ref the once-registered socket handlers call
+  // through, so they always reach the latest closure.
+  useEffect(() => {
+    selectRoomRef.current = selectRoom;
+  });
 
   const { handleSendRequest, handleAcceptContact, handleRemoveContact } =
     useContactActions({ setAllUsers, setOnlineIds });
-
-  async function openGroupMembers() {
-    if (!displayRoomId) return;
-    try {
-      const members = await api.getRoomMembers(displayRoomId);
-      setGroupMembersPanel({ roomId: displayRoomId, members });
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  // Open the profile sheet for another user. `roomId` is passed when opening
-  // from a channel's member list so the profile can also show moderation
-  // actions; it's null everywhere else (friends list, DM header).
-  // Open the New Chat modal on a specific tab ("group" default, "find" when
-  // launched from the Friends modal's Add button).
-  function openNewChat(tab = "group") {
-    setNewChatTab(tab);
-    setShowNewChat(true);
-  }
-
-  function openProfile(userId, roomId = null) {
-    if (!userId || userId === currentUser.id) return;
-    // Clear any previous user's shared-room set so stale entries don't briefly
-    // hide the wrong rooms before the fresh fetch resolves.
-    setProfileShared(new Set());
-    setProfile({ userId, roomId });
-  }
-
-  // "Message" from the profile: open (or create) the DM and dismiss the
-  // overlays the profile may have been launched from.
-  function handleProfileMessage(userId) {
-    const user = allUsers.find((u) => u.id === userId);
-    setProfile(null);
-    setGroupMembersPanel(null);
-    setShowFriends(false);
-    if (user) handleSelectUser(user);
-  }
-
-  // Add a user to an existing group / channel from their profile. Both return
-  // the promise so the profile can show per-room success / error, and pop a
-  // confirmation toast. The server's room:member_joined / channel:member_joined
-  // events keep everyone in sync.
-  function addUserToGroup(roomId, userId) {
-    return api.addGroupMember(roomId, userId).then((res) => {
-      const u = allUsers.find((x) => x.id === userId);
-      const room = rooms.find((r) => r.id === roomId);
-      setToast(`Added ${u?.username || "user"} to ${room?.name || "the group"}`);
-      return res;
-    });
-  }
-  function addUserToChannel(roomId, userId) {
-    return api.addChannelMember(roomId, userId).then((res) => {
-      const u = allUsers.find((x) => x.id === userId);
-      const room = rooms.find((r) => r.id === roomId);
-      setToast(
-        `Added ${u?.username || "user"} to #${room?.name || room?.slug || "channel"}`,
-      );
-      return res;
-    });
-  }
 
   const {
     handleCreateChannel,
@@ -777,209 +702,48 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     setEditChannelModal,
   });
 
-  async function handleCreateGroup(userIds, name) {
-    setShowNewChat(false);
-    try {
-      const { roomId } = await api.createGroup(userIds, name);
-      // Groups show in the list immediately (not pending) — a named group with
-      // members is a deliberate assignment, unlike an empty one-on-one DM.
-      selectRoom(roomId);
-      api.getRooms().then(setRooms).catch(console.error);
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  function selectRoom(roomId) {
-    clearTimeout(closeTimerRef.current);
-    setDisplayRoomId(roomId);
-    setActiveRoomId(roomId);
-    // Snapshot the unread count before clearRoomNotifs wipes it — this is
-    // where the "New Messages" divider goes. A count of 0 clears the divider
-    // from the previous visit.
-    setNewMsgMarkers((prev) => ({
-      ...prev,
-      [roomId]: {
-        count: unreadCounts[roomId] || 0,
-        openedAt: Math.floor(Date.now() / 1000),
-      },
-    }));
-    clearRoomNotifs(roomId);
-    // Persist the read state server-side so the count stays cleared after a
-    // reload, even if this room's messages were already loaded this session.
-    socketRef.current?.emit("room:read", { roomId });
-    setRooms((prev) =>
-      prev.map((r) =>
-        r.id === roomId ? { ...r, is_new: 0, role_notification: null } : r,
-      ),
-    );
-    setShowMsgSearch(false);
-    setMsgSearch("");
-    stopTyping();
-    localStorage.setItem("linkloop_active_room", String(roomId));
-    const room = rooms.find((r) => r.id === roomId);
-    if (room?.type === "channel" || room?.type === "private_channel") {
-      api
-        .getPinnedMessages(roomId)
-        .then((pins) =>
-          setPinnedMessages((prev) => ({ ...prev, [roomId]: pins })),
-        )
-        .catch(console.error);
-    }
-  }
-
-  function closeRoom() {
-    stopTyping();
-    setActiveRoomId(null);
-    closeTimerRef.current = setTimeout(() => setDisplayRoomId(null), 200);
-    setShowMsgSearch(false);
-    setMsgSearch("");
-    localStorage.removeItem("linkloop_active_room");
-  }
-
   // ── Derived ──────────────────────────────────────────────────────────────────
 
-  const contacts = allUsers.filter((u) => u.contact_status === "accepted");
-  const pendingUsers = allUsers.filter(
-    (u) => u.contact_status === "pending_received",
-  );
-  const pendingRequestCount = pendingUsers.length;
-  const avatarMap = useMemo(() => {
-    const map = {};
-    allUsers.forEach((u) => {
-      if (u.avatar) map[u.id] = u.avatar;
-    });
-    if (myAvatar) map[currentUser.id] = myAvatar;
-    return map;
-  }, [allUsers, myAvatar, currentUser.id]);
-
-  // Computed over the full rooms list (not filtered by pendingRoomIds) so the
-  // yellow hub dot appears immediately when room:new fires, even before a message
-  // is sent (pending rooms are hidden from the orbital canvas but still carry
-  // their is_new flag).
-  const hasGroupNewNotif = rooms.some(
-    (r) =>
-      !!r.is_group &&
-      !!r.is_new &&
-      r.type !== "channel" &&
-      r.type !== "private_channel",
-  );
-
-  const activeRoom = rooms.find((r) => r.id === displayRoomId) || null;
-  const activeMessages = displayRoomId ? messages[displayRoomId] || [] : [];
-  const displayedMessages =
-    showMsgSearch && msgSearch.trim()
-      ? activeMessages.filter(
-          (m) =>
-            !m.system && m.text.toLowerCase().includes(msgSearch.toLowerCase()),
-        )
-      : activeMessages;
-
-  // Index of the first unread message — the "New Messages" divider renders
-  // just above it. Walks backwards counting the same messages the server
-  // counts as unread (non-system, from other users), skipping anything that
-  // arrived after the room was opened so the divider doesn't drift. Hidden
-  // while searching (filtered indexes would be misleading).
-  const activeMarker = displayRoomId ? newMsgMarkers[displayRoomId] : null;
-  let newMarkerIndex = -1;
-  if (activeMarker?.count > 0 && !(showMsgSearch && msgSearch.trim())) {
-    let remaining = activeMarker.count;
-    for (let i = displayedMessages.length - 1; i >= 0 && remaining > 0; i--) {
-      const m = displayedMessages[i];
-      if (m.system || m.user_id === currentUser.id) continue;
-      if (m.created_at > activeMarker.openedAt) continue;
-      newMarkerIndex = i;
-      remaining--;
-    }
-  }
-
-  const typingNames = displayRoomId
-    ? (typingMap[displayRoomId] || [])
-        .filter((u) => u.userId !== currentUser.id)
-        .map((u) => u.username)
-    : [];
-
-  // Message-length awareness: counts what would actually be sent (trimmed,
-  // same as the server's check). Near the limit a live counter appears; over
-  // it the counter turns into an error and send is blocked.
-  const inputLength = inputText.trim().length;
-  const overLimit = inputLength > MAX_MESSAGE_LENGTH;
-  const nearLimit = inputLength > MAX_MESSAGE_LENGTH - LIMIT_WARN_THRESHOLD;
-  const canSend = inputLength > 0 && !overLimit;
-
-  const isActiveChannel =
-    activeRoom?.type === "channel" || activeRoom?.type === "private_channel";
-  const myActiveRole = activeRoom?.role || null;
-
-  const activeRoomName = activeRoom
-    ? isActiveChannel
-      ? activeRoom.name || activeRoom.slug
-      : activeRoom.is_group
-        ? activeRoom.name || "Group Chat"
-        : activeRoom.other_username || "Unknown"
-    : "";
-
-  const activeRoomOnline =
-    activeRoom && !activeRoom.is_group
-      ? onlineIds.has(activeRoom.other_user_id)
-      : false;
-
-  const activeAvatarId = activeRoom
-    ? activeRoom.is_group
-      ? activeRoom.id
-      : activeRoom.other_user_id
-    : null;
-
-  // Clicking the DM header (a one-on-one chat) opens the other user's profile.
-  const isDmHeader = !!activeRoom && !activeRoom.is_group && !isActiveChannel;
-
-  // Resolve the clicked user + (optional) channel-management context from the
-  // live lists so the profile's badges and actions stay in sync. Merge the
-  // member record (role / muted_until) under the directory record (contact
-  // status / online / avatar).
-  const profileUser = (() => {
-    if (!profile) return null;
-    const fromUsers = allUsers.find((u) => u.id === profile.userId);
-    const fromMembers = groupMembersPanel?.members.find(
-      (m) => m.id === profile.userId,
-    );
-    if (!fromUsers && !fromMembers) return null;
-    const merged = { ...(fromMembers || {}), ...(fromUsers || {}) };
-    return { ...merged, avatar: avatarMap[profile.userId] || merged.avatar };
-  })();
-  // Groups the user can be added to (groups require the target be a contact);
-  // channels where this user is an admin/owner (only they can add members).
-  // These lists are NOT filtered by profileShared so the "Add to" buttons don't
-  // flicker (appear, then vanish) while the shared-rooms fetch resolves — the
-  // profile filters already-joined rooms out of the picker list via
-  // sharedRoomIds instead.
-  const profileGroups = rooms.filter(
-    (r) =>
-      !!r.is_group &&
-      r.type !== "channel" &&
-      r.type !== "private_channel",
-  );
-  const profileChannels = rooms.filter(
-    (r) =>
-      (r.type === "channel" || r.type === "private_channel") &&
-      ROLE_LEVEL[r.role] >= ROLE_LEVEL.admin,
-  );
-  let profileManage = null;
-  if (profile?.roomId && groupMembersPanel?.roomId === profile.roomId) {
-    const room = rooms.find((r) => r.id === profile.roomId);
-    const isCh =
-      room?.type === "channel" || room?.type === "private_channel";
-    const member = groupMembersPanel.members.find(
-      (m) => m.id === profile.userId,
-    );
-    if (isCh && member) {
-      profileManage = {
-        myRole: room?.role || null,
-        targetRole: member.role || "member",
-        mutedUntil: member.muted_until || null,
-      };
-    }
-  }
+  const {
+    contacts,
+    pendingUsers,
+    pendingRequestCount,
+    avatarMap,
+    hasGroupNewNotif,
+    activeRoom,
+    displayedMessages,
+    newMarkerIndex,
+    typingNames,
+    inputLength,
+    overLimit,
+    nearLimit,
+    canSend,
+    isActiveChannel,
+    myActiveRole,
+    activeRoomName,
+    activeRoomOnline,
+    activeAvatarId,
+    isDmHeader,
+    profileUser,
+    profileGroups,
+    profileChannels,
+    profileManage,
+  } = useChatDerivedState({
+    allUsers,
+    myAvatar,
+    currentUser,
+    rooms,
+    displayRoomId,
+    messages,
+    showMsgSearch,
+    msgSearch,
+    newMsgMarkers,
+    typingMap,
+    inputText,
+    onlineIds,
+    profile,
+    groupMembersPanel,
+  });
 
   // ── Render ───────────────────────────────────────────────────────────────────
 

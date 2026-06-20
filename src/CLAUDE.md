@@ -14,7 +14,9 @@ src/
 │   ├── useChannelActions.js # Channel create/join + member moderation (kick/role/mute/add/transfer) + edit/pin
 │   ├── useMessageActions.js # Per-message handlers (context menu, react, copy, optimistic delete)
 │   ├── useAvatarUpload.js   # Avatar file → downscaled 256px JPEG, local + server persist
-│   └── useNotificationState.js # channelNotifs/friendNotifs state + add/clear helpers + socket-facing refs
+│   ├── useNotificationState.js # channelNotifs/friendNotifs state + add/clear helpers + socket-facing refs
+│   ├── useRoomNavigation.js # Open/close/delete rooms, open DM/members/new-chat/profile sheets, add user to group/channel
+│   └── useChatDerivedState.js # Pure derived values (contacts, avatarMap, activeRoom + metadata, divider index, profile context); exports MAX_MESSAGE_LENGTH
 ├── components/
 │   ├── AccountModal.jsx         # Current user's own profile — change picture, sign out (opens from hub avatar)
 │   ├── AllChatsPanel.jsx        # Slide-up "All Chats" sheet (requests + channel activity + room list) — used by OrbitalHub
