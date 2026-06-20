@@ -125,8 +125,9 @@ export function UserProfileModal({
 
   // Groups require the target be a contact (the picker shows even with no
   // eligible groups yet, with a hint); channels are already filtered to ones
-  // this user can administer.
-  const canAddToGroup = contactStatus === "accepted";
+  // this user can administer. "Add to a group" is hidden in a member-list
+  // context (a channel/group member profile) — it doesn't belong there.
+  const canAddToGroup = !inMemberList && contactStatus === "accepted";
   const canAddToChannel = channels.length > 0;
   const showAddSection = canAddToGroup || canAddToChannel;
 
