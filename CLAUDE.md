@@ -172,6 +172,9 @@ PORT=4000
 JWT_SECRET=change-this-to-a-long-random-string-in-production
 CLIENT_ORIGIN=http://localhost:5173
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE
+DATABASE_SSL=          # blank = TLS on but cert unverified; "strict" = validate; "disable" = no TLS
+DATABASE_CA=           # PEM root cert, used when DATABASE_SSL=strict and the provider uses a private CA
+TRUST_PROXY=           # set (e.g. 1) when behind a reverse proxy so rate limiting keys on the real client IP
 ```
 
 `DATABASE_URL` is required — the server will fail to connect to the DB and return empty responses (causing `JSON.parse` errors on the client) if it is missing. Get your connection string from TablePlus: open your connection → Edit → copy Host, Port, User, Password, Database and compose the URL above.
