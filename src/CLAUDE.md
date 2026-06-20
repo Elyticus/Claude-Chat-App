@@ -8,8 +8,11 @@ src/
 ├── ChatApp.jsx        # Main chat UI: message list, chat panel, socket state
 ├── globals.css        # Tailwind v4 entry + dark theme tokens + keyframes
 ├── main.jsx           # React root (imports globals.css)
+├── hooks/
+│   └── useChatSocket.js     # All Socket.io event wiring (extracted from ChatApp; takes setters/refs as params)
 ├── components/
 │   ├── AccountModal.jsx         # Current user's own profile — change picture, sign out (opens from hub avatar)
+│   ├── AllChatsPanel.jsx        # Slide-up "All Chats" sheet (requests + channel activity + room list) — used by OrbitalHub
 │   ├── AuthScreen.jsx           # Login / Register form
 │   ├── ContextMenu.jsx          # Right-click menu (react, copy, delete messages)
 │   ├── ConfirmModal.jsx         # Generic confirmation dialog
@@ -17,8 +20,12 @@ src/
 │   ├── FriendsModal.jsx         # Friends list + incoming requests (own surface, opened from the hub)
 │   ├── GroupMembersPanel.jsx    # Member list; each row opens UserProfileModal
 │   ├── NewChatModal.jsx         # Group / channel creation + Find (add friends)
-│   ├── OrbitalHub.jsx           # Full-screen radial orbital canvas (room nodes)
+│   ├── OrbitalHub.jsx           # Full-screen radial orbital canvas (room nodes) — renders AllChatsPanel
 │   ├── UserProfileModal.jsx     # User profile sheet — all per-user actions live here
+│   ├── chat/                    # ChatApp's chat-panel render pieces
+│   │   ├── ChatHeader.jsx           # Conversation header (back, identity, action buttons)
+│   │   ├── MessageComposer.jsx      # Input row + mute/error banner + length counter
+│   │   └── MessageList.jsx          # Scrollable message area (bubbles, separators, divider)
 │   └── ui/
 │       ├── Avatar.jsx                # User avatar with gradient bg + initials
 │       ├── badge.jsx                 # shadcn-pattern Badge (cva + cn)
@@ -34,6 +41,7 @@ src/
     ├── special-scenes.js # Special-mode scene selector (getScene) + per-scene palettes + isSpecialSkyLight() contrast helper
     ├── constants.js  # Shared style tokens (COLORS, REACTIONS, ROLE_LEVEL, theme vars)
     ├── helpers.js    # userBg, initials, formatTime, formatDateSeparator, toSlug
+    ├── room-helpers.js # isChannel(room) + unreadBadgeStyle(room) — shared by OrbitalHub + AllChatsPanel
     ├── socket.js     # socket.io-client singleton (connect / disconnect)
     └── utils.js      # cn() helper (clsx + tailwind-merge)
 ```

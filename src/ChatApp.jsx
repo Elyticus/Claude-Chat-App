@@ -1,43 +1,23 @@
-import {
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-  useMemo,
-  Fragment,
-} from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { flushSync } from "react-dom";
-import {
-  ArrowLeft,
-  Send,
-  Search,
-  X,
-  Trash2,
-  Users,
-  Copy,
-  Check,
-  Lock,
-  Pencil,
-  Pin,
-  VolumeX,
-} from "lucide-react";
+import { Search, X, Check, Pin } from "lucide-react";
 import { api } from "./lib/api.js";
-import { connectSocket, disconnectSocket } from "./lib/socket.js";
+import { useChatSocket } from "./hooks/useChatSocket.js";
 import { OrbitalHub } from "./components/OrbitalHub.jsx";
 import { ContextMenu } from "./components/ContextMenu.jsx";
 import { NewChatModal } from "./components/NewChatModal.jsx";
 import { FriendsModal } from "./components/FriendsModal.jsx";
 import { AccountModal } from "./components/AccountModal.jsx";
+import { MessageComposer } from "./components/chat/MessageComposer.jsx";
+import { ChatHeader } from "./components/chat/ChatHeader.jsx";
+import { MessageList } from "./components/chat/MessageList.jsx";
 import { ConfirmModal } from "./components/ConfirmModal.jsx";
 import { EditChannelModal } from "./components/EditChannelModal.jsx";
 import { GroupMembersPanel } from "./components/GroupMembersPanel.jsx";
 import { UserProfileModal } from "./components/UserProfileModal.jsx";
-import { Avatar } from "./components/ui/Avatar.jsx";
-import { TypingIndicator } from "./components/ui/TypingIndicator.jsx";
 import {
   ROLE_LEVEL,
   darkBg0,
-  darkBg1,
   darkBg2,
   darkBorder,
   lightBg0,
@@ -46,13 +26,6 @@ import {
   specialBg0,
   specialBg1,
 } from "./lib/constants.js";
-import {
-  userBg,
-  initials,
-  formatFullTime,
-  dayKey,
-  formatDateSeparator,
-} from "./lib/helpers.js";
 
 // Must match the server's message:send limit (server/index.js).
 const MAX_MESSAGE_LENGTH = 4000;
@@ -505,688 +478,35 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   }, []);
 
   // ── Socket setup ─────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const s = connectSocket(token);
-    socketRef.current = s;
-
-    s.on("message:new", ({ roomId, message }) => {
-      setMessages((prev) => ({
-        ...prev,
-        [roomId]: [...(prev[roomId] || []), message],
-      }));
-      setPendingRoomIds((prev) => {
-        if (!prev.has(roomId)) return prev;
-        const next = new Set(prev);
-        next.delete(roomId);
-        return next;
-      });
-      setRooms((prev) =>
-        prev
-          .map((r) =>
-            r.id === roomId
-              ? {
-                  ...r,
-                  last_message: message.text,
-                  last_message_at: message.created_at,
-                }
-              : r,
-          )
-          .sort((a, b) => (b.last_message_at || 0) - (a.last_message_at || 0)),
-      );
-      const seen =
-        roomId === activeRoomIdRef.current && document.hasFocus();
-      if (!seen) {
-        // Not seen: a different room, or this room while the window is
-        // unfocused/minimized (desktop). Count it as unread — for the open
-        // room the foreground handler turns this into the "New Messages"
-        // divider when the user comes back. Own echoes from another tab are
-        // skipped to match the server's unread definition (other users only).
-        if (message.user_id !== currentUser.id) {
-          setUnreadCounts((prev) => ({
-            ...prev,
-            [roomId]: (prev[roomId] || 0) + 1,
-          }));
-          playPing();
-
-          if (
-            typeof Notification !== "undefined" &&
-            Notification.permission === "granted"
-          ) {
-            // Title with the group/channel name (and prefix the body with the
-            // sender) so group and channel notifications are distinguishable;
-            // DMs keep showing just the sender's name.
-            const room = roomsRef.current.find((r) => r.id === roomId);
-            const isChannel =
-              room?.type === "channel" || room?.type === "private_channel";
-            const isGroup = !!room?.is_group;
-            const title = isChannel
-              ? `#${room.name || room.slug}`
-              : isGroup
-                ? room.name || "Group Chat"
-                : message.username;
-            const body =
-              isGroup || isChannel
-                ? `${message.username}: ${message.text}`
-                : message.text;
-            // tag collapses repeat alerts from the same room into one popup.
-            const notification = new Notification(title, {
-              body,
-              tag: `room-${roomId}`,
-            });
-            notification.onclick = () => {
-              window.focus();
-              // Already-active room: the focus handler converts its unread
-              // into the divider; re-selecting would wipe that marker.
-              if (activeRoomIdRef.current !== roomId)
-                selectRoomRef.current?.(roomId);
-              notification.close();
-            };
-          }
-        }
-      } else {
-        // Message landed in the room you're viewing while the window has
-        // focus — actually seen. Keep the server's read marker current so it
-        // doesn't resurface as unread after a reload.
-        s.emit("room:read", { roomId });
-      }
-    });
-
-    s.on("message:ack", ({ tempId, message, roomId }) => {
-      setMessages((prev) => ({
-        ...prev,
-        [roomId]: (prev[roomId] || []).map((m) =>
-          m.id === tempId ? message : m,
-        ),
-      }));
-      setPendingRoomIds((prev) => {
-        if (!prev.has(roomId)) return prev;
-        const next = new Set(prev);
-        next.delete(roomId);
-        return next;
-      });
-      setRooms((prev) =>
-        prev
-          .map((r) =>
-            r.id === roomId
-              ? {
-                  ...r,
-                  last_message: message.text,
-                  last_message_at: message.created_at,
-                }
-              : r,
-          )
-          .sort((a, b) => (b.last_message_at || 0) - (a.last_message_at || 0)),
-      );
-    });
-
-    s.on("message:reaction", ({ roomId, messageId, emoji }) => {
-      setMessages((prev) => ({
-        ...prev,
-        [roomId]: (prev[roomId] || []).map((m) =>
-          m.id === messageId ? { ...m, reaction: emoji } : m,
-        ),
-      }));
-    });
-
-    s.on("typing:update", ({ roomId, userId, username, typing }) => {
-      setTypingMap((prev) => {
-        const current = (prev[roomId] || []).filter((u) => u.userId !== userId);
-        return {
-          ...prev,
-          [roomId]: typing ? [...current, { userId, username }] : current,
-        };
-      });
-    });
-
-    s.on("user:status", ({ userId, online }) => {
-      setOnlineIds((prev) => {
-        const next = new Set(prev);
-        online ? next.add(userId) : next.delete(userId);
-        return next;
-      });
-      // A user who just went offline can't be typing — drop any stale indicator
-      // (covers a typing:stop that never arrived because they dropped abruptly).
-      if (!online) {
-        setTypingMap((prev) => {
-          let changed = false;
-          const next = {};
-          for (const [roomId, users] of Object.entries(prev)) {
-            const filtered = users.filter((u) => u.userId !== userId);
-            if (filtered.length !== users.length) changed = true;
-            next[roomId] = filtered;
-          }
-          return changed ? next : prev;
-        });
-      }
-    });
-
-    s.on("room:new", (data) => {
-      api
-        .getRooms()
-        .then((loadedRooms) => {
-          const prevIds = new Set(roomsRef.current.map((r) => r.id));
-          // Only empty DMs are hidden until a first message — a group or
-          // channel is a deliberate assignment and must appear in the chat
-          // list the instant you're added, without a refresh.
-          const newPending = loadedRooms
-            .filter((r) => !prevIds.has(r.id) && !r.last_message && !r.is_group)
-            .map((r) => r.id);
-          setRooms(loadedRooms);
-          if (newPending.length > 0) {
-            setPendingRoomIds((prev) => new Set([...prev, ...newPending]));
-          }
-        })
-        .catch(console.error);
-      if (
-        data.isGroup &&
-        data.addedBy &&
-        data.addedBy !== currentUser.username
-      ) {
-        if (
-          typeof Notification !== "undefined" &&
-          Notification.permission === "granted"
-        ) {
-          new Notification(`Added to "${data.groupName}"`, {
-            body: `${data.addedBy} added you to this group`,
-          });
-        }
-      }
-    });
-
-    s.on("message:deleted", ({ roomId, messageId }) => {
-      setMessages((prev) => ({
-        ...prev,
-        [roomId]: (prev[roomId] || []).filter((m) => m.id !== messageId),
-      }));
-    });
-
-    s.on("room:deleted", ({ roomId }) => {
-      loadedRoomsRef.current.delete(roomId);
-      setRooms((prev) => prev.filter((r) => r.id !== roomId));
-      clearRoomNotifsRef.current(roomId);
-      if (activeRoomIdRef.current === roomId) {
-        setActiveRoomId(null);
-        setTimeout(() => setDisplayRoomId(null), 200);
-      }
-    });
-
-    s.on("room:member_left", ({ roomId, username }) => {
-      setMessages((prev) => ({
-        ...prev,
-        [roomId]: [
-          ...(prev[roomId] || []),
-          {
-            id: `sys_${Date.now()}`,
-            text: `${username} left the group`,
-            system: true,
-            created_at: Math.floor(Date.now() / 1000),
-          },
-        ],
-      }));
-    });
-
-    // Someone was added to a group this user is already in — append the system
-    // message (the added user themselves gets room:new instead). If the members
-    // panel is open for this room, refresh it so the new person shows up.
-    s.on("room:member_joined", ({ roomId, username, addedBy, systemMessage }) => {
-      const msg = systemMessage ?? {
-        id: `sys_${Date.now()}`,
-        text: addedBy
-          ? `${username} was added by ${addedBy}`
-          : `${username} joined the group`,
-        system: true,
-        created_at: Math.floor(Date.now() / 1000),
-      };
-      setMessages((prev) => ({
-        ...prev,
-        [roomId]: [...(prev[roomId] || []), msg],
-      }));
-      setGroupMembersPanel((prev) => {
-        if (prev?.roomId !== roomId) return prev;
-        api
-          .getRoomMembers(roomId)
-          .then((members) =>
-            setGroupMembersPanel((cur) =>
-              cur?.roomId === roomId ? { ...cur, members } : cur,
-            ),
-          )
-          .catch(console.error);
-        return prev;
-      });
-    });
-
-    s.on("contact:request", ({ from }) => {
-      // Refresh users so the Friends badge / requests list update live.
-      api.getUsers().then(setAllUsers).catch(console.error);
-      playPing();
-      if (
-        from?.username &&
-        typeof Notification !== "undefined" &&
-        Notification.permission === "granted"
-      ) {
-        new Notification("New friend request", {
-          body: `${from.username} sent you a friend request`,
-        });
-      }
-    });
-
-    s.on("contact:accepted", ({ by }) => {
-      api
-        .getUsers()
-        .then((users) => {
-          setAllUsers(users);
-          setOnlineIds(new Set(users.filter((u) => u.online).map((u) => u.id)));
-        })
-        .catch(console.error);
-      // Confirm to the sender that the person they requested accepted. The
-      // banner persists until they clear it.
-      if (by?.username) {
-        addFriendNotifRef.current(
-          `You're now friends with ${by.username}`,
-          "accepted",
-        );
-        if (
-          typeof Notification !== "undefined" &&
-          Notification.permission === "granted"
-        ) {
-          new Notification("Friend request accepted", {
-            body: `${by.username} accepted your friend request`,
-          });
-        }
-      }
-    });
-
-    s.on("contact:declined", ({ by }) => {
-      // The recipient declined; clear the now-gone pending_sent state.
-      api.getUsers().then(setAllUsers).catch(console.error);
-      // Confirm to the sender that their request was denied.
-      if (by?.username) {
-        addFriendNotifRef.current(
-          `${by.username} declined your friend request`,
-          "declined",
-        );
-        if (
-          typeof Notification !== "undefined" &&
-          Notification.permission === "granted"
-        ) {
-          new Notification("Friend request declined", {
-            body: `${by.username} declined your friend request`,
-          });
-        }
-      }
-    });
-
-    s.on("user:avatar", ({ userId, avatar }) => {
-      setAllUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, avatar } : u)),
-      );
-      if (userId === currentUser.id) setMyAvatar(avatar);
-    });
-
-    s.on("message:error", ({ tempId, error }) => {
-      setMessages((prev) => {
-        const next = { ...prev };
-        for (const roomId of Object.keys(next)) {
-          if (Array.isArray(next[roomId])) {
-            next[roomId] = next[roomId].filter((m) => m.id !== tempId);
-          }
-        }
-        return next;
-      });
-      if (error) {
-        setInputError(error);
-        setTimeout(() => setInputError(""), 4000);
-      }
-    });
-
-    s.on(
-      "channel:member_kicked",
-      ({
-        roomId,
-        kickedUserId,
-        kickedUsername,
-        kickedBy,
-        channelName,
-        systemMsg,
-      }) => {
-        if (kickedUserId === currentUser.id) {
-          loadedRoomsRef.current.delete(roomId);
-          setRooms((prev) => prev.filter((r) => r.id !== roomId));
-          clearRoomNotifsRef.current(roomId);
-          if (activeRoomIdRef.current === roomId) {
-            setActiveRoomId(null);
-            setTimeout(() => setDisplayRoomId(null), 200);
-          }
-          // roomId null: the room is gone for this user, so the notif must not
-          // be tied to it — room-scoped notifs are pruned when the room
-          // disappears, and this one should persist until dismissed.
-          addChannelNotifRef.current(
-            `You were removed from #${channelName} by ${kickedBy}`,
-            "kick",
-            null,
-          );
-        } else {
-          const msg = systemMsg ?? {
-            id: `sys_${Date.now()}`,
-            text: `${kickedUsername || "A member"} was removed from the channel`,
-            system: true,
-            created_at: Math.floor(Date.now() / 1000),
-          };
-          setMessages((prev) => ({
-            ...prev,
-            [roomId]: [...(prev[roomId] || []), msg],
-          }));
-          setGroupMembersPanel((prev) =>
-            prev?.roomId === roomId
-              ? {
-                  ...prev,
-                  members: prev.members.filter((m) => m.id !== kickedUserId),
-                }
-              : prev,
-          );
-          // Notify remaining members — not the actor who performed the kick
-          if (kickedBy !== currentUser.username) {
-            const name = channelName ? `#${channelName}` : "the channel";
-            addChannelNotifRef.current(
-              `${kickedUsername} was removed from ${name}`,
-              "kick",
-              roomId,
-            );
-          }
-        }
-      },
-    );
-
-    s.on(
-      "channel:role_changed",
-      ({
-        roomId,
-        userId,
-        role,
-        changedBy,
-        channelName,
-        transferredTo,
-        systemMsg,
-      }) => {
-        setGroupMembersPanel((prev) =>
-          prev?.roomId === roomId
-            ? {
-                ...prev,
-                members: prev.members.map((m) =>
-                  m.id === userId ? { ...m, role } : m,
-                ),
-              }
-            : prev,
-        );
-
-        // System message is visible to all members and persisted (only present on
-        // the first emit; the second emit for ownership transfer has no systemMsg).
-        if (systemMsg) {
-          setMessages((prev) => ({
-            ...prev,
-            [roomId]: [...(prev[roomId] || []), systemMsg],
-          }));
-        }
-
-        const isMe = userId === currentUser.id;
-
-        // Neutral notification for uninvolved members — not the actor who made the change
-        if (!isMe && systemMsg && changedBy !== currentUser.username) {
-          addChannelNotifRef.current(systemMsg.text, "role", roomId);
-        }
-
-        // Personalized notification + role-state update for the affected user
-        if (isMe) {
-          const roleName = role.charAt(0).toUpperCase() + role.slice(1);
-          const article = /^[aeiou]/i.test(role) ? "an" : "a";
-          const isOwnTransfer = !!(
-            transferredTo && changedBy === currentUser.username
-          );
-
-          const notifText = isOwnTransfer
-            ? `You transferred ownership to ${transferredTo}`
-            : role === "owner"
-              ? `${changedBy} made you the Owner`
-              : `${changedBy} made you ${article} ${roleName}`;
-
-          setRooms((prev) =>
-            prev.map((r) =>
-              r.id === roomId
-                ? { ...r, role, role_notification: notifText }
-                : r,
-            ),
-          );
-
-          const desktopTitle = isOwnTransfer
-            ? `You made ${transferredTo} the Owner of #${channelName}`
-            : `Your role in #${channelName} changed`;
-          const desktopBody = isOwnTransfer
-            ? `You are now an Admin`
-            : changedBy
-              ? `${changedBy} made you ${article} ${roleName}`
-              : `You are now ${article} ${roleName}`;
-          const toastMsg = isOwnTransfer
-            ? `You made ${transferredTo} the Owner of #${channelName}`
-            : changedBy
-              ? `${changedBy} made you ${article} ${roleName} in #${channelName}`
-              : `You are now ${article} ${roleName} in #${channelName}`;
-
-          if (
-            typeof Notification !== "undefined" &&
-            Notification.permission === "granted"
-          ) {
-            new Notification(desktopTitle, { body: desktopBody });
-          }
-          addChannelNotifRef.current(toastMsg, "role", roomId);
-        }
-      },
-    );
-
-    s.on(
-      "channel:member_joined",
-      ({ roomId, userId, username, addedBy, channelName, systemMsg }) => {
-        const msg = systemMsg ?? {
-          id: `sys_${Date.now()}`,
-          text: addedBy
-            ? `${username} was added by ${addedBy}`
-            : `${username} joined the channel`,
-          system: true,
-          created_at: Math.floor(Date.now() / 1000),
-        };
-        setMessages((prev) => ({
-          ...prev,
-          [roomId]: [...(prev[roomId] || []), msg],
-        }));
-        // Notify existing members — skip the actor and the newly added user
-        if (userId !== currentUser.id && addedBy !== currentUser.username) {
-          const name = channelName ? `#${channelName}` : "the channel";
-          addChannelNotifRef.current(
-            `${username} was added to ${name}`,
-            "added",
-            roomId,
-          );
-        }
-      },
-    );
-
-    s.on("channel:member_left", ({ roomId, systemMessage, username }) => {
-      // A member leaving is channel history (system message), not a targeted
-      // activity notification — nobody gets an activity badge for it.
-      const msgEntry = systemMessage ?? {
-        id: `sys_${Date.now()}`,
-        text: `${username} left the channel`,
-        system: true,
-        created_at: Math.floor(Date.now() / 1000),
-      };
-      setMessages((prev) => ({
-        ...prev,
-        [roomId]: [...(prev[roomId] || []), msgEntry],
-      }));
-    });
-
-    s.on(
-      "channel:member_muted",
-      ({
-        roomId,
-        userId,
-        mutedUntil,
-        mutedBy,
-        targetUsername,
-        channelName,
-        systemMsg,
-      }) => {
-        setGroupMembersPanel((prev) =>
-          prev?.roomId === roomId
-            ? {
-                ...prev,
-                members: prev.members.map((m) =>
-                  m.id === userId ? { ...m, muted_until: mutedUntil } : m,
-                ),
-              }
-            : prev,
-        );
-        const isUnmute = !mutedUntil;
-        const isMe = userId === currentUser.id;
-        const name = channelName ? `#${channelName}` : "the channel";
-
-        // System message (neutral, third-person) visible to all members and persisted.
-        const msg = systemMsg ?? {
-          id: `sys_${Date.now()}`,
-          text: isUnmute
-            ? `${targetUsername} was unmuted by ${mutedBy}`
-            : `${targetUsername} was muted by ${mutedBy}`,
-          system: true,
-          created_at: Math.floor(Date.now() / 1000),
-        };
-        setMessages((prev) => ({
-          ...prev,
-          [roomId]: [...(prev[roomId] || []), msg],
-        }));
-
-        // Notify the muted user (personalized) and uninvolved members — not the actor
-        if (isMe || mutedBy !== currentUser.username) {
-          const notifText = isMe
-            ? isUnmute
-              ? `You were unmuted in ${name}`
-              : `You were muted in ${name} by ${mutedBy}`
-            : msg.text;
-          addChannelNotifRef.current(
-            notifText,
-            isUnmute ? "unmute" : "mute",
-            roomId,
-          );
-        }
-      },
-    );
-
-    s.on("channel:message_pinned", ({ roomId, pinned }) => {
-      setPinnedMessages((prev) => ({
-        ...prev,
-        [roomId]: [pinned, ...(prev[roomId] || [])],
-      }));
-    });
-
-    s.on("channel:message_unpinned", ({ roomId, messageId }) => {
-      setPinnedMessages((prev) => ({
-        ...prev,
-        [roomId]: (prev[roomId] || []).filter(
-          (p) => p.message_id !== messageId,
-        ),
-      }));
-    });
-
-    s.on("channel:updated", ({ roomId, name, description, slug }) => {
-      setRooms((prev) =>
-        prev.map((r) =>
-          r.id === roomId
-            ? { ...r, name, description, ...(slug !== undefined && { slug }) }
-            : r,
-        ),
-      );
-    });
-
-    s.on("channel:added", ({ room, addedBy }) => {
-      if (room) {
-        // Being added to a channel is a deliberate assignment — refresh the
-        // room list so it shows up immediately. Never mark it pending (that
-        // would hide it until a first message, forcing a manual refresh).
-        api.getRooms().then(setRooms).catch(console.error);
-      }
-      if (addedBy && addedBy !== currentUser.username) {
-        if (
-          typeof Notification !== "undefined" &&
-          Notification.permission === "granted"
-        ) {
-          new Notification(`Added to "#${room?.name}"`, {
-            body: `${addedBy} added you to this channel`,
-          });
-        }
-        const msg = `${addedBy} added you to #${room?.name}`;
-        addChannelNotifRef.current(msg, "added", room?.id);
-      }
-    });
-
-    // Re-pull everything whenever the socket (re)connects — this covers BOTH
-    // automatic reconnects and manual ones (the foreground handler), and unlike
-    // the manager's "reconnect" event it also fires for a socket-level connect.
-    // So any notification (DM, group, channel, friend request/accept/decline)
-    // that arrived while the socket was suspended/dropped surfaces without a
-    // page refresh. The very first connect is skipped — the load effect already
-    // fetched the initial state.
-    let firstConnect = true;
-    const onConnect = () => {
-      if (firstConnect) {
-        firstConnect = false;
-        return;
-      }
-      // syncRooms() reads each room's unread_count (and snapshots the open
-      // room's "New Messages" divider) before refreshActiveRoomMessages
-      // re-fetches messages, which advances the server read marker. syncPresence
-      // refreshes users — which also recovers pending friend requests.
-      syncRooms().then(() => refreshActiveRoomMessages());
-      syncPresence();
-      // Typing is ephemeral — drop anything that may have gone stale.
-      setTypingMap({});
-    };
-    s.on("connect", onConnect);
-
-    return () => {
-      s.off("connect", onConnect);
-      s.off("message:new");
-      s.off("message:ack");
-      s.off("message:reaction");
-      s.off("typing:update");
-      s.off("user:status");
-      s.off("room:new");
-      s.off("message:deleted");
-      s.off("room:deleted");
-      s.off("room:member_left");
-      s.off("room:member_joined");
-      s.off("contact:request");
-      s.off("contact:accepted");
-      s.off("contact:declined");
-      s.off("user:avatar");
-      s.off("message:error");
-      s.off("channel:member_kicked");
-      s.off("channel:role_changed");
-      s.off("channel:member_joined");
-      s.off("channel:member_left");
-      s.off("channel:member_muted");
-      s.off("channel:message_pinned");
-      s.off("channel:message_unpinned");
-      s.off("channel:updated");
-      s.off("channel:added");
-      disconnectSocket();
-    };
-  }, [
+  useChatSocket({
     token,
-    currentUser.id,
-    currentUser.username,
+    currentUser,
     playPing,
     syncRooms,
     syncPresence,
     refreshActiveRoomMessages,
-  ]);
+    socketRef,
+    activeRoomIdRef,
+    roomsRef,
+    loadedRoomsRef,
+    addFriendNotifRef,
+    addChannelNotifRef,
+    clearRoomNotifsRef,
+    selectRoomRef,
+    setActiveRoomId,
+    setAllUsers,
+    setDisplayRoomId,
+    setGroupMembersPanel,
+    setInputError,
+    setMessages,
+    setMyAvatar,
+    setOnlineIds,
+    setPendingRoomIds,
+    setPinnedMessages,
+    setRooms,
+    setTypingMap,
+    setUnreadCounts,
+  });
 
   // ── Load rooms + users ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -2023,221 +1343,43 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         >
           {displayRoomId && activeRoom && (
             <>
-              {/* Chat header */}
-              <div
-                className="flex items-center gap-1.5 sm:gap-3 px-3 sm:px-4 py-3.5 border-b shrink-0"
-                style={{
-                  borderColor: isDark ? darkBorder : lightBorderMid,
-                  background: bgRaised,
+              <ChatHeader
+                activeRoom={activeRoom}
+                activeRoomName={activeRoomName}
+                activeAvatarId={activeAvatarId}
+                activeRoomOnline={activeRoomOnline}
+                avatarMap={avatarMap}
+                isActiveChannel={isActiveChannel}
+                isDmHeader={isDmHeader}
+                typingNames={typingNames}
+                myActiveRole={myActiveRole}
+                isDark={isDark}
+                bgRaised={bgRaised}
+                onClose={closeRoom}
+                onOpenProfile={() => openProfile(activeRoom.other_user_id)}
+                searchActive={showMsgSearch}
+                onToggleSearch={() => {
+                  setShowMsgSearch((v) => !v);
+                  setMsgSearch("");
                 }}
-              >
-                <button
-                  onClick={closeRoom}
-                  aria-label="Back to conversations"
-                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all shrink-0"
-                  style={{
-                    color: isDark ? "rgba(238,242,255,0.5)" : "#64748b",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = isDark
-                      ? "rgba(99,102,241,0.1)"
-                      : "rgba(99,102,241,0.07)";
-                    e.currentTarget.style.color = isDark
-                      ? "#eef2ff"
-                      : "#0f172a";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "";
-                    e.currentTarget.style.color = isDark
-                      ? "rgba(238,242,255,0.5)"
-                      : "#64748b";
-                  }}
-                >
-                  <ArrowLeft size={18} />
-                </button>
-                <div
-                  className={`flex items-center gap-1.5 sm:gap-3 flex-1 min-w-0 ${isDmHeader ? "cursor-pointer" : ""}`}
-                  onClick={
-                    isDmHeader
-                      ? () => openProfile(activeRoom.other_user_id)
-                      : undefined
-                  }
-                  role={isDmHeader ? "button" : undefined}
-                  title={
-                    isDmHeader ? `View ${activeRoomName}'s profile` : undefined
-                  }
-                >
-                  <Avatar
-                    userId={activeAvatarId}
-                    username={activeRoomName}
-                    size={40}
-                    online={activeRoomOnline}
-                    avatar={avatarMap[activeAvatarId]}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                    <span
-                      className="font-semibold text-sm truncate"
-                      style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
-                    >
-                      {activeRoomName}
-                    </span>
-                    {isActiveChannel &&
-                      activeRoom.type === "private_channel" && (
-                        <Lock
-                          size={11}
-                          style={{
-                            color: isDark
-                              ? "rgba(165,180,252,0.35)"
-                              : "#94a3b8",
-                            flexShrink: 0,
-                          }}
-                        />
-                      )}
-                  </div>
-                  <div className="text-xs mt-0.5">
-                    {typingNames.length > 0 ? (
-                      <TypingIndicator names={typingNames} isDark={isDark} />
-                    ) : (
-                      <span
-                        className="truncate block"
-                        style={{
-                          color: activeRoomOnline
-                            ? "#34d399"
-                            : isDark
-                              ? "rgba(165,180,252,0.4)"
-                              : "#94a3b8",
-                        }}
-                      >
-                        {isActiveChannel
-                          ? activeRoom.description ||
-                            activeRoom.name ||
-                            "Channel"
-                          : activeRoom.is_group
-                            ? "Group chat"
-                            : activeRoomOnline
-                              ? "Active now"
-                              : "Offline"}
-                      </span>
-                    )}
-                  </div>
-                  </div>
-                </div>
-
-                {/* Header action buttons */}
-                {[
-                  {
-                    icon: <Search size={16} />,
-                    active: showMsgSearch,
-                    onClick: () => {
-                      setShowMsgSearch((v) => !v);
-                      setMsgSearch("");
-                    },
-                    title: "Search messages",
-                    show: true,
-                  },
-                  {
-                    icon: <Pencil size={16} />,
-                    active: false,
-                    onClick: () =>
-                      setEditChannelModal({
-                        name: activeRoom.name || "",
-                        description: activeRoom.description || "",
-                        slug: activeRoom.slug || "",
-                      }),
-                    title: "Edit channel",
-                    show:
-                      !!isActiveChannel &&
-                      ROLE_LEVEL[myActiveRole] >= ROLE_LEVEL.admin,
-                  },
-                  {
-                    icon: copiedSlug ? <Check size={16} /> : <Copy size={16} />,
-                    active: copiedSlug,
-                    onClick: () => {
-                      navigator.clipboard
-                        .writeText(`#${activeRoom.slug}`)
-                        .catch(console.error);
-                      setCopiedSlug(true);
-                      setTimeout(() => setCopiedSlug(false), 2000);
-                    },
-                    title: copiedSlug
-                      ? "Copied!"
-                      : `Copy channel address (#${activeRoom.slug})`,
-                    show: !!isActiveChannel,
-                  },
-                  {
-                    icon: <Users size={16} />,
-                    active: false,
-                    onClick: openGroupMembers,
-                    title: "View members",
-                    show: !!activeRoom.is_group,
-                  },
-                  {
-                    icon: <Trash2 size={16} />,
-                    active: false,
-                    onClick: () => handleDeleteRoom(activeRoomId),
-                    title: isActiveChannel
-                      ? myActiveRole === "owner"
-                        ? "Delete channel"
-                        : "Leave channel"
-                      : "Delete chat",
-                    danger: true,
-                    show: true,
-                  },
-                ]
-                  .filter((b) => b.show)
-                  .map((btn, i) => (
-                    <button
-                      key={i}
-                      onClick={btn.onClick}
-                      title={btn.title}
-                      aria-label={btn.title}
-                      className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all shrink-0"
-                      style={{
-                        background: btn.active
-                          ? isDark
-                            ? "rgba(99,102,241,0.15)"
-                            : "rgba(99,102,241,0.1)"
-                          : "transparent",
-                        color: btn.active
-                          ? isDark
-                            ? "#a5b4fc"
-                            : "#6366f1"
-                          : isDark
-                            ? "rgba(238,242,255,0.4)"
-                            : "#94a3b8",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = btn.danger
-                          ? "rgba(239,68,68,0.1)"
-                          : isDark
-                            ? "rgba(99,102,241,0.1)"
-                            : "rgba(99,102,241,0.07)";
-                        e.currentTarget.style.color = btn.danger
-                          ? "#f87171"
-                          : isDark
-                            ? "#a5b4fc"
-                            : "#6366f1";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = btn.active
-                          ? isDark
-                            ? "rgba(99,102,241,0.15)"
-                            : "rgba(99,102,241,0.1)"
-                          : "transparent";
-                        e.currentTarget.style.color = btn.active
-                          ? isDark
-                            ? "#a5b4fc"
-                            : "#6366f1"
-                          : isDark
-                            ? "rgba(238,242,255,0.4)"
-                            : "#94a3b8";
-                      }}
-                    >
-                      {btn.icon}
-                    </button>
-                  ))}
-              </div>
+                onEditChannel={() =>
+                  setEditChannelModal({
+                    name: activeRoom.name || "",
+                    description: activeRoom.description || "",
+                    slug: activeRoom.slug || "",
+                  })
+                }
+                copiedSlug={copiedSlug}
+                onCopySlug={() => {
+                  navigator.clipboard
+                    .writeText(`#${activeRoom.slug}`)
+                    .catch(console.error);
+                  setCopiedSlug(true);
+                  setTimeout(() => setCopiedSlug(false), 2000);
+                }}
+                onOpenMembers={openGroupMembers}
+                onDeleteRoom={() => handleDeleteRoom(activeRoomId)}
+              />
 
               {/* Message search bar */}
               {showMsgSearch && (
@@ -2328,414 +1470,42 @@ export default function ChatApp({ token, currentUser, onLogout }) {
                   );
                 })()}
 
-              {/* Messages — layered: dot-grid texture + fade edges + scroll area */}
-              <div
-                className="flex-1 relative overflow-hidden"
-                style={{ background: bg0 }}
-              >
-                {/* Dot grid texture */}
-                <div
-                  className="absolute inset-0 pointer-events-none"
-                  style={{
-                    backgroundImage: `radial-gradient(circle, ${isDark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.055)"} 1px, transparent 1px)`,
-                    backgroundSize: "28px 28px",
-                  }}
-                />
-                {/* Top fade */}
-                <div
-                  className="absolute top-0 left-0 right-0 h-10 z-10 pointer-events-none"
-                  style={{
-                    background: `linear-gradient(to bottom, ${bg0}, transparent)`,
-                  }}
-                />
-                {/* Scroll container */}
-                <div className="absolute inset-0 overflow-y-auto px-4 py-4 no-scrollbar">
-                  <div className="relative flex flex-col justify-end min-h-full gap-2.5">
-                    {hasMoreMessages[displayRoomId] && (
-                      <div className="flex justify-center py-2 shrink-0">
-                        <button
-                          onClick={loadEarlierMessages}
-                          disabled={loadingMore[displayRoomId]}
-                          className="text-xs px-4 py-1.5 rounded-full transition-all disabled:opacity-40"
-                          style={{
-                            color: isDark ? "rgba(165,180,252,0.7)" : "#6366f1",
-                            background: isDark
-                              ? "rgba(99,102,241,0.08)"
-                              : "rgba(99,102,241,0.06)",
-                            border: `1px solid ${isDark ? "rgba(99,102,241,0.18)" : "rgba(99,102,241,0.2)"}`,
-                          }}
-                        >
-                          {loadingMore[displayRoomId]
-                            ? "Loading…"
-                            : "↑ Load earlier messages"}
-                        </button>
-                      </div>
-                    )}
-                    {displayedMessages.length === 0 &&
-                      messages[activeRoomId] !== undefined && (
-                        <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
-                          <div
-                            className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-                            style={{
-                              background: userBg(activeAvatarId),
-                              boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
-                            }}
-                          >
-                            <span className="text-white text-xl font-bold">
-                              {initials(activeRoomName)}
-                            </span>
-                          </div>
-                          <p
-                            className="text-sm font-medium"
-                            style={{
-                              color: isDark
-                                ? "rgba(238,242,255,0.55)"
-                                : "#475569",
-                            }}
-                          >
-                            {activeRoomName}
-                          </p>
-                          <p
-                            className="text-xs mt-1"
-                            style={{
-                              color: isDark
-                                ? "rgba(165,180,252,0.3)"
-                                : "#94a3b8",
-                            }}
-                          >
-                            {msgSearch
-                              ? "No matching messages"
-                              : "No messages yet — say hello! 👋"}
-                          </p>
-                        </div>
-                      )}
+              <MessageList
+                bg0={bg0}
+                isDark={isDark}
+                displayedMessages={displayedMessages}
+                roomLoaded={messages[activeRoomId] !== undefined}
+                hasMore={!!hasMoreMessages[displayRoomId]}
+                loadingMore={!!loadingMore[displayRoomId]}
+                onLoadEarlier={loadEarlierMessages}
+                activeAvatarId={activeAvatarId}
+                activeRoomName={activeRoomName}
+                isGroup={!!activeRoom.is_group}
+                msgSearch={msgSearch}
+                newMarkerIndex={newMarkerIndex}
+                currentUserId={currentUser.id}
+                onContextMenu={handleContextMenu}
+                setContextMenu={setContextMenu}
+                longPressTimerRef={longPressTimerRef}
+                messagesEndRef={messagesEndRef}
+              />
 
-                    {displayedMessages.map((msg, index) => {
-                      const prev = displayedMessages[index - 1];
-                      const showSeparator =
-                        !!msg.created_at &&
-                        (!prev ||
-                          dayKey(msg.created_at) !== dayKey(prev.created_at));
-                      const dateSeparator = showSeparator && (
-                        <div className="flex justify-center py-3">
-                          <span
-                            className="text-[11px] px-3 py-1 rounded-full select-none"
-                            style={{
-                              background: isDark
-                                ? "rgba(99,102,241,0.08)"
-                                : "rgba(0,0,0,0.06)",
-                              color: isDark
-                                ? "rgba(165,180,252,0.55)"
-                                : "#64748b",
-                            }}
-                          >
-                            {formatDateSeparator(msg.created_at)}
-                          </span>
-                        </div>
-                      );
-                      if (msg.system) {
-                        return (
-                          <Fragment key={msg.id}>
-                            {dateSeparator}
-                            <div className="flex justify-center py-1">
-                              <span
-                                className="text-xs px-3 py-1 rounded-full"
-                                style={{
-                                  background: isDark
-                                    ? "rgba(99,102,241,0.08)"
-                                    : "rgba(99,102,241,0.06)",
-                                  color: isDark
-                                    ? "rgba(165,180,252,0.5)"
-                                    : "#6366f1",
-                                  border: `1px solid ${isDark ? "rgba(99,102,241,0.1)" : "rgba(99,102,241,0.12)"}`,
-                                }}
-                              >
-                                {msg.text}
-                              </span>
-                            </div>
-                          </Fragment>
-                        );
-                      }
-                      const isMine = msg.user_id === currentUser.id;
-                      const isTemp = !!msg.temp;
-                      return (
-                        <Fragment key={msg.id}>
-                          {dateSeparator}
-                          {index === newMarkerIndex && (
-                            <div
-                              className="flex items-center gap-3 py-2 select-none"
-                              aria-label="New messages below"
-                            >
-                              <span
-                                className="flex-1 h-px"
-                                style={{
-                                  background: isDark
-                                    ? "rgba(248,113,113,0.35)"
-                                    : "rgba(220,38,38,0.3)",
-                                }}
-                              />
-                              <span
-                                className="text-[10px] font-bold uppercase tracking-widest"
-                                style={{
-                                  color: isDark ? "#f87171" : "#dc2626",
-                                }}
-                              >
-                                New Messages
-                              </span>
-                              <span
-                                className="flex-1 h-px"
-                                style={{
-                                  background: isDark
-                                    ? "rgba(248,113,113,0.35)"
-                                    : "rgba(220,38,38,0.3)",
-                                }}
-                              />
-                            </div>
-                          )}
-                          <div
-                            className={`relative flex items-end gap-2 animate-fade-in-up max-w-[78%] ${isMine ? "self-end" : "self-start"} ${msg.reaction ? "mb-3 z-1" : ""}`}
-                            onContextMenu={(e) =>
-                              !isTemp && handleContextMenu(e, msg)
-                            }
-                            onTouchStart={(e) => {
-                              if (isTemp) return;
-                              const touch = e.touches[0];
-                              const x = touch.clientX;
-                              const y = touch.clientY;
-                              longPressTimerRef.current = setTimeout(() => {
-                                setContextMenu({ msg, x, y });
-                              }, 500);
-                            }}
-                            onTouchEnd={() =>
-                              clearTimeout(longPressTimerRef.current)
-                            }
-                            onTouchMove={() =>
-                              clearTimeout(longPressTimerRef.current)
-                            }
-                            onTouchCancel={() =>
-                              clearTimeout(longPressTimerRef.current)
-                            }
-                          >
-                            <div
-                              className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}
-                            >
-                              {!isMine && !!activeRoom.is_group && (
-                                <span
-                                  className="text-[11px] mb-1 ml-1 font-medium"
-                                  style={{
-                                    color: isDark
-                                      ? "rgba(165,180,252,0.5)"
-                                      : "#94a3b8",
-                                  }}
-                                >
-                                  {msg.username}
-                                </span>
-                              )}
-                              <div className="relative">
-                                <div
-                                  className={`px-4 py-2.5 text-sm leading-relaxed wrap-break-word ${
-                                    isMine
-                                      ? "rounded-2xl rounded-br-sm"
-                                      : "rounded-2xl rounded-bl-sm"
-                                  } ${isTemp ? "opacity-50" : ""}`}
-                                  style={
-                                    isMine
-                                      ? {
-                                          background:
-                                            "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)",
-                                          color: "#ffffff",
-                                          boxShadow:
-                                            "0 2px 16px rgba(99,102,241,0.4)",
-                                          userSelect: "none",
-                                          WebkitUserSelect: "none",
-                                          WebkitTouchCallout: "none",
-                                        }
-                                      : isDark
-                                        ? {
-                                            background: darkBg2,
-                                            color: "#eef2ff",
-                                            border: `1px solid ${darkBorder}`,
-                                            userSelect: "none",
-                                            WebkitUserSelect: "none",
-                                            WebkitTouchCallout: "none",
-                                          }
-                                        : {
-                                            background: "#ffffff",
-                                            color: "#1e293b",
-                                            border:
-                                              "1px solid rgba(226,232,240,1)",
-                                            boxShadow:
-                                              "0 1px 4px rgba(0,0,0,0.05)",
-                                            userSelect: "none",
-                                            WebkitUserSelect: "none",
-                                            WebkitTouchCallout: "none",
-                                          }
-                                  }
-                                >
-                                  {msg.text}
-                                  <span
-                                    className="ml-2 text-[10px] whitespace-nowrap"
-                                    style={{ opacity: 0.4 }}
-                                  >
-                                    {formatFullTime(msg.created_at)}
-                                  </span>
-                                </div>
-                                {msg.reaction && (
-                                  <span
-                                    className="absolute -bottom-3.5 right-1 text-base rounded-full px-1.5 py-0.5 leading-none"
-                                    style={{
-                                      background: isDark ? darkBg1 : "#ffffff",
-                                      border: `1px solid ${isDark ? darkBorder : lightBorderMid}`,
-                                      boxShadow: isDark
-                                        ? "0 2px 8px rgba(0,0,0,0.4)"
-                                        : "0 2px 8px rgba(0,0,0,0.08)",
-                                    }}
-                                  >
-                                    {msg.reaction}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </Fragment>
-                      );
-                    })}
-                    <div ref={messagesEndRef} />
-                  </div>
-                </div>
-                {/* end scroll container */}
-                {/* Bottom fade */}
-                <div
-                  className="absolute bottom-0 left-0 right-0 h-10 z-10 pointer-events-none"
-                  style={{
-                    background: `linear-gradient(to top, ${bg0}, transparent)`,
-                  }}
-                />
-              </div>
-
-              {/* Mute / input error */}
-              {inputError && (
-                <div
-                  className="px-4 py-1.5 shrink-0 flex items-center gap-2"
-                  style={{ background: "rgba(239,68,68,0.08)" }}
-                >
-                  <VolumeX
-                    size={12}
-                    style={{ color: "#f87171", flexShrink: 0 }}
-                  />
-                  <span className="text-xs" style={{ color: "#f87171" }}>
-                    {inputError}
-                  </span>
-                </div>
-              )}
-
-              {/* Message length counter — appears near the 4,000-char limit,
-                  turns into an error when over it (send is blocked then). */}
-              {nearLimit && (
-                <div
-                  className="px-4 py-1.5 shrink-0 flex items-center justify-between gap-2"
-                  style={{
-                    background: overLimit
-                      ? "rgba(239,68,68,0.08)"
-                      : "rgba(245,158,11,0.08)",
-                  }}
-                >
-                  <span
-                    className="text-xs"
-                    style={{ color: overLimit ? "#f87171" : "#f59e0b" }}
-                  >
-                    {overLimit
-                      ? "Message is too long — shorten it to send"
-                      : "Approaching the message length limit"}
-                  </span>
-                  <span
-                    className="text-xs font-semibold shrink-0"
-                    style={{
-                      color: overLimit ? "#f87171" : "#f59e0b",
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    {inputLength.toLocaleString()} /{" "}
-                    {MAX_MESSAGE_LENGTH.toLocaleString()}
-                  </span>
-                </div>
-              )}
-
-              {/* Message input */}
-              <div
-                className="px-4 py-3 flex items-end gap-2.5 shrink-0"
-                style={{
-                  borderTop: `1px solid ${isDark ? darkBorder : lightBorderMid}`,
-                  background: bgRaised,
-                }}
-              >
-                <textarea
-                  ref={inputRef}
-                  rows={1}
-                  value={inputText}
-                  onChange={(e) => {
-                    handleInputChange(e);
-                    e.target.style.height = "auto";
-                    e.target.style.height =
-                      Math.min(e.target.scrollHeight, 120) + "px";
-                  }}
-                  onKeyDown={handleKeyDown}
-                  onBlur={stopTyping}
-                  aria-label="Message"
-                  placeholder="Type a message…"
-                  className="flex-1 rounded-2xl px-4 py-2.5 text-sm outline-none transition-[border-color,box-shadow] duration-150 no-scrollbar"
-                  style={{
-                    background: isDark ? darkBg2 : "#f1f5f9",
-                    border: `1px solid ${isDark ? "rgba(99,102,241,0.15)" : "rgba(226,232,240,1)"}`,
-                    color: isDark ? "#eef2ff" : "#0f172a",
-                    resize: "none",
-                    overflowY: "auto",
-                    lineHeight: "1.5",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.border = isDark
-                      ? "1px solid rgba(99,102,241,0.45)"
-                      : "1px solid rgba(99,102,241,0.4)";
-                    e.target.style.boxShadow =
-                      "0 0 0 3px rgba(99,102,241,0.10)";
-                  }}
-                  onBlurCapture={(e) => {
-                    e.target.style.border = isDark
-                      ? "1px solid rgba(99,102,241,0.15)"
-                      : "1px solid rgba(226,232,240,1)";
-                    e.target.style.boxShadow = "none";
-                  }}
-                />
-                <button
-                  onClick={sendMessage}
-                  disabled={!canSend}
-                  aria-label="Send message"
-                  className="w-12 h-12 rounded-full flex items-center justify-center transition-[background,opacity] disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
-                  style={{
-                    background: canSend
-                      ? "linear-gradient(135deg, #7c3aed, #6366f1, #2563eb)"
-                      : isDark
-                        ? "rgba(99,102,241,0.08)"
-                        : "#f1f5f9",
-                    // No box-shadow at all — a glow that transitioned to/from
-                    // here left a ghost on iOS (incl. the home-screen shortcut),
-                    // so the send button stays flat on every platform.
-                    boxShadow: "none",
-                    WebkitTapHighlightColor: "transparent",
-                  }}
-                >
-                  <Send
-                    size={16}
-                    style={{
-                      color: canSend
-                        ? "#ffffff"
-                        : isDark
-                          ? "rgba(165,180,252,0.4)"
-                          : "#94a3b8",
-                    }}
-                  />
-                </button>
-              </div>
+              <MessageComposer
+                inputRef={inputRef}
+                inputText={inputText}
+                onInputChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                onBlur={stopTyping}
+                onSend={sendMessage}
+                canSend={canSend}
+                inputError={inputError}
+                nearLimit={nearLimit}
+                overLimit={overLimit}
+                inputLength={inputLength}
+                maxLength={MAX_MESSAGE_LENGTH}
+                isDark={isDark}
+                bgRaised={bgRaised}
+              />
             </>
           )}
         </div>
