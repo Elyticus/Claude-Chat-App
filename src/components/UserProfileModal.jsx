@@ -63,6 +63,7 @@ export function UserProfileModal({
   inMemberList = false, // opened from a channel/group member list
   groups = [],
   channels = [],
+  sharedRoomIds = null, // Set of room ids the target is already in (async)
   isDark,
   onClose,
   onMessage,
@@ -104,7 +105,11 @@ export function UserProfileModal({
     targetRole !== "owner";
   const canTransfer = !!manage && myRole === "owner" && targetRole === "admin";
   const isMuted = !!manage?.mutedUntil && manage.mutedUntil > nowSec;
-  const roleBtns = assignableRoles(myRole).filter((r) => r !== targetRole);
+  // Always show all three assignable roles; the actor's permission decides
+  // which are clickable (the current role and ones above the actor are shown
+  // but disabled).
+  const ALL_ROLES = ["admin", "moderator", "member"];
+  const assignRoles = assignableRoles(myRole);
   const showManageSection = canManage || canMute || canTransfer;
 
   const headerColor = isDark ? "#eef2ff" : "#0f172a";
@@ -154,9 +159,14 @@ export function UserProfileModal({
     }
   }
 
-  // Collapsible "Add to a group / channel" picker.
-  const addPicker = (kind, label, Icon, list) => {
+  // Collapsible "Add to a group / channel" picker. Rooms the target is already
+  // in are filtered out of the list here (not from the button's visibility) so
+  // the picker stays put while the shared-rooms set loads.
+  const addPicker = (kind, label, Icon, fullList) => {
     const open = expandAdd === kind;
+    const list = sharedRoomIds
+      ? fullList.filter((r) => !sharedRoomIds.has(r.id))
+      : fullList;
     return (
       <div>
         <button
@@ -242,7 +252,7 @@ export function UserProfileModal({
   };
 
   return (
-    <div className="fixed inset-0 z-600 flex items-end sm:items-center justify-center p-4">
+    <div className="fixed inset-0 z-600 flex items-center justify-center p-4">
       <div
         className="absolute inset-0"
         style={{
@@ -424,33 +434,53 @@ export function UserProfileModal({
           {showManageSection && (
             <div className="pt-1" style={{ borderTop: `1px solid ${divider}` }}>
               <div className="pt-3 space-y-3">
-                {canManage && roleBtns.length > 0 && (
+                {canManage && (
                   <div>
                     {sectionLabel("Set Role")}
                     <div
                       className="grid gap-1.5"
-                      style={{ gridTemplateColumns: `repeat(${roleBtns.length}, 1fr)` }}
+                      style={{ gridTemplateColumns: "repeat(3, 1fr)" }}
                     >
-                      {roleBtns.map((role) => {
+                      {ALL_ROLES.map((role) => {
                         const meta = ROLE_META[role];
+                        const isCurrent = role === targetRole;
+                        const canSet = assignRoles.includes(role) && !isCurrent;
                         return (
                           <button
                             key={role}
+                            disabled={!canSet}
                             onClick={() => {
+                              if (!canSet) return;
                               onRoleChange(role);
                               onClose();
                             }}
                             className="flex flex-col items-center gap-1 py-2.5 rounded-xl transition-colors"
                             style={{
-                              background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.025)",
+                              background: isCurrent
+                                ? meta.bg
+                                : isDark
+                                  ? "rgba(255,255,255,0.03)"
+                                  : "rgba(0,0,0,0.025)",
                               color: meta.color,
-                              boxShadow: `0 0 0 1px ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
+                              opacity: canSet || isCurrent ? 1 : 0.4,
+                              cursor: canSet ? "pointer" : "default",
+                              boxShadow: isCurrent
+                                ? `0 0 0 1.5px ${meta.color}`
+                                : `0 0 0 1px ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
                             }}
                           >
-                            <meta.Icon size={15} strokeWidth={2} />
+                            <meta.Icon
+                              size={15}
+                              strokeWidth={isCurrent ? 2.5 : 2}
+                            />
                             <span className="text-[10px] font-semibold leading-none">
                               {meta.label}
                             </span>
+                            {isCurrent && (
+                              <span className="text-[8px] font-medium opacity-70 leading-none">
+                                current
+                              </span>
+                            )}
                           </button>
                         );
                       })}
