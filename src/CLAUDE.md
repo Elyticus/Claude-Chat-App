@@ -55,6 +55,31 @@ src/
     └── utils.js      # cn() helper (clsx + tailwind-merge)
 ```
 
+## Component Conventions
+
+**Keep components small, single-purpose, and reusable.** When you build or grow
+a component, prefer many focused pieces over one large one:
+
+- **One responsibility per component.** A component should render one cohesive
+  thing (a header, a message list, a single modal). If it's doing several
+  unrelated jobs, split it.
+- **Watch the size.** If a component drifts past a few hundred lines, that's the
+  signal to extract — pull cohesive render blocks into child components under
+  the relevant folder (e.g. `components/chat/`) and move logic/state into hooks
+  under `hooks/`. ChatApp was decomposed this way (2924 → 904 lines): render
+  pieces became `ChatHeader` / `MessageList` / `MessageComposer` / `ChatPanel` /
+  `ChatModals`, and behavior moved into `useChatSocket`, `useChannelActions`,
+  `useRoomNavigation`, `useChatDerivedState`, etc.
+- **Presentational by default.** Keep components driven by props; own state in
+  the parent (or a hook) and pass it down, so the piece stays reusable and
+  testable rather than wired to one screen.
+- **Extract verbatim.** When splitting an existing component, move the code
+  unchanged and pass its dependencies in — behavior and UI must stay identical.
+  Verify with `npx eslint src/` (strict — trim now-unused imports) and
+  `npm run build` after every extraction.
+- **Reuse before adding.** Shared bits live in `components/ui/` (primitives) and
+  `lib/` (helpers like `room-helpers.js`); check there before writing a new one.
+
 ## UI Architecture
 
 The app uses a **radial orbital timeline** layout:
