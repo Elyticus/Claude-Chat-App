@@ -755,8 +755,19 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       });
     });
 
-    s.on("contact:request", () => {
+    s.on("contact:request", ({ from }) => {
+      // Refresh users so the Friends badge / requests list update live.
       api.getUsers().then(setAllUsers).catch(console.error);
+      playPing();
+      if (
+        from?.username &&
+        typeof Notification !== "undefined" &&
+        Notification.permission === "granted"
+      ) {
+        new Notification("New friend request", {
+          body: `${from.username} sent you a friend request`,
+        });
+      }
     });
 
     s.on("contact:accepted", ({ by }) => {
@@ -1115,23 +1126,32 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       }
     });
 
-    // After the socket reconnects (e.g. the app was backgrounded/locked on
-    // mobile and the connection was suspended), pull fresh rooms/unread and
-    // presence so anything missed while disconnected shows up right away.
-    const onReconnect = () => {
-      // Order matters: syncRooms() reads each room's unread_count (and snapshots
-      // the open room's "New Messages" divider) before refreshActiveRoomMessages
-      // re-fetches messages, which advances the server read marker.
+    // Re-pull everything whenever the socket (re)connects — this covers BOTH
+    // automatic reconnects and manual ones (the foreground handler), and unlike
+    // the manager's "reconnect" event it also fires for a socket-level connect.
+    // So any notification (DM, group, channel, friend request/accept/decline)
+    // that arrived while the socket was suspended/dropped surfaces without a
+    // page refresh. The very first connect is skipped — the load effect already
+    // fetched the initial state.
+    let firstConnect = true;
+    const onConnect = () => {
+      if (firstConnect) {
+        firstConnect = false;
+        return;
+      }
+      // syncRooms() reads each room's unread_count (and snapshots the open
+      // room's "New Messages" divider) before refreshActiveRoomMessages
+      // re-fetches messages, which advances the server read marker. syncPresence
+      // refreshes users — which also recovers pending friend requests.
       syncRooms().then(() => refreshActiveRoomMessages());
       syncPresence();
-      // Typing is ephemeral — drop anything that may have gone stale while the
-      // socket was down (a typing:stop could have been missed).
+      // Typing is ephemeral — drop anything that may have gone stale.
       setTypingMap({});
     };
-    s.io.on("reconnect", onReconnect);
+    s.on("connect", onConnect);
 
     return () => {
-      s.io.off("reconnect", onReconnect);
+      s.off("connect", onConnect);
       s.off("message:new");
       s.off("message:ack");
       s.off("message:reaction");
