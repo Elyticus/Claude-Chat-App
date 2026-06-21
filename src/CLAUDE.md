@@ -18,7 +18,7 @@ src/
 │   ├── useRoomNavigation.js # Open/close/delete rooms, open DM/members/new-chat/profile sheets, add user to group/channel
 │   └── useChatDerivedState.js # Pure derived values (contacts, avatarMap, activeRoom + metadata, divider index, profile context); exports MAX_MESSAGE_LENGTH
 ├── components/
-│   ├── AccountModal.jsx         # Current user's own profile — change picture, sign out (opens from hub avatar)
+│   ├── AccountModal.jsx         # Current user's own profile — tap avatar to enlarge, change-picture button, sign out (opens from hub avatar)
 │   ├── AllChatsPanel.jsx        # Slide-up "All Chats" sheet (requests + channel activity + room list) — used by OrbitalHub
 │   ├── AuthScreen.jsx           # Login / Register form
 │   ├── ContextMenu.jsx          # Right-click menu (react, copy, delete messages)

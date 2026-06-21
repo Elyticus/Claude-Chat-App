@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { X, Camera, LogOut } from "lucide-react";
 import { Avatar } from "./ui/Avatar.jsx";
 import {
@@ -9,8 +10,8 @@ import {
 
 // ─── Account / self profile ──────────────────────────────────────────────────
 // The current user's own profile, opened by tapping their avatar in the hub.
-// From here they can change their profile picture and sign out — the two
-// account-level actions, kept together instead of scattered around the hub.
+// Tapping the picture enlarges it (a lightbox preview); the picture is changed
+// from the separate "Change profile picture" button. Sign out lives here too.
 export function AccountModal({
   currentUser,
   myAvatar,
@@ -22,6 +23,9 @@ export function AccountModal({
   const headerColor = isDark ? "#eef2ff" : "#0f172a";
   const subColor = isDark ? "rgba(165,180,252,0.5)" : "#94a3b8";
   const divider = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
+
+  // Lightbox: tapping the avatar blows the picture up to a large preview.
+  const [enlarged, setEnlarged] = useState(false);
 
   return (
     <div className="fixed inset-0 z-600 flex items-end sm:items-center justify-center p-4">
@@ -55,13 +59,13 @@ export function AccountModal({
           <X size={16} />
         </button>
 
-        {/* Identity — tap the avatar to change the picture */}
+        {/* Identity — tap the avatar to enlarge the picture */}
         <div className="flex flex-col items-center text-center px-6 pt-8 pb-5">
           <button
-            onClick={onChangeAvatar}
-            title="Change profile picture"
-            aria-label="Change profile picture"
-            className="relative group rounded-full"
+            onClick={() => setEnlarged(true)}
+            title="View profile picture"
+            aria-label="View profile picture"
+            className="rounded-full transition-transform hover:scale-105 active:scale-95"
           >
             <Avatar
               userId={currentUser.id}
@@ -69,21 +73,6 @@ export function AccountModal({
               size={92}
               avatar={myAvatar}
             />
-            <span
-              className="absolute inset-0 rounded-full flex items-center justify-center transition-all"
-              style={{ background: "rgba(0,0,0,0)" }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "rgba(0,0,0,0.4)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "rgba(0,0,0,0)")
-              }
-            >
-              <Camera
-                size={22}
-                className="text-white opacity-0 group-hover:opacity-100 transition-opacity"
-              />
-            </span>
           </button>
           <div
             className="mt-3 text-lg font-semibold truncate max-w-full"
@@ -124,6 +113,33 @@ export function AccountModal({
           </button>
         </div>
       </div>
+
+      {/* Enlarged picture lightbox — tap anywhere to dismiss */}
+      {enlarged && (
+        <div
+          className="fixed inset-0 z-700 flex items-center justify-center p-6 animate-scale-in"
+          style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(4px)" }}
+          onClick={() => setEnlarged(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Profile picture"
+        >
+          <button
+            onClick={() => setEnlarged(false)}
+            aria-label="Close"
+            className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center"
+            style={{ color: "rgba(255,255,255,0.7)" }}
+          >
+            <X size={20} />
+          </button>
+          <Avatar
+            userId={currentUser.id}
+            username={currentUser.username}
+            size={260}
+            avatar={myAvatar}
+          />
+        </div>
+      )}
     </div>
   );
 }
