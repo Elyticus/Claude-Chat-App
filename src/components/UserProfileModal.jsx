@@ -132,9 +132,12 @@ export function UserProfileModal({
   // while the fetch is in flight), so this only ever removes already-joined
   // rooms — it never makes a hidden option pop in. The "Add to" option for a
   // channel/group the user is already in disappears, but an owner who manages
-  // other channels/groups the target isn't in still sees those.
-  const addableGroups = groups.filter((r) => !sharedRoomIds?.has(r.id));
-  const addableChannels = channels.filter((r) => !sharedRoomIds?.has(r.id));
+  // other channels/groups the target isn't in still sees those. `addedRooms` is
+  // included so a room the owner just added drops out of the list instantly,
+  // without waiting for the shared-rooms fetch to refresh.
+  const isAddable = (r) => !sharedRoomIds?.has(r.id) && !addedRooms.has(r.id);
+  const addableGroups = groups.filter(isAddable);
+  const addableChannels = channels.filter(isAddable);
 
   // "Add to a group" needs the target to be a contact; "Add to a channel" is
   // owner-only (the `channels` list is already pre-filtered to owned channels).
@@ -201,38 +204,30 @@ export function UserProfileModal({
             {list.map((r) => {
               const name =
                 kind === "channel" ? `#${r.name || r.slug}` : r.name || "Group";
-              const added = addedRooms.has(r.id);
               const busy = busyRoom === r.id;
               return (
                 <button
                   key={r.id}
-                  disabled={added || busy}
+                  disabled={busy}
                   onClick={() => doAdd(kind, r)}
                   className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm text-left transition-all"
                   style={{
                     color: headerColor,
-                    background: added
-                      ? isDark
-                        ? "rgba(34,197,94,0.10)"
-                        : "rgba(34,197,94,0.08)"
-                      : "transparent",
-                    cursor: added ? "default" : "pointer",
+                    background: "transparent",
+                    cursor: "pointer",
                   }}
                   onMouseEnter={(e) => {
-                    if (!added && !busy)
+                    if (!busy)
                       e.currentTarget.style.background = isDark
                         ? "rgba(99,102,241,0.08)"
                         : "rgba(99,102,241,0.06)";
                   }}
                   onMouseLeave={(e) => {
-                    if (!added && !busy)
-                      e.currentTarget.style.background = "transparent";
+                    if (!busy) e.currentTarget.style.background = "transparent";
                   }}
                 >
                   <span className="truncate">{name}</span>
-                  {added ? (
-                    <Check size={15} style={{ color: "#4ade80" }} />
-                  ) : busy ? (
+                  {busy ? (
                     <span className="text-xs" style={{ color: subColor }}>
                       Adding…
                     </span>
