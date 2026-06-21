@@ -7,17 +7,16 @@ import {
   formatDateSeparator,
 } from "@/lib/helpers.js";
 import { darkBg1, darkBg2, darkBorder, lightBorderMid } from "@/lib/constants.js";
-import { ChatBackdrop } from "./ChatBackdrop.jsx";
 
-// The scrollable message area: dot-grid texture, a per-room-type decorative
-// backdrop (planets/moon/stars), fade edges, the load-earlier control, empty
-// state, date separators, system messages, the "New Messages" divider and the
-// message bubbles (with long-press / right-click context menu).
+// The scrollable message area: dot-grid texture, fade edges, the load-earlier
+// control, empty state, date separators, system messages, the "New Messages"
+// divider and the message bubbles (with long-press / right-click context menu).
+// The per-room-type doodle backdrop lives one level up in ChatPanel so it spans
+// the whole chat surface; this area is transparent so it shows through.
 // Extracted from ChatApp verbatim; all state and handlers are passed in.
 export function MessageList({
   bg0,
   isDark,
-  roomKind,
   displayedMessages,
   roomLoaded,
   hasMore,
@@ -35,7 +34,7 @@ export function MessageList({
   messagesEndRef,
 }) {
   return (
-    <div className="flex-1 relative overflow-hidden" style={{ background: bg0 }}>
+    <div className="flex-1 relative overflow-hidden" style={{ background: "transparent" }}>
       {/* Dot grid texture */}
       <div
         className="absolute inset-0 pointer-events-none"
@@ -44,8 +43,6 @@ export function MessageList({
           backgroundSize: "28px 28px",
         }}
       />
-      {/* Per-room-type decorative backdrop (behind the scroll container) */}
-      <ChatBackdrop kind={roomKind} isDark={isDark} />
       {/* Top fade */}
       <div
         className="absolute top-0 left-0 right-0 h-10 z-10 pointer-events-none"
@@ -98,7 +95,7 @@ export function MessageList({
               <p
                 className="text-xs mt-1"
                 style={{
-                  color: isDark ? "rgba(165,180,252,0.3)" : "#94a3b8",
+                  color: isDark ? "#ffffff" : "#94a3b8",
                 }}
               >
                 {msgSearch
