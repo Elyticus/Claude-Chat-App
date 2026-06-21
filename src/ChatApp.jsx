@@ -134,6 +134,10 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const inputRef = useRef(null);
   const avatarFileRef = useRef(null);
   const loadedRoomsRef = useRef(new Set());
+  // Per-user cache of the rooms they share with us (userId -> roomId[]). Seeds
+  // profileShared the instant a profile (re)opens so just-added rooms stay out
+  // of the "Add to" pickers without flickering while the fresh fetch resolves.
+  const sharedRoomsCacheRef = useRef({});
   const activeRoomIdRef = useRef(null);
   const closeTimerRef = useRef(null);
   const longPressTimerRef = useRef(null);
@@ -189,14 +193,17 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   }, [toast]);
 
   // When a profile opens, fetch which of our rooms the user is already in so the
-  // "Add to" pickers can hide them. openProfile() resets the set up front, so
-  // this effect only needs to populate it.
+  // "Add to" pickers can hide them. openProfile() seeds the set from the cache
+  // up front, so this effect refreshes it from the server (and updates the
+  // cache) without a flicker.
   useEffect(() => {
     if (!profile?.userId) return;
+    const userId = profile.userId;
     let cancelled = false;
     api
-      .getSharedRooms(profile.userId)
+      .getSharedRooms(userId)
       .then((ids) => {
+        sharedRoomsCacheRef.current[userId] = ids;
         if (!cancelled) setProfileShared(new Set(ids));
       })
       .catch(() => {});
@@ -659,6 +666,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     setPinnedMessages,
     setNewChatTab,
     setProfileShared,
+    sharedRoomsCacheRef,
     setProfile,
     setShowFriends,
     setToast,

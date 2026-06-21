@@ -29,6 +29,7 @@ export function useRoomNavigation({
   setPinnedMessages,
   setNewChatTab,
   setProfileShared,
+  sharedRoomsCacheRef,
   setProfile,
   setShowFriends,
   setToast,
@@ -110,9 +111,11 @@ export function useRoomNavigation({
 
   function openProfile(userId, roomId = null) {
     if (!userId || userId === currentUser.id) return;
-    // Clear any previous user's shared-room set so stale entries don't briefly
-    // hide the wrong rooms before the fresh fetch resolves.
-    setProfileShared(new Set());
+    // Seed from this user's cached shared-room set (which includes any rooms we
+    // just added them to) so the "Add to" pickers hide already-joined rooms
+    // instantly on (re)open, instead of flashing them until the refetch lands.
+    // A different user's entry is keyed separately, so no stale cross-user data.
+    setProfileShared(new Set(sharedRoomsCacheRef.current[userId] || []));
     setProfile({ userId, roomId });
   }
 
@@ -130,11 +133,21 @@ export function useRoomNavigation({
   // the promise so the profile can show per-room success / error, and pop a
   // confirmation toast. The server's room:member_joined / channel:member_joined
   // events keep everyone in sync.
+  // Record that a user now shares this room with us, so the profile's "Add to"
+  // option for it stays hidden even after the modal closes and reopens (the
+  // local addedRooms state is lost on unmount; this cache persists).
+  function rememberSharedRoom(userId, roomId) {
+    const prev = sharedRoomsCacheRef.current[userId] || [];
+    if (!prev.includes(roomId))
+      sharedRoomsCacheRef.current[userId] = [...prev, roomId];
+    setProfileShared((s) => new Set(s).add(roomId));
+  }
   function addUserToGroup(roomId, userId) {
     return api.addGroupMember(roomId, userId).then((res) => {
       const u = allUsers.find((x) => x.id === userId);
       const room = rooms.find((r) => r.id === roomId);
       setToast(`Added ${u?.username || "user"} to ${room?.name || "the group"}`);
+      rememberSharedRoom(userId, roomId);
       return res;
     });
   }
@@ -145,6 +158,7 @@ export function useRoomNavigation({
       setToast(
         `Added ${u?.username || "user"} to #${room?.name || room?.slug || "channel"}`,
       );
+      rememberSharedRoom(userId, roomId);
       return res;
     });
   }
