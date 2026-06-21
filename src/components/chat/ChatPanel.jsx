@@ -230,6 +230,9 @@ export function ChatPanel({
               <MessageList
                 bg0={bg0}
                 isDark={isDark}
+                roomKind={
+                  isActiveChannel ? "channel" : activeRoom.is_group ? "group" : "dm"
+                }
                 displayedMessages={displayedMessages}
                 roomLoaded={messages[activeRoomId] !== undefined}
                 hasMore={!!hasMoreMessages[displayRoomId]}
