@@ -6,7 +6,6 @@ import { useContactActions } from "./hooks/useContactActions.js";
 import { useRoomNavigation } from "./hooks/useRoomNavigation.js";
 import { useChannelActions } from "./hooks/useChannelActions.js";
 import { useMessageActions } from "./hooks/useMessageActions.js";
-import { useAvatarUpload } from "./hooks/useAvatarUpload.js";
 import { useNotificationState } from "./hooks/useNotificationState.js";
 import {
   useChatDerivedState,
@@ -132,7 +131,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const isTypingRef = useRef(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
-  const avatarFileRef = useRef(null);
   const loadedRoomsRef = useRef(new Set());
   const activeRoomIdRef = useRef(null);
   const closeTimerRef = useRef(null);
@@ -623,8 +621,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const { handleContextMenu, handleReact, handleCopy, handleDeleteMessage } =
     useMessageActions({ socketRef, activeRoomId, setMessages, setContextMenu });
 
-  const { handleAvatarFile } = useAvatarUpload({ setMyAvatar, currentUser });
-
   const {
     selectRoom,
     closeRoom,
@@ -774,15 +770,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         }}
         friendNotifs={friendNotifs}
       />
-      <input
-        ref={avatarFileRef}
-        type="file"
-        accept="image/*"
-        aria-label="Upload profile picture"
-        className="hidden"
-        onChange={handleAvatarFile}
-      />
-
       <ChatPanel
         bg0={bg0}
         bgRaised={bgRaised}
@@ -852,7 +839,6 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         setShowNewChat={setShowNewChat}
         newChatTab={newChatTab}
         myAvatar={myAvatar}
-        avatarFileRef={avatarFileRef}
         groupMembersPanel={groupMembersPanel}
         setGroupMembersPanel={setGroupMembersPanel}
         profile={profile}

@@ -18,7 +18,7 @@ A fully functional real-time chat application. Users register/login with JWT aut
 │   ├── globals.css        # Tailwind v4 entry + dark theme tokens + keyframes
 │   ├── main.jsx           # React root (imports globals.css)
 │   ├── components/
-│   │   ├── AccountModal.jsx         # Current user's own profile — change picture, sign out (opens from hub avatar)
+│   │   ├── AccountModal.jsx         # Current user's own profile — large avatar + identity, sign out (opens from hub avatar)
 │   │   ├── AuthScreen.jsx           # Login / Register form
 │   │   ├── ContextMenu.jsx          # Right-click menu (react, copy, delete messages)
 │   │   ├── ConfirmModal.jsx         # Generic confirmation dialog

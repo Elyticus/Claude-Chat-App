@@ -30,7 +30,6 @@ export function ChatModals({
   setShowNewChat,
   newChatTab,
   myAvatar,
-  avatarFileRef,
   groupMembersPanel,
   setGroupMembersPanel,
   profile,
@@ -107,7 +106,6 @@ export function ChatModals({
           currentUser={currentUser}
           myAvatar={myAvatar}
           isDark={isDark}
-          onChangeAvatar={() => avatarFileRef.current?.click()}
           onLogout={() => {
             setShowAccount(false);
             setConfirmModal({
