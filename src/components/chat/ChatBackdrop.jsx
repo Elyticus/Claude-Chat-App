@@ -1,20 +1,21 @@
-// Decorative, static per-room-type backdrop for the chat window. Flat line-art
-// SVG (no 3D / shading) on a universe theme — planets, orbits, rings and star
-// sparkles — tiled across the ENTIRE message area, so each conversation type
-// reads differently at a glance and echoes the app's notification colour
-// language (dm = rose, group = amber, channel = emerald):
-//   • dm      → a planet with an orbit + a moon
-//   • group   → a little constellation of planets
-//   • channel → a ringed (Saturn-style) planet
+// Decorative, static per-room-type backdrop for the chat window. A dense, faint
+// line-art "doodle wallpaper" on a universe theme — flat outlines (no shading),
+// tiled across the ENTIRE message area, in the spirit of a WhatsApp-style doodle
+// background. Each conversation type uses a different icon mix + accent colour,
+// echoing the app's notification language (dm = rose, group = amber,
+// channel = emerald):
+//   • dm      → planet, crescent moon, comet, sparkles
+//   • group   → a little planet constellation + a rocket
+//   • channel → a ringed planet + comet + a small moon
 //
-// Each motif tiles via <pattern> + a full-size <rect>, kept faint so message
-// bubbles stay readable. Motifs sit inside their tile with margin so the
-// repeat is seamless.
+// Tiles via <pattern> + a full-size <rect>; every motif sits inside its tile
+// with margin so the repeat is seamless. Kept low-contrast so message bubbles
+// stay readable.
 //
 // IMPORTANT: no CSS filter / transform / animation / will-change here. Those
 // promote a GPU compositor layer that breaks the composer's caret blink and
 // hurts rendering perf (see src/CLAUDE.md "Rendering / GPU"). SVG-internal
-// transforms (the ring/orbit tilts) are layer-safe.
+// transforms (the ring/rocket tilts) are layer-safe.
 
 const PALETTE = {
   dm: "251,113,133", // rose
@@ -22,11 +23,74 @@ const PALETTE = {
   channel: "52,211,153", // emerald
 };
 
+function Planet({ x, y, r, s }) {
+  return <circle cx={x} cy={y} r={r} fill="none" stroke={s} strokeWidth="1.2" />;
+}
+
+function RingedPlanet({ x, y, r, s }) {
+  return (
+    <g transform={`rotate(-18 ${x} ${y})`}>
+      <ellipse cx={x} cy={y} rx={r * 2.4} ry={r * 0.8} fill="none" stroke={s} strokeWidth="1.1" />
+      <circle cx={x} cy={y} r={r} fill="none" stroke={s} strokeWidth="1.2" />
+    </g>
+  );
+}
+
+function Crescent({ x, y, r, s }) {
+  return (
+    <path
+      d={`M ${x} ${y - r} A ${r} ${r} 0 1 0 ${x} ${y + r} A ${r * 0.78} ${r} 0 1 1 ${x} ${y - r} Z`}
+      fill="none"
+      stroke={s}
+      strokeWidth="1.2"
+    />
+  );
+}
+
+function Sparkle({ x, y, s, f }) {
+  const i = s * 0.32;
+  return (
+    <path
+      d={`M ${x} ${y - s} L ${x + i} ${y - i} L ${x + s} ${y} L ${x + i} ${y + i} L ${x} ${y + s} L ${x - i} ${y + i} L ${x - s} ${y} L ${x - i} ${y - i} Z`}
+      fill={f}
+    />
+  );
+}
+
+function Comet({ x, y, s, f }) {
+  return (
+    <g>
+      <circle cx={x} cy={y} r="2.4" fill={f} />
+      <path
+        d={`M ${x - 2} ${y - 2} l -9 -9 M ${x + 1} ${y - 3} l -6 -8 M ${x - 3} ${y + 1} l -8 -6`}
+        stroke={s}
+        strokeWidth="1"
+        fill="none"
+      />
+    </g>
+  );
+}
+
+function Rocket({ x, y, s }) {
+  return (
+    <g transform={`translate(${x} ${y})`}>
+      <path d="M 0 -10 Q 5 -3 5 6 L -5 6 Q -5 -3 0 -10 Z" fill="none" stroke={s} strokeWidth="1.2" />
+      <circle cx="0" cy="-2" r="2" fill="none" stroke={s} strokeWidth="1" />
+      <path d="M -5 4 L -9 10 L -5 6 M 5 4 L 9 10 L 5 6" fill="none" stroke={s} strokeWidth="1.1" />
+      <path d="M -2 6 L 0 11 L 2 6" fill="none" stroke={s} strokeWidth="1" />
+    </g>
+  );
+}
+
+function Dot({ x, y, r = 1.3, f }) {
+  return <circle cx={x} cy={y} r={r} fill={f} />;
+}
+
 export function ChatBackdrop({ kind, isDark }) {
   const rgb = PALETTE[kind];
   if (!rgb) return null;
-  const line = `rgba(${rgb},${isDark ? 0.16 : 0.13})`;
-  const star = `rgba(${rgb},${isDark ? 0.26 : 0.2})`;
+  const line = `rgba(${rgb},${isDark ? 0.13 : 0.11})`;
+  const star = `rgba(${rgb},${isDark ? 0.18 : 0.14})`;
   const id = `cbd-${kind}`;
 
   return (
@@ -36,55 +100,50 @@ export function ChatBackdrop({ kind, isDark }) {
     >
       <svg width="100%" height="100%">
         <defs>
-          {kind === "dm" && (
-            <pattern id={id} width="132" height="132" patternUnits="userSpaceOnUse">
-              {/* orbit + planet + moon */}
-              <ellipse
-                cx="66"
-                cy="66"
-                rx="42"
-                ry="16"
-                fill="none"
-                stroke={line}
-                strokeWidth="1.1"
-                transform="rotate(-20 66 66)"
-              />
-              <circle cx="66" cy="66" r="12" fill="none" stroke={line} strokeWidth="1.3" />
-              <circle cx="105" cy="55" r="2.6" fill={star} />
-              {/* stars */}
-              <circle cx="20" cy="26" r="1.3" fill={star} />
-              <circle cx="116" cy="110" r="1.3" fill={star} />
-              <circle cx="26" cy="104" r="1" fill={star} />
-              <path d="M108 19 v6 M105 22 h6" stroke={star} strokeWidth="1" />
-            </pattern>
-          )}
-          {kind === "group" && (
-            <pattern id={id} width="132" height="132" patternUnits="userSpaceOnUse">
-              {/* constellation of planets */}
-              <path d="M40 44 L92 60 L66 100 Z" fill="none" stroke={line} strokeWidth="0.9" />
-              <circle cx="40" cy="44" r="9" fill="none" stroke={line} strokeWidth="1.3" />
-              <circle cx="92" cy="60" r="6" fill="none" stroke={line} strokeWidth="1.2" />
-              <circle cx="66" cy="100" r="11" fill="none" stroke={line} strokeWidth="1.3" />
-              {/* stars */}
-              <circle cx="112" cy="26" r="1.3" fill={star} />
-              <circle cx="20" cy="96" r="1.2" fill={star} />
-              <circle cx="118" cy="112" r="1" fill={star} />
-            </pattern>
-          )}
-          {kind === "channel" && (
-            <pattern id={id} width="132" height="132" patternUnits="userSpaceOnUse">
-              {/* ringed planet */}
-              <g transform="rotate(-18 66 66)">
-                <ellipse cx="66" cy="66" rx="40" ry="13" fill="none" stroke={line} strokeWidth="1.1" />
-                <circle cx="66" cy="66" r="16" fill="none" stroke={line} strokeWidth="1.3" />
-              </g>
-              <circle cx="104" cy="34" r="3" fill="none" stroke={line} strokeWidth="1.1" />
-              {/* stars */}
-              <circle cx="22" cy="28" r="1.3" fill={star} />
-              <circle cx="26" cy="108" r="1.1" fill={star} />
-              <path d="M112 103 v6 M109 106 h6" stroke={star} strokeWidth="1" />
-            </pattern>
-          )}
+          <pattern id={id} width="190" height="190" patternUnits="userSpaceOnUse">
+            {kind === "dm" && (
+              <>
+                <Planet x={58} y={56} r={14} s={line} />
+                <Crescent x={150} y={42} r={10} s={line} />
+                <Comet x={158} y={150} s={line} f={star} />
+                <Sparkle x={108} y={96} s={6} f={star} />
+                <Sparkle x={30} y={132} s={4} f={star} />
+                <Dot x={96} y={30} f={star} />
+                <Dot x={40} y={96} r={1} f={star} />
+                <Dot x={172} y={100} f={star} />
+                <Dot x={120} y={164} r={1} f={star} />
+                <Dot x={74} y={158} f={star} />
+              </>
+            )}
+            {kind === "group" && (
+              <>
+                <path d="M45 50 L100 40 L78 92 Z" fill="none" stroke={line} strokeWidth="0.9" />
+                <Planet x={45} y={50} r={10} s={line} />
+                <Planet x={100} y={40} r={7} s={line} />
+                <Planet x={78} y={92} r={12} s={line} />
+                <Rocket x={152} y={138} s={line} />
+                <Sparkle x={160} y={54} s={5} f={star} />
+                <Dot x={25} y={120} f={star} />
+                <Dot x={126} y={150} r={1} f={star} />
+                <Dot x={174} y={172} f={star} />
+                <Dot x={60} y={160} r={1} f={star} />
+                <Dot x={120} y={110} f={star} />
+              </>
+            )}
+            {kind === "channel" && (
+              <>
+                <RingedPlanet x={68} y={68} r={16} s={line} />
+                <Comet x={150} y={40} s={line} f={star} />
+                <Planet x={150} y={140} r={6} s={line} />
+                <Sparkle x={40} y={140} s={6} f={star} />
+                <Dot x={110} y={30} f={star} />
+                <Dot x={30} y={40} r={1} f={star} />
+                <Dot x={172} y={96} f={star} />
+                <Dot x={96} y={166} r={1} f={star} />
+                <Dot x={138} y={172} f={star} />
+              </>
+            )}
+          </pattern>
         </defs>
         <rect width="100%" height="100%" fill={`url(#${id})`} />
       </svg>
