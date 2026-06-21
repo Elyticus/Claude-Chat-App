@@ -1,9 +1,14 @@
 import { api } from "../lib/api.js";
 
-// Avatar upload: client-side downscale to a 512px JPEG, optimistically update
-// local state + localStorage, then persist to the server. 512px keeps the
-// picture crisp when blown up in the account lightbox (even on 2x displays)
-// while staying well under the server's ~375KB avatar cap. Deps passed in.
+// Largest data-URL we'll send. The server rejects avatars over 500,000 chars,
+// so we stay just under that with a safety margin.
+const MAX_AVATAR_CHARS = 480_000;
+
+// Avatar upload: client-side downscale to a high-resolution JPEG, optimistically
+// update local state + localStorage, then persist to the server. We keep the
+// picture at up to 1024px so it stays crisp (no visible pixels) when the account
+// modal blows it up to a full-screen lightbox, even on high-DPI phones — and
+// pick the best JPEG quality that still fits under the server's avatar cap.
 export function useAvatarUpload({ setMyAvatar, currentUser }) {
   function resizeImage(file, maxPx) {
     return new Promise((resolve, reject) => {
@@ -20,7 +25,14 @@ export function useAvatarUpload({ setMyAvatar, currentUser }) {
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = "high";
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", 0.9));
+        // Keep the full resolution; step quality down only as needed to fit the
+        // size cap, so we preserve as much detail as possible.
+        let out = canvas.toDataURL("image/jpeg", 0.92);
+        for (const q of [0.85, 0.78, 0.7, 0.6, 0.5]) {
+          if (out.length <= MAX_AVATAR_CHARS) break;
+          out = canvas.toDataURL("image/jpeg", q);
+        }
+        resolve(out);
       };
       img.onerror = () => {
         URL.revokeObjectURL(url);
@@ -34,7 +46,7 @@ export function useAvatarUpload({ setMyAvatar, currentUser }) {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
-    const dataUrl = await resizeImage(file, 512);
+    const dataUrl = await resizeImage(file, 1024);
     setMyAvatar(dataUrl);
     const updated = { ...currentUser, avatar: dataUrl };
     localStorage.setItem("linkloop_user", JSON.stringify(updated));
