@@ -2,6 +2,7 @@ import { Search, X, Pin } from "lucide-react";
 import { ChatHeader } from "./ChatHeader.jsx";
 import { MessageList } from "./MessageList.jsx";
 import { MessageComposer } from "./MessageComposer.jsx";
+import { ChatBackdrop } from "./ChatBackdrop.jsx";
 import { MAX_MESSAGE_LENGTH } from "../../hooks/useChatDerivedState.js";
 import {
   ROLE_LEVEL,
@@ -9,6 +10,13 @@ import {
   darkBorder,
   lightBorderMid,
 } from "../../lib/constants.js";
+
+// Translucent version of a #rrggbb token, so the top/bottom bars let the doodle
+// backdrop show through and the whole chat box reads as one filled surface.
+function withAlpha(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+}
 
 // The open-conversation surface: a solid backdrop over the orbital hub plus the
 // chat panel itself (header, message search bar, pinned banner, message list,
@@ -66,6 +74,15 @@ export function ChatPanel({
   stopTyping,
   sendMessage,
 }) {
+  const roomKind = activeRoom
+    ? isActiveChannel
+      ? "channel"
+      : activeRoom.is_group
+        ? "group"
+        : "dm"
+    : "dm";
+  // Mostly-opaque bars that still reveal the doodle backdrop behind them.
+  const barBg = withAlpha(bgRaised, 0.6);
   return (
     <>
       {/* Solid backdrop — covers the orbital hub completely whenever a chat is
@@ -96,10 +113,19 @@ export function ChatPanel({
           style={{
             height: "var(--vvh, 100dvh)",
             background: bg0,
+            isolation: "isolate",
           }}
         >
           {displayRoomId && activeRoom && (
             <>
+              {/* Doodle backdrop behind the entire chat box. zIndex -1 keeps it
+                  under the header/messages/composer; isolate (above) scopes it. */}
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{ zIndex: -1 }}
+              >
+                <ChatBackdrop kind={roomKind} isDark={isDark} />
+              </div>
               <ChatHeader
                 activeRoom={activeRoom}
                 activeRoomName={activeRoomName}
@@ -111,7 +137,7 @@ export function ChatPanel({
                 typingNames={typingNames}
                 myActiveRole={myActiveRole}
                 isDark={isDark}
-                bgRaised={bgRaised}
+                bgRaised={barBg}
                 onClose={closeRoom}
                 onOpenProfile={() => openProfile(activeRoom.other_user_id)}
                 searchActive={showMsgSearch}
@@ -144,7 +170,9 @@ export function ChatPanel({
                   className="flex items-center gap-2 px-4 py-2.5 border-b shrink-0"
                   style={{
                     borderColor: isDark ? darkBorder : lightBorderMid,
-                    background: isDark ? darkBg2 : "#f8fafc",
+                    background: isDark
+                      ? withAlpha(darkBg2, 0.6)
+                      : "rgba(248,250,252,0.78)",
                   }}
                 >
                   <Search
@@ -230,9 +258,6 @@ export function ChatPanel({
               <MessageList
                 bg0={bg0}
                 isDark={isDark}
-                roomKind={
-                  isActiveChannel ? "channel" : activeRoom.is_group ? "group" : "dm"
-                }
                 displayedMessages={displayedMessages}
                 roomLoaded={messages[activeRoomId] !== undefined}
                 hasMore={!!hasMoreMessages[displayRoomId]}
@@ -264,7 +289,7 @@ export function ChatPanel({
                 inputLength={inputLength}
                 maxLength={MAX_MESSAGE_LENGTH}
                 isDark={isDark}
-                bgRaised={bgRaised}
+                bgRaised={barBg}
               />
             </>
           )}
