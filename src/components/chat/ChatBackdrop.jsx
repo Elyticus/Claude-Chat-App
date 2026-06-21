@@ -1,17 +1,20 @@
-// Decorative, static per-room-type backdrop for the chat window. Flat geometric
-// SVG patterns (no 3D / shading) tiled across the ENTIRE message area, so each
-// conversation type reads differently at a glance — and echoing the app's
-// notification colour language (dm = rose, group = amber, channel = emerald):
-//   • dm      → diamond lattice
-//   • group   → chevrons
-//   • channel → square grid with nested squares
+// Decorative, static per-room-type backdrop for the chat window. Flat line-art
+// SVG (no 3D / shading) on a universe theme — planets, orbits, rings and star
+// sparkles — tiled across the ENTIRE message area, so each conversation type
+// reads differently at a glance and echoes the app's notification colour
+// language (dm = rose, group = amber, channel = emerald):
+//   • dm      → a planet with an orbit + a moon
+//   • group   → a little constellation of planets
+//   • channel → a ringed (Saturn-style) planet
 //
-// Each pattern fills the box via <rect width="100%" height="100%">. Kept faint
-// so message bubbles stay readable.
+// Each motif tiles via <pattern> + a full-size <rect>, kept faint so message
+// bubbles stay readable. Motifs sit inside their tile with margin so the
+// repeat is seamless.
 //
 // IMPORTANT: no CSS filter / transform / animation / will-change here. Those
 // promote a GPU compositor layer that breaks the composer's caret blink and
-// hurts rendering perf (see src/CLAUDE.md "Rendering / GPU").
+// hurts rendering perf (see src/CLAUDE.md "Rendering / GPU"). SVG-internal
+// transforms (the ring/orbit tilts) are layer-safe.
 
 const PALETTE = {
   dm: "251,113,133", // rose
@@ -22,7 +25,8 @@ const PALETTE = {
 export function ChatBackdrop({ kind, isDark }) {
   const rgb = PALETTE[kind];
   if (!rgb) return null;
-  const stroke = `rgba(${rgb},${isDark ? 0.16 : 0.13})`;
+  const line = `rgba(${rgb},${isDark ? 0.16 : 0.13})`;
+  const star = `rgba(${rgb},${isDark ? 0.26 : 0.2})`;
   const id = `cbd-${kind}`;
 
   return (
@@ -33,40 +37,52 @@ export function ChatBackdrop({ kind, isDark }) {
       <svg width="100%" height="100%">
         <defs>
           {kind === "dm" && (
-            // Diamond lattice — vertices on tile-edge midpoints so it tiles seamlessly.
-            <pattern id={id} width="34" height="34" patternUnits="userSpaceOnUse">
-              <path
-                d="M17 0 L34 17 L17 34 L0 17 Z"
+            <pattern id={id} width="132" height="132" patternUnits="userSpaceOnUse">
+              {/* orbit + planet + moon */}
+              <ellipse
+                cx="66"
+                cy="66"
+                rx="42"
+                ry="16"
                 fill="none"
-                stroke={stroke}
-                strokeWidth="1.25"
+                stroke={line}
+                strokeWidth="1.1"
+                transform="rotate(-20 66 66)"
               />
+              <circle cx="66" cy="66" r="12" fill="none" stroke={line} strokeWidth="1.3" />
+              <circle cx="105" cy="55" r="2.6" fill={star} />
+              {/* stars */}
+              <circle cx="20" cy="26" r="1.3" fill={star} />
+              <circle cx="116" cy="110" r="1.3" fill={star} />
+              <circle cx="26" cy="104" r="1" fill={star} />
+              <path d="M108 19 v6 M105 22 h6" stroke={star} strokeWidth="1" />
             </pattern>
           )}
           {kind === "group" && (
-            // Chevrons — a V per tile; rows stack into a continuous zigzag field.
-            <pattern id={id} width="40" height="20" patternUnits="userSpaceOnUse">
-              <path
-                d="M0 20 L20 0 L40 20"
-                fill="none"
-                stroke={stroke}
-                strokeWidth="1.25"
-              />
+            <pattern id={id} width="132" height="132" patternUnits="userSpaceOnUse">
+              {/* constellation of planets */}
+              <path d="M40 44 L92 60 L66 100 Z" fill="none" stroke={line} strokeWidth="0.9" />
+              <circle cx="40" cy="44" r="9" fill="none" stroke={line} strokeWidth="1.3" />
+              <circle cx="92" cy="60" r="6" fill="none" stroke={line} strokeWidth="1.2" />
+              <circle cx="66" cy="100" r="11" fill="none" stroke={line} strokeWidth="1.3" />
+              {/* stars */}
+              <circle cx="112" cy="26" r="1.3" fill={star} />
+              <circle cx="20" cy="96" r="1.2" fill={star} />
+              <circle cx="118" cy="112" r="1" fill={star} />
             </pattern>
           )}
           {kind === "channel" && (
-            // Square grid (top+left edges per cell) with a smaller nested square.
-            <pattern id={id} width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M40 0 H0 V40" fill="none" stroke={stroke} strokeWidth="1" />
-              <rect
-                x="13"
-                y="13"
-                width="14"
-                height="14"
-                fill="none"
-                stroke={stroke}
-                strokeWidth="1.25"
-              />
+            <pattern id={id} width="132" height="132" patternUnits="userSpaceOnUse">
+              {/* ringed planet */}
+              <g transform="rotate(-18 66 66)">
+                <ellipse cx="66" cy="66" rx="40" ry="13" fill="none" stroke={line} strokeWidth="1.1" />
+                <circle cx="66" cy="66" r="16" fill="none" stroke={line} strokeWidth="1.3" />
+              </g>
+              <circle cx="104" cy="34" r="3" fill="none" stroke={line} strokeWidth="1.1" />
+              {/* stars */}
+              <circle cx="22" cy="28" r="1.3" fill={star} />
+              <circle cx="26" cy="108" r="1.1" fill={star} />
+              <path d="M112 103 v6 M109 106 h6" stroke={star} strokeWidth="1" />
             </pattern>
           )}
         </defs>
