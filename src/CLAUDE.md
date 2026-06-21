@@ -30,7 +30,7 @@ src/
 │   ├── OrbitalHub.jsx           # Full-screen radial orbital canvas (room nodes) — renders AllChatsPanel
 │   ├── UserProfileModal.jsx     # User profile sheet — all per-user actions live here
 │   ├── chat/                    # ChatApp's chat-panel render pieces
-│   │   ├── ChatBackdrop.jsx         # Static per-room-type faint line-art universe doodle wallpaper filling MessageList (dm=rose planet/moon/comet, group=amber planet constellation+rocket, channel=emerald ringed planet+comet; all with sparkles/stars). Tiled <pattern> + full-size <rect>. No CSS filter/transform/animation (caret-blink/perf safe)
+│   │   ├── ChatBackdrop.jsx         # Static per-room-type faint line-art universe doodle wallpaper filling MessageList (varied icons: planets, ringed planets, crescents, comets, rockets, UFOs, satellites, 5-pt stars, orbits, sparkles; dm/group/channel differ by icon mix + rose/amber/emerald accent). Tiled <pattern> + full-size <rect>. No CSS filter/transform/animation (caret-blink/perf safe)
 │   │   ├── ChatHeader.jsx           # Conversation header (back, identity, action buttons)
 │   │   ├── MessageComposer.jsx      # Input row + mute/error banner + length counter
 │   │   ├── MessageList.jsx          # Scrollable message area (bubbles, separators, divider)
