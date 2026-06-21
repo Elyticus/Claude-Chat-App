@@ -1,4 +1,4 @@
-import { X, LogOut } from "lucide-react";
+import { X, Camera, LogOut } from "lucide-react";
 import { Avatar } from "./ui/Avatar.jsx";
 import {
   darkBg1,
@@ -9,12 +9,13 @@ import {
 
 // ─── Account / self profile ──────────────────────────────────────────────────
 // The current user's own profile, opened by tapping their avatar in the hub.
-// Shows the user's picture at a large size alongside their name/email, with
-// sign out as the single account-level action.
+// From here they can change their profile picture and sign out — the two
+// account-level actions, kept together instead of scattered around the hub.
 export function AccountModal({
   currentUser,
   myAvatar,
   isDark,
+  onChangeAvatar,
   onLogout,
   onClose,
 }) {
@@ -54,16 +55,38 @@ export function AccountModal({
           <X size={16} />
         </button>
 
-        {/* Identity */}
-        <div className="flex flex-col items-center text-center px-6 pt-10 pb-6">
-          <Avatar
-            userId={currentUser.id}
-            username={currentUser.username}
-            size={144}
-            avatar={myAvatar}
-          />
+        {/* Identity — tap the avatar to change the picture */}
+        <div className="flex flex-col items-center text-center px-6 pt-8 pb-5">
+          <button
+            onClick={onChangeAvatar}
+            title="Change profile picture"
+            aria-label="Change profile picture"
+            className="relative group rounded-full"
+          >
+            <Avatar
+              userId={currentUser.id}
+              username={currentUser.username}
+              size={92}
+              avatar={myAvatar}
+            />
+            <span
+              className="absolute inset-0 rounded-full flex items-center justify-center transition-all"
+              style={{ background: "rgba(0,0,0,0)" }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "rgba(0,0,0,0.4)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "rgba(0,0,0,0)")
+              }
+            >
+              <Camera
+                size={22}
+                className="text-white opacity-0 group-hover:opacity-100 transition-opacity"
+              />
+            </span>
+          </button>
           <div
-            className="mt-4 text-lg font-semibold truncate max-w-full"
+            className="mt-3 text-lg font-semibold truncate max-w-full"
             style={{ color: headerColor }}
           >
             {currentUser.username}
@@ -83,6 +106,16 @@ export function AccountModal({
           className="px-4 pt-4 pb-5 space-y-2"
           style={{ borderTop: `1px solid ${divider}` }}
         >
+          <button
+            onClick={onChangeAvatar}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"
+            style={{
+              background: isDark ? "rgba(99,102,241,0.15)" : "rgba(99,102,241,0.1)",
+              color: isDark ? "#a5b4fc" : "#4f46e5",
+            }}
+          >
+            <Camera size={15} /> Change profile picture
+          </button>
           <button
             onClick={onLogout}
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all bg-red-500/10 text-red-400 hover:bg-red-500/20"
