@@ -30,7 +30,7 @@ src/
 │   ├── OrbitalHub.jsx           # Full-screen radial orbital canvas (room nodes) — renders AllChatsPanel
 │   ├── UserProfileModal.jsx     # User profile sheet — all per-user actions live here
 │   ├── chat/                    # ChatApp's chat-panel render pieces
-│   │   ├── ChatBackdrop.jsx         # Static per-room-type decorative SVG behind MessageList (dm=rose moon/planet, group=amber cluster, channel=emerald ringed planet + stars). No CSS filter/transform/animation (caret-blink/perf safe)
+│   │   ├── ChatBackdrop.jsx         # Static per-room-type geometric SVG pattern filling MessageList (dm=rose diamond lattice, group=amber chevrons, channel=emerald square grid). Tiled <pattern> + full-size <rect>. No CSS filter/transform/animation (caret-blink/perf safe)
 │   │   ├── ChatHeader.jsx           # Conversation header (back, identity, action buttons)
 │   │   ├── MessageComposer.jsx      # Input row + mute/error banner + length counter
 │   │   ├── MessageList.jsx          # Scrollable message area (bubbles, separators, divider)
