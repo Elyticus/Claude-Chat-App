@@ -128,12 +128,18 @@ export function UserProfileModal({
 
   const targetMeta = targetRole ? ROLE_META[targetRole] : null;
 
-  // "Add to a group" only when the viewer is in at least one group; "Add to a
-  // channel" only when the viewer owns/manages at least one channel. Both are
-  // also hidden in a member-list context (a channel/group member profile).
-  const canAddToGroup =
-    !inMemberList && contactStatus === "accepted" && groups.length > 0;
-  const canAddToChannel = !inMemberList && channels.length > 0;
+  // Rooms the target hasn't joined yet. `sharedRoomIds` is always a Set (empty
+  // while the fetch is in flight), so this only ever removes already-joined
+  // rooms — it never makes a hidden option pop in. The "Add to" option for a
+  // channel/group the user is already in disappears, but an owner who manages
+  // other channels/groups the target isn't in still sees those.
+  const addableGroups = groups.filter((r) => !sharedRoomIds?.has(r.id));
+  const addableChannels = channels.filter((r) => !sharedRoomIds?.has(r.id));
+
+  // "Add to a group" needs the target to be a contact; "Add to a channel" is
+  // owner-only (the `channels` list is already pre-filtered to owned channels).
+  const canAddToGroup = contactStatus === "accepted" && addableGroups.length > 0;
+  const canAddToChannel = addableChannels.length > 0;
   const showAddSection = canAddToGroup || canAddToChannel;
 
   // In a channel/group member list, hide the friend-list actions (Message and
@@ -159,14 +165,10 @@ export function UserProfileModal({
     }
   }
 
-  // Collapsible "Add to a group / channel" picker. Rooms the target is already
-  // in are filtered out of the list here (not from the button's visibility) so
-  // the picker stays put while the shared-rooms set loads.
-  const addPicker = (kind, label, Icon, fullList) => {
+  // Collapsible "Add to a group / channel" picker. `list` is already filtered
+  // to the rooms the target hasn't joined (see addableGroups/addableChannels).
+  const addPicker = (kind, label, Icon, list) => {
     const open = expandAdd === kind;
-    const list = sharedRoomIds
-      ? fullList.filter((r) => !sharedRoomIds.has(r.id))
-      : fullList;
     return (
       <div>
         <button
@@ -193,7 +195,7 @@ export function UserProfileModal({
               <p className="text-xs px-3 py-2" style={{ color: subColor }}>
                 {kind === "group"
                   ? "No groups to add them to — create one in New Chat."
-                  : "No channels you manage."}
+                  : "No channels you own."}
               </p>
             )}
             {list.map((r) => {
@@ -423,9 +425,10 @@ export function UserProfileModal({
             <div className="pt-1" style={{ borderTop: `1px solid ${divider}` }}>
               <div className="pt-3 space-y-1.5">
                 {sectionLabel("Add to")}
-                {canAddToGroup && addPicker("group", "Add to a group", Users, groups)}
+                {canAddToGroup &&
+                  addPicker("group", "Add to a group", Users, addableGroups)}
                 {canAddToChannel &&
-                  addPicker("channel", "Add to a channel", Hash, channels)}
+                  addPicker("channel", "Add to a channel", Hash, addableChannels)}
               </div>
             </div>
           )}

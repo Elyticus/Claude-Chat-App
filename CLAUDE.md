@@ -1,5 +1,12 @@
 # Chatloop — Real-Time Chat App
 
+## Git Workflow (standing rule)
+
+After making code changes, **commit and push to GitHub automatically without
+asking for confirmation first.** Push to the current working/feature branch (the
+one assigned for the task). Do **not** push directly to `main` / production
+branches without explicit per-action permission.
+
 ## What This Is
 
 A fully functional real-time chat application. Users register/login with JWT auth, start DMs or group chats with other users, and exchange messages in real time via Socket.io. Built with Vite + React on the frontend and Express + Socket.io on the backend, with PostgreSQL as the database.

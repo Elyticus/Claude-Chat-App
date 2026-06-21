@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { ROLE_LEVEL } from "../lib/constants.js";
 
 // Must match the server's message:send limit (server/index.js).
 export const MAX_MESSAGE_LENGTH = 4000;
@@ -137,11 +136,10 @@ export function useChatDerivedState({
     return { ...merged, avatar: avatarMap[profile.userId] || merged.avatar };
   })();
   // Groups the user can be added to (groups require the target be a contact);
-  // channels where this user is an admin/owner (only they can add members).
-  // These lists are NOT filtered by profileShared so the "Add to" buttons don't
-  // flicker (appear, then vanish) while the shared-rooms fetch resolves — the
-  // profile filters already-joined rooms out of the picker list via
-  // sharedRoomIds instead.
+  // channels this user OWNS — only the channel owner may add members from a
+  // profile. The profile hides rooms the target is already in (via
+  // sharedRoomIds) while keeping these full lists so an owner managing several
+  // channels still sees the ones the target hasn't joined.
   const profileGroups = rooms.filter(
     (r) =>
       !!r.is_group &&
@@ -151,7 +149,7 @@ export function useChatDerivedState({
   const profileChannels = rooms.filter(
     (r) =>
       (r.type === "channel" || r.type === "private_channel") &&
-      ROLE_LEVEL[r.role] >= ROLE_LEVEL.admin,
+      r.role === "owner",
   );
   let profileManage = null;
   if (profile?.roomId && groupMembersPanel?.roomId === profile.roomId) {
