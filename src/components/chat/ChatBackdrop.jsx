@@ -89,8 +89,8 @@ function Dot({ x, y, r = 1.3, f }) {
 export function ChatBackdrop({ kind, isDark }) {
   const rgb = PALETTE[kind];
   if (!rgb) return null;
-  const line = `rgba(${rgb},${isDark ? 0.13 : 0.11})`;
-  const star = `rgba(${rgb},${isDark ? 0.18 : 0.14})`;
+  const line = `rgba(${rgb},${isDark ? 0.16 : 0.13})`;
+  const star = `rgba(${rgb},${isDark ? 0.22 : 0.17})`;
   const id = `cbd-${kind}`;
 
   return (
