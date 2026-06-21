@@ -6,7 +6,7 @@
 // channel = emerald):
 //   • dm      → diamond lattice
 //   • group   → chevrons
-//   • channel → square grid with nested squares
+//   • channel → diagonal crosshatch (woven)
 //
 // Each pattern fills the box via <rect width="100%" height="100%">. Kept faint
 // so message bubbles stay readable.
@@ -57,17 +57,15 @@ export function ChatBackdrop({ kind, isDark }) {
             </pattern>
           )}
           {kind === "channel" && (
-            // Square grid (top+left edges per cell) with a smaller nested square.
-            <pattern id={id} width="52" height="52" patternUnits="userSpaceOnUse">
-              <path d="M52 0 H0 V52" fill="none" stroke={stroke} strokeWidth="1.1" />
-              <rect
-                x="17"
-                y="17"
-                width="18"
-                height="18"
+            // Diagonal crosshatch — two families of parallel diagonals (an X per
+            // tile) tile into a fine woven weave. Smaller tile than the DM
+            // diamond lattice so the two read distinctly.
+            <pattern id={id} width="18" height="18" patternUnits="userSpaceOnUse">
+              <path
+                d="M0 0 L18 18 M18 0 L0 18"
                 fill="none"
                 stroke={stroke}
-                strokeWidth="1.4"
+                strokeWidth="1"
               />
             </pattern>
           )}
