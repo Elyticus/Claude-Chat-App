@@ -1,8 +1,9 @@
 import { api } from "../lib/api.js";
 
-// Avatar upload: client-side downscale to a 256px JPEG, optimistically update
-// local state + localStorage, then persist to the server. Lifted out of ChatApp
-// verbatim; deps passed in.
+// Avatar upload: client-side downscale to a 512px JPEG, optimistically update
+// local state + localStorage, then persist to the server. 512px keeps the
+// picture crisp when blown up in the account lightbox (even on 2x displays)
+// while staying well under the server's ~375KB avatar cap. Deps passed in.
 export function useAvatarUpload({ setMyAvatar, currentUser }) {
   function resizeImage(file, maxPx) {
     return new Promise((resolve, reject) => {
@@ -14,10 +15,12 @@ export function useAvatarUpload({ setMyAvatar, currentUser }) {
         const canvas = document.createElement("canvas");
         canvas.width = Math.round(img.width * scale);
         canvas.height = Math.round(img.height * scale);
-        canvas
-          .getContext("2d")
-          .drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", 0.82));
+        const ctx = canvas.getContext("2d");
+        // High-quality resampling so the downscale stays smooth, not blocky.
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.9));
       };
       img.onerror = () => {
         URL.revokeObjectURL(url);
@@ -31,7 +34,7 @@ export function useAvatarUpload({ setMyAvatar, currentUser }) {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
-    const dataUrl = await resizeImage(file, 256);
+    const dataUrl = await resizeImage(file, 512);
     setMyAvatar(dataUrl);
     const updated = { ...currentUser, avatar: dataUrl };
     localStorage.setItem("linkloop_user", JSON.stringify(updated));
