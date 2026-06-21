@@ -132,12 +132,27 @@ export function AccountModal({
           >
             <X size={20} />
           </button>
-          <Avatar
-            userId={currentUser.id}
-            username={currentUser.username}
-            size={260}
-            avatar={myAvatar}
-          />
+          {myAvatar ? (
+            // Render the full-resolution source directly and let it scale with
+            // the viewport, so the preview stays crisp instead of upscaling a
+            // fixed-size box.
+            <img
+              src={myAvatar}
+              alt={currentUser.username}
+              className="rounded-full object-cover"
+              style={{
+                width: "min(82vw, 82vh, 460px)",
+                height: "min(82vw, 82vh, 460px)",
+              }}
+            />
+          ) : (
+            <Avatar
+              userId={currentUser.id}
+              username={currentUser.username}
+              size={260}
+              avatar={null}
+            />
+          )}
         </div>
       )}
     </div>
