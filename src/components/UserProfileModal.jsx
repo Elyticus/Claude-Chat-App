@@ -128,14 +128,15 @@ export function UserProfileModal({
 
   const targetMeta = targetRole ? ROLE_META[targetRole] : null;
 
-  // Rooms the target hasn't joined yet. `sharedRoomIds` is always a Set (empty
-  // while the fetch is in flight), so this only ever removes already-joined
-  // rooms — it never makes a hidden option pop in. The "Add to" option for a
-  // channel/group the user is already in disappears, but an owner who manages
-  // other channels/groups the target isn't in still sees those. `addedRooms` is
-  // included so a room the owner just added drops out of the list instantly,
-  // without waiting for the shared-rooms fetch to refresh.
-  const isAddable = (r) => !sharedRoomIds?.has(r.id) && !addedRooms.has(r.id);
+  // Rooms the target hasn't joined yet. `sharedRoomIds` is a Set once the
+  // shared-rooms data is known (seeded instantly from cache on reopen, or after
+  // the fetch on first open) and `null` while still loading. We only show the
+  // "Add to" options once it's a Set — showing them before membership is known
+  // makes already-joined rooms flash in and then vanish. `addedRooms` is also
+  // excluded so a room the owner just added drops out of the list instantly.
+  const sharedLoaded = sharedRoomIds instanceof Set;
+  const isAddable = (r) =>
+    sharedLoaded && !sharedRoomIds.has(r.id) && !addedRooms.has(r.id);
   const addableGroups = groups.filter(isAddable);
   const addableChannels = channels.filter(isAddable);
 
