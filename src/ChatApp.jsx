@@ -62,7 +62,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const [profile, setProfile] = useState(null);
   // Rooms the profiled user already shares with us — hidden from the profile's
   // "Add to group / channel" pickers so you can't try to add a current member.
-  const [profileShared, setProfileShared] = useState(() => new Set());
+  // `null` means "not loaded yet" (the profile suppresses the Add-to section
+  // until it's a Set) so already-joined rooms never flash in before the fetch.
+  const [profileShared, setProfileShared] = useState(null);
   // Transient confirmation pill (e.g. "Added X to Y").
   const [toast, setToast] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);

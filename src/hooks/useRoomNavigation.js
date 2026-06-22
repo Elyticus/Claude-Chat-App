@@ -113,9 +113,11 @@ export function useRoomNavigation({
     if (!userId || userId === currentUser.id) return;
     // Seed from this user's cached shared-room set (which includes any rooms we
     // just added them to) so the "Add to" pickers hide already-joined rooms
-    // instantly on (re)open, instead of flashing them until the refetch lands.
-    // A different user's entry is keyed separately, so no stale cross-user data.
-    setProfileShared(new Set(sharedRoomsCacheRef.current[userId] || []));
+    // instantly on (re)open. With no cache entry yet, pass null ("loading") so
+    // the profile suppresses the Add-to section until the fetch lands, rather
+    // than flashing already-joined rooms in and then removing them.
+    const cached = sharedRoomsCacheRef.current[userId];
+    setProfileShared(cached ? new Set(cached) : null);
     setProfile({ userId, roomId });
   }
 
@@ -140,7 +142,7 @@ export function useRoomNavigation({
     const prev = sharedRoomsCacheRef.current[userId] || [];
     if (!prev.includes(roomId))
       sharedRoomsCacheRef.current[userId] = [...prev, roomId];
-    setProfileShared((s) => new Set(s).add(roomId));
+    setProfileShared((s) => new Set(s || []).add(roomId));
   }
   function addUserToGroup(roomId, userId) {
     return api.addGroupMember(roomId, userId).then((res) => {
