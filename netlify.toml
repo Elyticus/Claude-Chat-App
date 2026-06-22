@@ -7,3 +7,29 @@
   from   = "/*"
   to     = "/index.html"
   status = 200
+
+# ─── Security headers (served on the static document by Netlify) ──────────────
+# The Express middleware in server/index.js only covers the API origin (Render);
+# these protect the frontend document, which is what Lighthouse audits.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Strict CSP. All scripts are external, hashed Vite bundles → script-src
+    # 'self' with NO 'unsafe-inline' (the one inline onload handler was removed
+    # from postbuild for exactly this reason). style-src keeps 'unsafe-inline'
+    # for the inline splash <style>; that does not weaken XSS protection, which
+    # is governed by script-src. img-src allows data: for base64 avatars.
+    # connect-src allows https:/wss: so the app can reach the Render API +
+    # Socket.io. require-trusted-types-for locks down DOM-XSS sinks.
+    Content-Security-Policy = "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https: wss:; worker-src 'self'; manifest-src 'self'; require-trusted-types-for 'script'"
+    Cross-Origin-Opener-Policy = "same-origin"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+
+# Hashed Vite assets are content-addressed and safe to cache forever.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
