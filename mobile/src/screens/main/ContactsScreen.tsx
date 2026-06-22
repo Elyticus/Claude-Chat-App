@@ -33,33 +33,24 @@ export default function ContactsScreen() {
   }, [fetchData]);
 
   useEffect(() => {
-    function onContactRequest({ from }: { from: Contact }) {
-      setAllUsers(prev =>
-        prev.map(u => u.id === from.id ? { ...u, status: 'pending' as const } : u)
-      );
+    // Server emits `contact:request` { from: { id, username } } to the recipient
+    // and `contact:accepted` { by: { id, username } } to the original requester.
+    // Rather than reconcile each shape into local state, just re-pull the user
+    // list — it carries the authoritative per-user `status` for every row.
+    function refresh() {
+      void fetchData();
     }
 
-    function onContactAccepted({ userId }: { userId: number }) {
-      setAllUsers(prev =>
-        prev.map(u => u.id === userId ? { ...u, status: 'accepted' as const } : u)
-      );
-      setContacts(prev => {
-        const user = allUsers.find(u => u.id === userId);
-        if (!user) return prev;
-        return [...prev, { ...user, status: 'accepted' }];
-      });
-    }
-
-    socket?.on('contact:request', onContactRequest);
-    socket?.on('contact:accepted', onContactAccepted);
+    socket?.on('contact:request', refresh);
+    socket?.on('contact:accepted', refresh);
 
     return () => {
-      socket?.off('contact:request', onContactRequest);
-      socket?.off('contact:accepted', onContactAccepted);
+      socket?.off('contact:request', refresh);
+      socket?.off('contact:accepted', refresh);
     };
-  }, [socket, allUsers]);
+  }, [socket, fetchData]);
 
-  const sendRequest = async (userId: number) => {
+  const sendRequest = async (userId: string) => {
     try {
       await api.post('/contacts/request', { contactId: userId });
       setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, status: 'pending' as const } : u));
@@ -68,9 +59,9 @@ export default function ContactsScreen() {
     }
   };
 
-  const acceptRequest = async (userId: number) => {
+  const acceptRequest = async (userId: string) => {
     try {
-      await api.post('/contacts/accept', { contactId: userId });
+      await api.post('/contacts/accept', { requesterId: userId });
       setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, status: 'accepted' as const } : u));
       const user = allUsers.find(u => u.id === userId);
       if (user) setContacts(prev => [...prev, { ...user, status: 'accepted' }]);
@@ -79,7 +70,7 @@ export default function ContactsScreen() {
     }
   };
 
-  const removeContact = async (userId: number) => {
+  const removeContact = async (userId: string) => {
     Alert.alert('Remove Contact', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
       {

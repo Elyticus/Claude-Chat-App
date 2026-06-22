@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { AppState } from 'react-native';
 import { Socket } from 'socket.io-client';
 import { connectSocket, disconnectSocket } from '../services/socket';
 import { useAuth } from './AuthContext';
@@ -34,9 +35,17 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 
     if (s.connected) setConnected(true);
 
+    // The OS suspends the socket when the app is backgrounded. On return to the
+    // foreground, force a reconnect if it dropped so live events resume without
+    // a manual reload. Screens re-pull their data on focus to fill any gap.
+    const appStateSub = AppState.addEventListener('change', state => {
+      if (state === 'active' && !s.connected) s.connect();
+    });
+
     return () => {
       s.off('connect', onConnect);
       s.off('disconnect', onDisconnect);
+      appStateSub.remove();
     };
   }, [token]);
 

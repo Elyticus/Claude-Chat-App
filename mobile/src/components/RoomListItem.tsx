@@ -8,7 +8,7 @@ import { format, isToday, isYesterday } from 'date-fns';
 interface Props {
   room: Room;
   online: boolean;
-  currentUserId: number;
+  currentUserId: string;
   onPress: () => void;
 }
 

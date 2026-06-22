@@ -1,5 +1,6 @@
+// IDs are UUID strings on the backend (Postgres + `uuid` package) — never numbers.
 export interface User {
-  id: number;
+  id: string;
   username: string;
   email: string;
   avatar: string | null;
@@ -7,9 +8,9 @@ export interface User {
 }
 
 export interface Message {
-  id: number;
-  room_id: number;
-  user_id: number;
+  id: string;
+  room_id: string;
+  user_id: string;
   text: string;
   reaction: string | null;
   created_at: string;
@@ -21,7 +22,7 @@ export interface Message {
 }
 
 export interface Room {
-  id: number;
+  id: string;
   name: string;
   is_group: boolean;
   type: 'room' | 'channel' | 'private_channel';
@@ -31,17 +32,18 @@ export interface Room {
   last_message?: string;
   last_message_at?: string;
   unread_count?: number;
-  other_user_id?: number;
+  other_user_id?: string;
   other_username?: string;
   other_avatar?: string | null;
-  other_online?: boolean;
+  // Server returns `other_user_online` from GET /api/rooms.
+  other_user_online?: boolean;
   is_new?: boolean;
   member_role?: 'owner' | 'admin' | 'moderator' | 'member';
   is_muted?: boolean;
 }
 
 export interface Contact {
-  id: number;
+  id: string;
   username: string;
   email: string;
   avatar: string | null;
@@ -51,7 +53,7 @@ export interface Contact {
 }
 
 export interface RoomMember {
-  id: number;
+  id: string;
   username: string;
   avatar: string | null;
   role: 'owner' | 'admin' | 'moderator' | 'member';
@@ -61,10 +63,10 @@ export interface RoomMember {
 }
 
 export interface PinnedMessage {
-  id: number;
-  message_id: number;
-  room_id: number;
-  pinned_by: number;
+  id: string;
+  message_id: string;
+  room_id: string;
+  pinned_by: string;
   pinned_at: string;
   text: string;
   username: string;

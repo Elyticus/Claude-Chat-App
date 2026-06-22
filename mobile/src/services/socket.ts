@@ -16,10 +16,14 @@ export function connectSocket(token: string): Socket {
 
   socket = io(SOCKET_URL, {
     auth: { token },
-    transports: ['websocket'],
+    // No fixed transport: let it negotiate (polling → upgrade to websocket) so
+    // it still connects on flaky mobile networks / proxies that block raw WS.
     reconnection: true,
-    reconnectionAttempts: 5,
+    // Infinite attempts: the OS suspends a backgrounded app's socket; a capped
+    // count would leave it permanently dead until a full app restart.
+    reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
   });
 
   return socket;

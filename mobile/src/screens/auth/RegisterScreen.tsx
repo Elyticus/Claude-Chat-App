@@ -43,7 +43,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join ChatLoop today</Text>
+          <Text style={styles.subtitle}>Join Linkloop today</Text>
 
           <View style={styles.form}>
             <Text style={styles.label}>Username</Text>
