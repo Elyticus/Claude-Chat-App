@@ -13,5 +13,24 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: CLIENT_ORIGIN
-        # Set this to your Netlify site URL after the first deploy
+        # Set this to your Netlify site URL after the first deploy.
+        # (Web only — native apps don't send a browser Origin, so the mobile
+        # app works regardless of this value.)
         value: https://your-site.netlify.app
+      # REQUIRED — the server fails to serve API/DB routes without this.
+      # sync:false = not stored in the blueprint; set it in the Render dashboard
+      # (Environment tab) to your Postgres connection string.
+      - key: DATABASE_URL
+        sync: false
+      # Production should validate TLS. "strict" verifies the cert; set
+      # DATABASE_CA too if your provider uses a private CA.
+      - key: DATABASE_SSL
+        value: strict
+      # Optional — Web Push (offline notifications). Generate a pair with:
+      #   node -e "const wp=require('web-push');const k=wp.generateVAPIDKeys();console.log(k.publicKey,k.privateKey)"
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
