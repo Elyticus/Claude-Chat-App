@@ -144,6 +144,11 @@ function codesMatch(expected, given) {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Reactions are a fixed palette (mirrors REACTIONS in src/lib/constants.js).
+// Restricting to the known set stops a custom client from storing arbitrary
+// text on someone else's message under the guise of a reaction.
+const ALLOWED_REACTIONS = new Set(["🔥", "🙌", "❤️", "😀", "😝", "👍"]);
+
 // A real bcrypt hash (same cost as stored passwords) of a value no password
 // will ever match. Login compares against this when the email is unknown so the
 // response takes the same ~bcrypt time whether or not the account exists —
@@ -190,7 +195,9 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(morgan("dev"));
+// `dev` is the colorized, concise format meant for a terminal; switch to the
+// standard Apache `combined` format in production for parseable access logs.
+app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 app.use(cors({ origin: CLIENT_ORIGIN, credentials: true }));
 app.use(express.json({ limit: "512kb" }));
 
@@ -216,6 +223,16 @@ const contactLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 30,
   message: { error: "Too many contact requests — slow down" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Each avatar upload is a ~500 KB DB write plus a broadcast to every room the
+// user is in — cap how often it can be hammered.
+const avatarLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  message: { error: "Too many avatar updates — slow down" },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -416,7 +433,7 @@ app.get("/api/users/:id/shared-rooms", requireAuth, async (req, res) => {
   res.json(rows.map((r) => r.room_id));
 });
 
-app.post("/api/users/me/avatar", requireAuth, async (req, res) => {
+app.post("/api/users/me/avatar", requireAuth, avatarLimiter, async (req, res) => {
   const { avatar } = req.body ?? {};
   if (!avatar || !/^data:image\/(jpeg|png|webp|gif);base64,/.test(avatar)) {
     return res.status(400).json({ error: "Invalid image — only JPEG, PNG, WebP, and GIF are allowed" });
@@ -1146,6 +1163,12 @@ io.on("connection", async (socket) => {
   // hard ceiling on write floods. Lives in the connection closure, so it's
   // per-socket and garbage-collected on disconnect.
   const allowMessage = createTokenBucket(10, 5);
+  // The other write-bearing socket events get their own per-socket buckets so a
+  // single connection can't flood the DB through them either (the message
+  // bucket only gates message:send). Reactions and read-receipts are far less
+  // frequent than messages in normal use, so these ceilings are generous.
+  const allowReaction = createTokenBucket(20, 8);
+  const allowRead = createTokenBucket(20, 5);
 
   // Was this user fully offline before this socket connected? (Used to avoid
   // re-announcing "online" every time the same user opens an extra tab.)
@@ -1203,14 +1226,16 @@ io.on("connection", async (socket) => {
     socket.to(`room:${roomId}`).emit("message:new", { roomId, message });
     socket.emit("message:ack", { tempId, message, roomId });
 
-    // Web Push — notify members who are offline or have the app backgrounded
+    // Web Push — notify members who are offline or have the app backgrounded.
+    // This is fire-and-forget background work (the message is already acked +
+    // broadcast above), so fetch the room only when there's actually a
+    // subscription to notify — saving a getRoomById query on the common path
+    // where no recipient has push enabled.
     if (vapidReady) {
       try {
-        const [subs, room] = await Promise.all([
-          queries.getPushSubscriptionsForRoom.all(roomId, userId),
-          queries.getRoomById.get(roomId),
-        ]);
+        const subs = await queries.getPushSubscriptionsForRoom.all(roomId, userId);
         if (subs.length > 0) {
+          const room = await queries.getRoomById.get(roomId);
           const isGroup = !!(room?.is_group);
           const pushTitle = isGroup ? (room?.name || "Group Chat") : username;
           const pushBody = isGroup ? `${username}: ${text.trim().slice(0, 120)}` : text.trim().slice(0, 120);
@@ -1236,9 +1261,12 @@ io.on("connection", async (socket) => {
   }));
 
   socket.on("message:react", safe(async ({ messageId, emoji }) => {
-    // A reaction is a short emoji string — reject anything that could be
-    // abused to store arbitrary large payloads on someone's message.
-    if (!isId(messageId) || typeof emoji !== "string" || emoji.length === 0 || emoji.length > 16) return;
+    // A reaction must be one of the fixed palette emojis — reject anything
+    // else so a custom client can't store arbitrary text on someone's message.
+    if (!isId(messageId) || typeof emoji !== "string" || !ALLOWED_REACTIONS.has(emoji)) return;
+    // Each reaction is a DB write + room broadcast; cap throughput per socket
+    // (generous burst, ~8/sec sustained) so the event can't be flooded.
+    if (!allowReaction()) return;
     const msg = await queries.getMessageById.get(messageId);
     if (!msg || !(await queries.isMember.get(msg.room_id, userId))) return;
 
@@ -1256,6 +1284,7 @@ io.on("connection", async (socket) => {
   // counts survive a reload / app close and reconcile across devices.
   socket.on("room:read", safe(async ({ roomId }) => {
     if (!isId(roomId)) return;
+    if (!allowRead()) return; // markRoomSeen is a DB write — cap the flood rate
     if (!(await queries.isMember.get(roomId, userId))) return;
     await queries.markRoomSeen.run(roomId, userId);
   }));
