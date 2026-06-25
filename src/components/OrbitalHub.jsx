@@ -181,7 +181,10 @@ export function OrbitalHub({
         <div className="flex items-center gap-2.5">
           <span
             className="font-bold tracking-wide text-lg sm:text-xl"
-            style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+            style={{
+              color: isSpecial ? textStrong : isDark ? "#eef2ff" : "#0f172a",
+              textShadow: isSpecial ? textStrongShadow : undefined,
+            }}
           >
             Linkloop
             <span style={{ color: "#818cf8" }}>.</span>

@@ -1,11 +1,9 @@
-// ─── Special mode — time-of-day dynamic background (vector) ──────────────────
-// A macOS-style "Dynamic Desktop": ONE vector landscape rendered by SpecialField
-// (SVG), recoloured by the real clock into three distinct vibes —
-//   • morning   (5–11)  — indigo overhead warming to amber/peach at the horizon
-//   • afternoon (11–18) — deep blue easing to a pale, hazy horizon
-//   • night     (18–5)  — deep navy with a pale moon, stars and dark dunes
-// Each scene keeps a dark *upper* sky so the hub's white top-bar text stays
-// legible, with the bright "vibe" pushed to the horizon, sun/moon and dunes.
+// ─── Special mode — time-of-day coastal scene (vector) ───────────────────────
+// A macOS-style "Dynamic Desktop" done in SVG (SpecialField): ONE stylised
+// coastline — sea, foamy shoreline, sandy beach, layered cliffs with umbrella
+// pines, foreground rocks and wildflowers — recoloured by the real clock into
+// three atmospheres (see getScene). Inspired by Apple/Arch "After Dark" style
+// coastal art; the geometry is fixed and only the palette changes per time.
 
 export function getScene(h) {
   if (h >= 5 && h < 11) return "morning";
@@ -13,52 +11,55 @@ export function getScene(h) {
   return "night";
 }
 
-// Per-scene palette consumed by SpecialField:
-//   sky   — vertical gradient stops [offset, color] (top → bottom)
-//   body  — the sun/moon: position (cx/cy as 0–1 fractions), radius, core + glow
-//   dunes — three layered hill colors, back → front (front darkest = silhouette)
-//   stars — whether to scatter stars across the upper sky
+// Palette roles consumed by SpecialField:
+//   sky      — vertical gradient stops [offset, color] (top → horizon)
+//   sea      — [deep, shallow] (vertical gradient toward the shore)
+//   foam     — the bright wave line where sea meets sand
+//   sand     — [light, shade]
+//   cliffs   — [far/hazy, mid, near/dark] headland layers
+//   rock     — [face, shade] foreground rocks
+//   foliage  — trees + grass
+//   flowers  — [warm, cool] wildflower accents
+//   stars    — scatter stars across the upper sky (night)
 export const SCENES = {
   morning: {
-    sky: [
-      [0, "#1b2a5c"],
-      [0.4, "#46487f"],
-      [0.7, "#d27a4e"],
-      [0.88, "#f4a55e"],
-      [1, "#ffc987"],
-    ],
-    body: { kind: "sun", cx: 0.3, cy: 0.66, r: 64, core: "#ffae52", glow: "#ffd08a" },
-    dunes: ["#6b4636", "#4c2f24", "#301c15"],
+    sky: [[0, "#5b5a96"], [0.5, "#b07ea0"], [0.8, "#ec9e6e"], [1, "#ffd0a4"]],
+    sea: ["#2f6f86", "#5a9aa8"],
+    foam: "#f4e7e1",
+    sand: ["#edc99b", "#d6a877"],
+    cliffs: ["#8a6a86", "#6a4a68", "#43304a"],
+    rock: ["#6a5a72", "#473a4e"],
+    foliage: "#34474a",
+    flowers: ["#ef7a44", "#e0566a"],
     stars: false,
   },
   afternoon: {
-    sky: [
-      [0, "#185a96"],
-      [0.45, "#2f86c4"],
-      [0.78, "#82bce4"],
-      [1, "#d6ecf8"],
-    ],
-    body: { kind: "sun", cx: 0.72, cy: 0.2, r: 58, core: "#fff4c4", glow: "#ffe684" },
-    dunes: ["#2f6f54", "#1f4f3b", "#143527"],
+    sky: [[0, "#3fb6c2"], [0.5, "#76cdd0"], [0.82, "#aee0dd"], [1, "#dcf2ec"]],
+    sea: ["#1f6f86", "#3f97ac"],
+    foam: "#eef7f2",
+    sand: ["#ebc983", "#d4ac61"],
+    cliffs: ["#a4727e", "#7c4b54", "#4c3038"],
+    rock: ["#6e5560", "#4a3a44"],
+    foliage: "#21492c",
+    flowers: ["#ea6230", "#dd3a3a"],
     stars: false,
   },
   night: {
-    sky: [
-      [0, "#05081a"],
-      [0.45, "#0a1430"],
-      [0.8, "#102447"],
-      [1, "#173a5c"],
-    ],
-    body: { kind: "moon", cx: 0.7, cy: 0.22, r: 50, core: "#eef2ff", glow: "#9db4e6" },
-    dunes: ["#15294c", "#0e1d39", "#081227"],
+    sky: [[0, "#0c1240"], [0.5, "#151c54"], [0.82, "#1f2c6e"], [1, "#2c3c88"]],
+    sea: ["#0e1745", "#1d2e68"],
+    foam: "#46599a",
+    sand: ["#2b3a6c", "#1f2c56"],
+    cliffs: ["#1b2856", "#121b40", "#0a1028"],
+    rock: ["#172450", "#0e1736"],
+    foliage: "#0b1430",
+    flowers: ["#4a5ea4", "#5a6eb4"],
     stars: true,
   },
 };
 
-// Whether the hub should use dark text over the scene. Decided from the TOP of
-// the sky (where the top-bar text sits) — every scene keeps a dark crown, so
-// this is false today, but it keeps text correct if a light-topped scene is
-// ever added.
+// Whether the hub should use dark text over the scene — decided from the TOP of
+// the sky (where the top-bar text sits). Morning/night keep dark crowns (white
+// text); the bright afternoon sky returns true (dark text).
 export function isSpecialSkyLight(hour) {
   const top = SCENES[getScene(hour)].sky[0][1];
   const r = parseInt(top.slice(1, 3), 16) / 255;
