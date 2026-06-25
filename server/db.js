@@ -289,6 +289,25 @@ export async function initDb() {
       auth       TEXT NOT NULL,
       created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
     );
+    -- Message attachments (Linkloop Pro media & voice). One row per uploaded
+    -- file; storage_path is the on-disk name under server/uploads (files are
+    -- served only through the auth+membership-gated stream route, never public).
+    CREATE TABLE IF NOT EXISTS attachments (
+      id           UUID PRIMARY KEY,
+      message_id   UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+      user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      room_id      UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+      kind         TEXT NOT NULL,            -- image | file | voice
+      filename     TEXT NOT NULL,            -- original (display) name
+      mime         TEXT NOT NULL,
+      size         BIGINT NOT NULL,
+      storage_path TEXT NOT NULL,
+      duration     INT,                      -- seconds, voice only
+      width        INT,
+      height       INT,
+      created_at   BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
+    );
+    CREATE INDEX IF NOT EXISTS idx_attachments_message ON attachments(message_id);
     -- Full-text search (Linkloop Pro global search). A generated tsvector +
     -- GIN index makes ranked search across a user's rooms fast. PG12+ (Supabase).
     ALTER TABLE messages ADD COLUMN IF NOT EXISTS tsv tsvector
@@ -482,8 +501,13 @@ export const queries = {
       const params = before ? [roomId, before] : [roomId];
       const cursor = before ? "AND m.created_at < $2" : "";
       return q(
-        `SELECT m.id, m.text, m.reaction, m.created_at, m.is_system AS system, u.id AS user_id, u.username
+        `SELECT m.id, m.text, m.reaction, m.created_at, m.is_system AS system, u.id AS user_id, u.username,
+                CASE WHEN a.id IS NOT NULL THEN json_build_object(
+                  'id', a.id, 'kind', a.kind, 'name', a.filename, 'mime', a.mime,
+                  'size', a.size, 'duration', a.duration, 'width', a.width, 'height', a.height
+                ) END AS attachment
          FROM messages m JOIN users u ON u.id = m.user_id
+         LEFT JOIN attachments a ON a.message_id = m.id
          WHERE m.room_id = $1 ${cursor}
          ORDER BY m.created_at DESC LIMIT 51`,
         params,
@@ -504,8 +528,14 @@ export const queries = {
 
   getMessageById: {
     get: (id) =>
-      q(`SELECT m.id, m.text, m.reaction, m.created_at, u.id AS user_id, u.username, m.room_id
-         FROM messages m JOIN users u ON u.id = m.user_id WHERE m.id = $1`, [id]).then(r => r.rows[0] ?? null),
+      q(`SELECT m.id, m.text, m.reaction, m.created_at, u.id AS user_id, u.username, m.room_id,
+                CASE WHEN a.id IS NOT NULL THEN json_build_object(
+                  'id', a.id, 'kind', a.kind, 'name', a.filename, 'mime', a.mime,
+                  'size', a.size, 'duration', a.duration, 'width', a.width, 'height', a.height
+                ) END AS attachment
+         FROM messages m JOIN users u ON u.id = m.user_id
+         LEFT JOIN attachments a ON a.message_id = m.id
+         WHERE m.id = $1`, [id]).then(r => r.rows[0] ?? null),
   },
 
   setReaction:    { run: (reaction, id)   => q("UPDATE messages SET reaction = $1 WHERE id = $2", [reaction, id]) },
@@ -653,6 +683,20 @@ export const queries = {
         params,
       ).then((r) => r.rows);
     },
+  },
+
+  // ── Attachments ────────────────────────────────────────────────────────────
+  insertAttachment: {
+    run: (id, messageId, userId, roomId, kind, filename, mime, size, storagePath, duration, width, height) =>
+      q(`INSERT INTO attachments
+            (id, message_id, user_id, room_id, kind, filename, mime, size, storage_path, duration, width, height)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+        [id, messageId, userId, roomId, kind, filename, mime, size, storagePath, duration, width, height]),
+  },
+  getAttachmentById: {
+    get: (id) =>
+      q("SELECT id, room_id, kind, filename, mime, size, storage_path FROM attachments WHERE id = $1", [id])
+        .then(r => r.rows[0] ?? null),
   },
 
   getPushSubscriptionsForRoom: {

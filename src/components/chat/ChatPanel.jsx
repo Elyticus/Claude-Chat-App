@@ -76,6 +76,9 @@ export function ChatPanel({
   sendMessage,
   ai,
   onFillInput,
+  onUploadAttachment,
+  voiceEnabled,
+  onRequireUpgrade,
 }) {
   const roomKind = activeRoom
     ? isActiveChannel
@@ -311,6 +314,9 @@ export function ChatPanel({
                 maxLength={MAX_MESSAGE_LENGTH}
                 isDark={isDark}
                 bgRaised={barBg}
+                onUploadAttachment={onUploadAttachment}
+                voiceEnabled={voiceEnabled}
+                onRequireUpgrade={onRequireUpgrade}
               />
             </>
           )}

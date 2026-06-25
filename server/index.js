@@ -7,8 +7,12 @@ import nodemailer from "nodemailer";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import webpush from "web-push";
+import multer from "multer";
 import "dotenv/config";
-import { randomInt, timingSafeEqual } from "crypto";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+import { randomInt, timingSafeEqual, randomUUID } from "crypto";
 import { validate as uuidValidate } from "uuid";
 
 import { queries, initDb } from "./db.js";
@@ -259,6 +263,34 @@ const aiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const attachmentLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 40,
+  message: { error: "Too many uploads — slow down" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// ─── Uploads (Linkloop Pro media & voice) ───────────────────────────────────────
+// Files are stored on the server filesystem under server/uploads with random
+// names and served ONLY through the auth + membership-gated stream route below —
+// never statically. The hard size ceiling is the largest plan cap; the per-plan
+// limit is enforced in the route after multer receives the file.
+const UPLOAD_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "uploads");
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+const HARD_MAX_UPLOAD = 100 * 1024 * 1024;
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+    filename: (req, file, cb) => {
+      // Random stored name; keep a short sanitized extension for content-type hints.
+      const ext = path.extname(file.originalname).slice(0, 12).replace(/[^.a-zA-Z0-9]/g, "");
+      cb(null, `${randomUUID()}${ext}`);
+    },
+  }),
+  limits: { fileSize: HARD_MAX_UPLOAD, files: 1 },
+});
+
 // ─── Presence ──────────────────────────────────────────────────────────────────
 const online = new Map();
 
@@ -296,6 +328,18 @@ function requireAuth(req, res, next) {
   const decoded = token ? verifyToken(token) : null;
   // Tokens minted before the UUID migration carry integer ids — treat them
   // as expired so those clients fall back to the login screen.
+  if (!decoded || !isId(decoded.id)) return res.status(401).json({ error: "Unauthorized" });
+  req.user = decoded;
+  next();
+}
+
+// Variant that also accepts the token via ?token= — needed for the attachment
+// stream route, since <img>/<audio> elements can't send an Authorization header.
+// Same-origin only; the JWT already lives in localStorage (acceptable for this
+// learning project — production would use a short-lived signed media URL).
+function requireAuthAllowQuery(req, res, next) {
+  const token = req.headers.authorization?.split(" ")[1] || req.query.token;
+  const decoded = token ? verifyToken(token) : null;
   if (!decoded || !isId(decoded.id)) return res.status(401).json({ error: "Unauthorized" });
   req.user = decoded;
   next();
@@ -1244,6 +1288,96 @@ app.get("/api/search", requireAuth, async (req, res) => {
   res.json({ results });
 });
 
+// ─── Attachments (Linkloop Pro media & voice) ────────────────────────────────────
+
+function uploadKind(mime, hint) {
+  if (hint === "voice" && mime.startsWith("audio/")) return "voice";
+  if (mime.startsWith("image/")) return "image";
+  return "file";
+}
+
+const ATTACH_MAX_CAPTION = 4000;
+
+// Upload a file/image/voice note to a room. Plan-gated: Free = images only ≤ 5 MB,
+// Pro/Business = all kinds + voice ≤ 100 MB. Creates a message + attachment row,
+// then broadcasts message:new to the room (excluding the uploader's socket, which
+// swaps its optimistic bubble from the REST response — mirroring message:send).
+app.post("/api/rooms/:roomId/attachments", requireAuth, attachmentLimiter, upload.single("file"), async (req, res) => {
+  const roomId = req.params.roomId;
+  const file = req.file;
+  if (!file) return res.status(400).json({ error: "No file uploaded" });
+
+  // Clean up the stored file and respond — used on every rejection path.
+  const reject = (status, body) => {
+    fs.unlink(file.path, () => {});
+    return res.status(status).json(body);
+  };
+
+  if (!(await queries.isMember.get(roomId, req.user.id))) {
+    return reject(403, { error: "Not a member of this room" });
+  }
+
+  const plan = await getPlan(queries, req.user.id);
+  const cfg = planConfig(plan);
+  const kind = uploadKind(file.mimetype, req.body.kind);
+
+  if (!cfg.allowedUploadKinds.includes(kind)) {
+    return reject(402, {
+      error: kind === "voice"
+        ? "Voice messages are a Pro feature"
+        : "Sharing files is a Pro feature — upgrade to send more than images",
+      code: "UPGRADE_REQUIRED", plan,
+    });
+  }
+  if (file.size > cfg.maxUploadBytes) {
+    const mb = Math.round(cfg.maxUploadBytes / (1024 * 1024));
+    return reject(402, { error: `Files are limited to ${mb} MB on your plan`, code: "UPGRADE_REQUIRED", plan });
+  }
+
+  const caption = typeof req.body.caption === "string" ? req.body.caption.trim().slice(0, ATTACH_MAX_CAPTION) : "";
+  const displayName = path.basename(file.originalname || "file").slice(0, 200);
+  const num = (v, min, max) => {
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) && n >= min && n <= max ? n : null;
+  };
+  const duration = kind === "voice" ? num(req.body.duration, 0, 3600) : null;
+  const width = num(req.body.width, 1, 20000);
+  const height = num(req.body.height, 1, 20000);
+
+  const { lastInsertRowid: msgId } = await queries.insertMessage.run(roomId, req.user.id, caption);
+  await queries.insertAttachment.run(
+    randomUUID(), msgId, req.user.id, roomId, kind, displayName,
+    file.mimetype, file.size, file.filename, duration, width, height,
+  );
+  const message = await queries.getMessageById.get(msgId);
+
+  const socketId = req.body.socketId;
+  const target = io.to(`room:${roomId}`);
+  (socketId ? target.except(socketId) : target).emit("message:new", { roomId, message });
+
+  res.status(201).json({ message });
+});
+
+// Stream a private attachment. Auth via header OR ?token=, plus a membership
+// check on the attachment's room — files are never publicly accessible.
+app.get("/api/attachments/:id", requireAuthAllowQuery, attachmentLimiter, async (req, res) => {
+  const att = await queries.getAttachmentById.get(req.params.id);
+  if (!att) return res.status(404).json({ error: "Not found" });
+  if (!(await queries.isMember.get(att.room_id, req.user.id))) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+  const filePath = path.join(UPLOAD_DIR, path.basename(att.storage_path));
+  res.setHeader("Content-Type", att.mime);
+  res.setHeader("Cache-Control", "private, max-age=86400");
+  res.setHeader(
+    "Content-Disposition",
+    `${att.kind === "file" ? "attachment" : "inline"}; filename="${encodeURIComponent(att.filename)}"`,
+  );
+  fs.createReadStream(filePath)
+    .on("error", () => { if (!res.headersSent) res.status(404).end(); })
+    .pipe(res);
+});
+
 // ─── Push subscription ─────────────────────────────────────────────────────────
 
 app.post("/api/push/subscribe", requireAuth, async (req, res) => {
@@ -1487,6 +1621,12 @@ io.on("connection", async (socket) => {
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
+  // Oversized uploads (past the hard multer ceiling) get a clean 413 instead of
+  // a generic 500.
+  if (err instanceof multer.MulterError) {
+    const msg = err.code === "LIMIT_FILE_SIZE" ? "File is too large (max 100 MB)" : "Upload failed";
+    return res.status(413).json({ error: msg });
+  }
   console.error(err);
   res.status(500).json({ error: "Internal server error" });
 });

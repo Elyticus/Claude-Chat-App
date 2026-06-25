@@ -1,5 +1,6 @@
 import { Fragment } from "react";
-import { Sparkles, X, Languages } from "lucide-react";
+import { Sparkles, X, Languages, FileText, Download } from "lucide-react";
+import { api } from "@/lib/api.js";
 import {
   userBg,
   initials,
@@ -8,6 +9,69 @@ import {
   formatDateSeparator,
 } from "@/lib/helpers.js";
 import { darkBg1, darkBg2, darkBorder, lightBorderMid } from "@/lib/constants.js";
+
+function fmtBytes(n) {
+  if (!n) return "";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function fmtDuration(s) {
+  if (!s) return "";
+  const m = Math.floor(s / 60);
+  return `${m}:${(s % 60).toString().padStart(2, "0")}`;
+}
+
+// Renders an image / voice / file attachment inside a message bubble. Uses the
+// local object URL while a temp message is still uploading, otherwise the
+// auth-gated stream URL.
+function AttachmentBlock({ att, isMine, isDark }) {
+  const url = att.localUrl || api.attachmentUrl(att.id);
+
+  if (att.kind === "image") {
+    return (
+      <a href={url} target="_blank" rel="noreferrer" className="block">
+        <img
+          src={url}
+          alt={att.name || "image"}
+          loading="lazy"
+          className="rounded-lg max-w-full"
+          style={{ maxHeight: 320, objectFit: "cover" }}
+        />
+      </a>
+    );
+  }
+
+  if (att.kind === "voice") {
+    return (
+      <div className="flex items-center gap-2">
+        <audio controls src={url} preload="metadata" style={{ maxWidth: 220, height: 36 }} />
+        {att.duration ? (
+          <span className="text-[11px] shrink-0" style={{ opacity: 0.6 }}>{fmtDuration(att.duration)}</span>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <a
+      href={url}
+      download={att.name}
+      className="flex items-center gap-2.5 rounded-lg px-3 py-2 min-w-45 max-w-full"
+      style={{
+        background: isMine ? "rgba(255,255,255,0.16)" : isDark ? "rgba(99,102,241,0.1)" : "rgba(99,102,241,0.06)",
+      }}
+    >
+      <FileText size={20} className="shrink-0" style={{ opacity: 0.8 }} />
+      <div className="min-w-0 flex-1">
+        <div className="text-xs font-medium truncate">{att.name}</div>
+        <div className="text-[10px]" style={{ opacity: 0.6 }}>{fmtBytes(att.size)}</div>
+      </div>
+      <Download size={15} className="shrink-0" style={{ opacity: 0.7 }} />
+    </a>
+  );
+}
 
 // The scrollable message area: dot-grid texture, fade edges, the load-earlier
 // control, empty state, date separators, system messages, the "New Messages"
@@ -285,13 +349,25 @@ export function MessageList({
                                 }
                         }
                       >
-                        {msg.text}
-                        <span
-                          className="ml-2 text-[10px] whitespace-nowrap"
-                          style={{ opacity: 0.4 }}
-                        >
-                          {formatFullTime(msg.created_at)}
-                        </span>
+                        {msg.attachment ? (
+                          <div className="flex flex-col gap-1.5">
+                            <AttachmentBlock att={msg.attachment} isMine={isMine} isDark={isDark} />
+                            {msg.text ? <span className="text-sm">{msg.text}</span> : null}
+                            <span className="self-end text-[10px]" style={{ opacity: 0.4 }}>
+                              {formatFullTime(msg.created_at)}
+                            </span>
+                          </div>
+                        ) : (
+                          <>
+                            {msg.text}
+                            <span
+                              className="ml-2 text-[10px] whitespace-nowrap"
+                              style={{ opacity: 0.4 }}
+                            >
+                              {formatFullTime(msg.created_at)}
+                            </span>
+                          </>
+                        )}
                       </div>
                       {msg.reaction && (
                         <span

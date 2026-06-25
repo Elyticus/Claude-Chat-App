@@ -12,6 +12,25 @@ function authHeaders() {
   };
 }
 
+// Multipart upload — must NOT set Content-Type (the browser adds the multipart
+// boundary). Preserves the server's gate codes like request() does.
+async function upload(path, formData) {
+  const t = token();
+  const res = await fetch(BASE + path, {
+    method: "POST",
+    headers: t ? { Authorization: `Bearer ${t}` } : {},
+    body: formData,
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    const err = new Error(data.error || "Upload failed");
+    if (data.code) err.code = data.code;
+    if (data.plan) err.plan = data.plan;
+    throw err;
+  }
+  return data;
+}
+
 async function request(method, path, body) {
   const res = await fetch(BASE + path, {
     method,
@@ -146,4 +165,19 @@ export const api = {
 
   // ── Global search ───────────────────────────────────────────────────────────
   searchMessages: (q) => request("GET", `/search?q=${encodeURIComponent(q)}`),
+
+  // ── Attachments (media & voice) ──────────────────────────────────────────────
+  uploadAttachment: (roomId, file, { caption, kind, duration, width, height, socketId } = {}) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    if (caption) fd.append("caption", caption);
+    if (kind) fd.append("kind", kind);
+    if (duration != null) fd.append("duration", String(duration));
+    if (width != null) fd.append("width", String(width));
+    if (height != null) fd.append("height", String(height));
+    if (socketId) fd.append("socketId", socketId);
+    return upload(`/rooms/${roomId}/attachments`, fd);
+  },
+  // Token in the query so <img>/<audio> elements can load private files.
+  attachmentUrl: (id) => `${BASE}/attachments/${id}?token=${encodeURIComponent(token() || "")}`,
 };

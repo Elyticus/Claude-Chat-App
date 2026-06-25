@@ -11,6 +11,33 @@ branches without explicit per-action permission.
 
 A fully functional real-time chat application. Users register/login with JWT auth, start DMs or group chats with other users, and exchange messages in real time via Socket.io. Built with Vite + React on the frontend and Express + Socket.io on the backend, with PostgreSQL as the database.
 
+## Linkloop Pro (SaaS layer)
+
+A monetization + premium-feature layer on top of the core app. **Feature gating is
+enforced server-side** (`server/billing.js` → `requirePlan` / `meterAi` / `getPlan`
+against limits in `server/plans.js`); client gates are UX only. Mirror catalog for
+rendering lives in `src/lib/plans.js`.
+
+- **Plans & paywall** — `users.plan` (free/pro/business), `usage_counters` (daily AI
+  meter), `subscriptions`. Self-contained mock checkout that mirrors Stripe:
+  `POST /api/billing/checkout` → `/confirm` emits an HMAC-signed event to
+  `/webhook` (verified, then plan flips). `GET /api/me` returns live plan + AI
+  usage + `aiEnabled`. UI: `UpgradeModal`, `CheckoutModal`, `useBilling` hook.
+- **AI (Claude)** — `server/ai.js` (Anthropic SDK, key server-side only; degrades to
+  503 when `ANTHROPIC_API_KEY` unset). `POST /api/ai/{summarize,replies,ask,translate}`.
+  UI: Catch-me-up (`AiSummaryModal`), `SmartReplies`, Translate (context menu),
+  `/ask` ephemeral bubble. `useAi` hook routes gate errors to the paywall.
+- **Global search** — Postgres FTS (generated `messages.tsv` + GIN). `GET /api/search`
+  (Pro-gated; membership enforced in SQL). UI: `SearchModal` command palette (Cmd/Ctrl-K).
+- **Media & voice** — `attachments` table; `POST /api/rooms/:roomId/attachments`
+  (multer → `server/uploads/`, plan-gated) broadcasts `message:new`. `GET /api/attachments/:id`
+  streams privately (auth via header or `?token=`, membership-checked). UI: paperclip +
+  mic in `MessageComposer`, rendering in `MessageList`.
+
+Gate-error contract: server returns `402/503` with `{ code: 'UPGRADE_REQUIRED' |
+'QUOTA_EXCEEDED' | 'AI_UNAVAILABLE', plan }`; the client's `api` wrappers preserve
+`code`/`plan` on the thrown Error so `useBilling.handleGateError` can open the paywall.
+
 ## Architecture
 
 ```
@@ -182,6 +209,12 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE
 DATABASE_SSL=          # blank = TLS on but cert unverified; "strict" = validate; "disable" = no TLS
 DATABASE_CA=           # PEM root cert, used when DATABASE_SSL=strict and the provider uses a private CA
 TRUST_PROXY=           # set (e.g. 1) when behind a reverse proxy so rate limiting keys on the real client IP
+DB_CONNECT_TIMEOUT_MS= # pg connect timeout (default 5000); raise for a slow/cold remote pooler
+
+# ── Linkloop Pro ──
+ANTHROPIC_API_KEY=       # enables AI features; without it AI endpoints 503 and the UI hides them
+ANTHROPIC_MODEL=         # default claude-opus-4-8; set claude-haiku-4-5 / claude-sonnet-4-6 for cost
+BILLING_WEBHOOK_SECRET=  # HMAC secret for the (mock) billing webhook; required in production
 ```
 
 `DATABASE_URL` is required — the server will fail to connect to the DB and return empty responses (causing `JSON.parse` errors on the client) if it is missing. Get your connection string from TablePlus: open your connection → Edit → copy Host, Port, User, Password, Database and compose the URL above.

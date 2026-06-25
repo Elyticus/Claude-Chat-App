@@ -667,6 +667,59 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
     inputRef.current?.focus();
   }, [inputText, activeRoomId, currentUser, stopTyping, ai, billing]);
 
+  // Upload an image / file / voice note. Optimistic temp bubble (with a local
+  // preview for images) → REST upload → swap for the real message on ack. Other
+  // members receive it via the server's message:new broadcast.
+  const handleUploadAttachment = useCallback(
+    (file, opts = {}) => {
+      if (!file || !activeRoomId) return;
+      const roomId = activeRoomId;
+      const localUrl = URL.createObjectURL(file);
+      const tempId = `temp_att_${Date.now()}`;
+      const tempMsg = {
+        id: tempId,
+        text: opts.caption || "",
+        user_id: currentUser.id,
+        username: currentUser.username,
+        created_at: Math.floor(Date.now() / 1000),
+        reaction: null,
+        temp: true,
+        attachment: {
+          kind: opts.kind,
+          name: file.name,
+          mime: file.type,
+          size: file.size,
+          duration: opts.duration ?? null,
+          width: opts.width ?? null,
+          height: opts.height ?? null,
+          localUrl,
+        },
+      };
+      setMessages((prev) => ({
+        ...prev,
+        [roomId]: [...(prev[roomId] || []), tempMsg],
+      }));
+      api
+        .uploadAttachment(roomId, file, { ...opts, socketId: socketRef.current?.id })
+        .then(({ message }) => {
+          URL.revokeObjectURL(localUrl);
+          setMessages((prev) => ({
+            ...prev,
+            [roomId]: (prev[roomId] || []).map((m) => (m.id === tempId ? message : m)),
+          }));
+        })
+        .catch((err) => {
+          URL.revokeObjectURL(localUrl);
+          setMessages((prev) => ({
+            ...prev,
+            [roomId]: (prev[roomId] || []).filter((m) => m.id !== tempId),
+          }));
+          if (!billing.handleGateError(err)) setToast(err.message || "Upload failed");
+        });
+    },
+    [activeRoomId, currentUser, billing],
+  );
+
   const handleKeyDown = useCallback(
     (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
@@ -920,6 +973,9 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
           setInputText(t);
           inputRef.current?.focus();
         }}
+        onUploadAttachment={handleUploadAttachment}
+        voiceEnabled={billing.plan === "pro" || billing.plan === "business"}
+        onRequireUpgrade={(reason) => billing.openUpgrade(reason)}
       />
 
       <ChatModals
