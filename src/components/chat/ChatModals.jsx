@@ -79,6 +79,8 @@ export function ChatModals({
   handlePinMessage,
   handleUnpinMessage,
   handleEditChannel,
+  aiEnabled,
+  onTranslate,
 }) {
   return (
     <>
@@ -220,6 +222,8 @@ export function ChatModals({
           isDark={isDark}
           isChannel={!!isActiveChannel}
           myRole={myActiveRole}
+          aiEnabled={aiEnabled}
+          onTranslate={onTranslate}
         />
       )}
 

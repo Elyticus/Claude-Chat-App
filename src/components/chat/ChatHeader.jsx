@@ -7,6 +7,7 @@ import {
   Users,
   Trash2,
   Lock,
+  Sparkles,
 } from "lucide-react";
 import { Avatar } from "../ui/Avatar.jsx";
 import { TypingIndicator } from "../ui/TypingIndicator.jsx";
@@ -36,8 +37,17 @@ export function ChatHeader({
   onCopySlug,
   onOpenMembers,
   onDeleteRoom,
+  aiEnabled,
+  onCatchUp,
 }) {
   const actions = [
+    {
+      icon: <Sparkles size={16} />,
+      active: false,
+      onClick: onCatchUp,
+      title: "Catch me up (AI summary)",
+      show: !!aiEnabled,
+    },
     {
       icon: <Search size={16} />,
       active: searchActive,

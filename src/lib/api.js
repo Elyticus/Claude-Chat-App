@@ -136,4 +136,11 @@ export const api = {
   confirmCheckout: (checkoutId, plan) =>
     request("POST", "/billing/confirm", { checkoutId, plan }),
   cancelPlan: () => request("POST", "/billing/cancel"),
+
+  // ── AI (Claude) ─────────────────────────────────────────────────────────────
+  aiSummarize: (roomId) => request("POST", "/ai/summarize", { roomId }),
+  aiReplies: (roomId) => request("POST", "/ai/replies", { roomId }),
+  aiAsk: (roomId, question) => request("POST", "/ai/ask", { roomId, question }),
+  aiTranslate: (messageId, targetLang) =>
+    request("POST", "/ai/translate", { messageId, targetLang }),
 };

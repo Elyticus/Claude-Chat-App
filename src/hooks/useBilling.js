@@ -7,6 +7,7 @@ import { api } from "../lib/api.js";
 // paywall when the server returns UPGRADE_REQUIRED / QUOTA_EXCEEDED.
 export function useBilling({ currentUser, onUserUpdate }) {
   const [plan, setPlan] = useState(currentUser.plan || "free");
+  const [aiEnabled, setAiEnabled] = useState(false);
   const [aiUsedToday, setAiUsedToday] = useState(0);
   const [aiLimit, setAiLimit] = useState(null);
   // Upgrade (pricing) modal: { reason } | null
@@ -22,6 +23,7 @@ export function useBilling({ currentUser, onUserUpdate }) {
       .then((me) => {
         if (!alive) return;
         setPlan(me.plan);
+        setAiEnabled(!!me.aiEnabled);
         setAiUsedToday(me.aiUsedToday ?? 0);
         setAiLimit(me.aiLimit ?? null);
         if (me.plan !== currentUser.plan) onUserUpdate?.({ plan: me.plan });
@@ -70,6 +72,7 @@ export function useBilling({ currentUser, onUserUpdate }) {
 
   return {
     plan,
+    aiEnabled,
     aiUsedToday,
     aiLimit,
     isPro: plan === "pro" || plan === "business",

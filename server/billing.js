@@ -11,6 +11,7 @@ import {
   planAtLeast,
   todayKey,
 } from "./plans.js";
+import { aiReady } from "./ai.js";
 
 // A signing secret is required to verify webhook authenticity. Falls back to a
 // dev-only constant so the app runs out of the box, with a warning — production
@@ -91,6 +92,16 @@ export function consumeQuota(queries, metric) {
   };
 }
 
+// Meter a single AI action after the request has been authorized (membership
+// checked). Increments today's bucket and reports whether the plan's daily cap
+// is exceeded. Pro/Business have an Infinity cap → always allowed.
+export async function meterAi(queries, userId) {
+  const plan = await getPlan(queries, userId);
+  const limit = planConfig(plan).aiActionsPerDay;
+  const count = await queries.incrementUsage.run(userId, "ai", todayKey());
+  return { allowed: count <= limit, plan, limit, count };
+}
+
 // Apply a confirmed subscription event to a user. Shared by the public webhook
 // route and the confirm route (which emits the same signed event internally).
 async function applyCheckoutCompleted(queries, event) {
@@ -124,6 +135,7 @@ export function registerBillingRoutes(app, { queries, requireAuth, limiter }) {
     res.json({
       ...user,
       plan,
+      aiEnabled: aiReady,
       aiUsedToday: used,
       aiLimit: planConfig(plan).aiActionsPerDay === Infinity ? null : planConfig(plan).aiActionsPerDay,
     });

@@ -13,8 +13,9 @@ import { validate as uuidValidate } from "uuid";
 
 import { queries, initDb } from "./db.js";
 import { generateToken, verifyToken } from "./auth.js";
-import { registerBillingRoutes, requirePlan, consumeQuota, getPlan } from "./billing.js";
+import { registerBillingRoutes, getPlan, meterAi } from "./billing.js";
 import { planConfig } from "./plans.js";
+import { aiReady, summarizeThread, suggestReplies, assistantAsk, translate } from "./ai.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -1120,6 +1121,103 @@ app.delete("/api/messages/:messageId", requireAuth, async (req, res) => {
   await queries.deleteMessageById.run(messageId);
   io.to(`room:${msg.room_id}`).emit("message:deleted", { roomId: msg.room_id, messageId });
   res.json({ ok: true });
+});
+
+// ─── AI features (Linkloop Pro) ─────────────────────────────────────────────────
+// Every AI route: requireAuth + per-IP aiLimiter, then membership check, then a
+// per-user daily quota meter (free tier capped; Pro/Business unlimited). Returns
+// 503 AI_UNAVAILABLE when no key is configured so the client hides AI UI.
+
+// Shared preconditions; returns false (and sends the response) when blocked.
+async function ensureRoomForAi(req, res, roomId) {
+  if (!aiReady) {
+    res.status(503).json({ error: "AI features are not configured", code: "AI_UNAVAILABLE" });
+    return false;
+  }
+  if (!isId(roomId)) { res.status(400).json({ error: "Invalid roomId" }); return false; }
+  if (!(await queries.isMember.get(roomId, req.user.id))) {
+    res.status(403).json({ error: "Not a member of this room" });
+    return false;
+  }
+  return true;
+}
+
+async function gateAiQuota(req, res) {
+  const meter = await meterAi(queries, req.user.id);
+  if (!meter.allowed) {
+    res.status(402).json({
+      error: "You've reached today's AI limit on the Free plan",
+      code: "QUOTA_EXCEEDED", plan: meter.plan, limit: meter.limit,
+    });
+    return false;
+  }
+  return true;
+}
+
+// Map Anthropic/SDK failures to a clean client message instead of a bare 500.
+async function runAi(res, fn) {
+  try {
+    return await fn();
+  } catch (err) {
+    console.error("[ai] request failed:", err.status || "", err.message?.slice(0, 120));
+    res.status(502).json({ error: "The AI service is busy right now — please try again." });
+    return undefined;
+  }
+}
+
+app.post("/api/ai/summarize", requireAuth, aiLimiter, async (req, res) => {
+  const { roomId } = req.body ?? {};
+  if (!(await ensureRoomForAi(req, res, roomId))) return;
+  if (!(await gateAiQuota(req, res))) return;
+  const room = await queries.getRoomById.get(roomId);
+  const { messages } = await queries.getRoomMessages.page(roomId, null);
+  const summary = await runAi(res, () => summarizeThread(messages, { roomName: room?.name }));
+  if (summary === undefined) return;
+  res.json({ summary });
+});
+
+app.post("/api/ai/replies", requireAuth, aiLimiter, async (req, res) => {
+  const { roomId } = req.body ?? {};
+  if (!(await ensureRoomForAi(req, res, roomId))) return;
+  if (!(await gateAiQuota(req, res))) return;
+  const { messages } = await queries.getRoomMessages.page(roomId, null);
+  const suggestions = await runAi(res, () => suggestReplies(messages, { selfName: req.user.username }));
+  if (suggestions === undefined) return;
+  res.json({ suggestions });
+});
+
+app.post("/api/ai/ask", requireAuth, aiLimiter, async (req, res) => {
+  const { roomId, question } = req.body ?? {};
+  if (typeof question !== "string" || !question.trim() || question.length > 1000) {
+    return res.status(400).json({ error: "A question (max 1,000 characters) is required" });
+  }
+  if (!(await ensureRoomForAi(req, res, roomId))) return;
+  if (!(await gateAiQuota(req, res))) return;
+  const room = await queries.getRoomById.get(roomId);
+  const { messages } = await queries.getRoomMessages.page(roomId, null);
+  const answer = await runAi(res, () => assistantAsk(messages, question.trim(), { roomName: room?.name }));
+  if (answer === undefined) return;
+  res.json({ answer });
+});
+
+app.post("/api/ai/translate", requireAuth, aiLimiter, async (req, res) => {
+  if (!aiReady) {
+    return res.status(503).json({ error: "AI features are not configured", code: "AI_UNAVAILABLE" });
+  }
+  const { messageId, targetLang } = req.body ?? {};
+  if (!isId(messageId)) return res.status(400).json({ error: "Invalid messageId" });
+  if (typeof targetLang !== "string" || !targetLang.trim() || targetLang.length > 40) {
+    return res.status(400).json({ error: "Invalid target language" });
+  }
+  const msg = await queries.getMessageById.get(messageId);
+  if (!msg) return res.status(404).json({ error: "Message not found" });
+  if (!(await queries.isMember.get(msg.room_id, req.user.id))) {
+    return res.status(403).json({ error: "Not a member of this room" });
+  }
+  if (!(await gateAiQuota(req, res))) return;
+  const text = await runAi(res, () => translate(msg.text, targetLang.trim()));
+  if (text === undefined) return;
+  res.json({ text });
 });
 
 // ─── Push subscription ─────────────────────────────────────────────────────────

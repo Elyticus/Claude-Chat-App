@@ -13,11 +13,13 @@ import {
   MAX_MESSAGE_LENGTH,
 } from "./hooks/useChatDerivedState.js";
 import { useBilling } from "./hooks/useBilling.js";
+import { useAi } from "./hooks/useAi.js";
 import { OrbitalHub } from "./components/OrbitalHub.jsx";
 import { ChatPanel } from "./components/chat/ChatPanel.jsx";
 import { ChatModals } from "./components/chat/ChatModals.jsx";
 import { UpgradeModal } from "./components/UpgradeModal.jsx";
 import { CheckoutModal } from "./components/CheckoutModal.jsx";
+import { AiSummaryModal } from "./components/AiSummaryModal.jsx";
 import {
   darkBg0,
   lightBg0,
@@ -28,6 +30,7 @@ import {
 
 export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) {
   const billing = useBilling({ currentUser, onUserUpdate });
+  const ai = useAi({ enabled: billing.aiEnabled, onGateError: billing.handleGateError });
   const [rooms, setRooms] = useState([]);
   const [activeRoomId, setActiveRoomId] = useState(null);
   const [displayRoomId, setDisplayRoomId] = useState(null);
@@ -573,6 +576,55 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
   const sendMessage = useCallback(() => {
     const text = inputText.trim();
     if (!text || !activeRoomId || !socketRef.current) return;
+
+    // "/ask <question>" — in-chat AI assistant. Renders the question as the
+    // user's own bubble plus an ephemeral AI answer bubble. Nothing is sent to
+    // the server or other members; it's a local, private assistant turn.
+    if (ai.enabled && /^\/ask\s+/i.test(text)) {
+      const question = text.replace(/^\/ask\s+/i, "").trim();
+      if (!question) return;
+      const now = Math.floor(Date.now() / 1000);
+      const qId = `ask_q_${Date.now()}`;
+      const aId = `ask_a_${Date.now()}`;
+      const roomForAsk = activeRoomId;
+      setMessages((prev) => ({
+        ...prev,
+        [roomForAsk]: [
+          ...(prev[roomForAsk] || []),
+          { id: qId, text: question, user_id: currentUser.id, username: currentUser.username, created_at: now, reaction: null, ephemeral: true },
+          { id: aId, text: "", ai: true, aiLoading: true, created_at: now },
+        ],
+      }));
+      setInputText("");
+      stopTyping();
+      ai.runAsk(roomForAsk, question)
+        .then((answer) => {
+          setMessages((prev) => ({
+            ...prev,
+            [roomForAsk]: (prev[roomForAsk] || []).map((m) =>
+              m.id === aId ? { ...m, text: answer, aiLoading: false } : m,
+            ),
+          }));
+        })
+        .catch((err) => {
+          if (billing.handleGateError(err)) {
+            setMessages((prev) => ({
+              ...prev,
+              [roomForAsk]: (prev[roomForAsk] || []).filter((m) => m.id !== aId && m.id !== qId),
+            }));
+          } else {
+            setMessages((prev) => ({
+              ...prev,
+              [roomForAsk]: (prev[roomForAsk] || []).map((m) =>
+                m.id === aId ? { ...m, text: err.message || "The AI couldn't answer that.", aiLoading: false } : m,
+              ),
+            }));
+          }
+        });
+      inputRef.current?.focus();
+      return;
+    }
+
     // Over-limit feedback is shown live by the counter bar above the input;
     // this guard just makes sure nothing slips through to the server.
     if (text.length > MAX_MESSAGE_LENGTH) return;
@@ -598,7 +650,7 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
     setInputText("");
     stopTyping();
     inputRef.current?.focus();
-  }, [inputText, activeRoomId, currentUser, stopTyping]);
+  }, [inputText, activeRoomId, currentUser, stopTyping, ai, billing]);
 
   const handleKeyDown = useCallback(
     (e) => {
@@ -847,6 +899,11 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
         handleKeyDown={handleKeyDown}
         stopTyping={stopTyping}
         sendMessage={sendMessage}
+        ai={ai}
+        onFillInput={(t) => {
+          setInputText(t);
+          inputRef.current?.focus();
+        }}
       />
 
       <ChatModals
@@ -915,6 +972,8 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
         handlePinMessage={handlePinMessage}
         handleUnpinMessage={handleUnpinMessage}
         handleEditChannel={handleEditChannel}
+        aiEnabled={ai.enabled}
+        onTranslate={(msg) => ai.translateMessage(msg.id)}
       />
 
       {/* Pro upgrade flow — pricing sheet + mock checkout (above all overlays) */}
@@ -936,6 +995,9 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
           onClose={billing.cancelCheckout}
         />
       )}
+
+      {/* AI "Catch me up" summary */}
+      <AiSummaryModal summary={ai.summary} isDark={isDark} onClose={ai.closeSummary} />
     </div>
   );
 }
