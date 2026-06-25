@@ -12,9 +12,12 @@ import {
   useChatDerivedState,
   MAX_MESSAGE_LENGTH,
 } from "./hooks/useChatDerivedState.js";
+import { useBilling } from "./hooks/useBilling.js";
 import { OrbitalHub } from "./components/OrbitalHub.jsx";
 import { ChatPanel } from "./components/chat/ChatPanel.jsx";
 import { ChatModals } from "./components/chat/ChatModals.jsx";
+import { UpgradeModal } from "./components/UpgradeModal.jsx";
+import { CheckoutModal } from "./components/CheckoutModal.jsx";
 import {
   darkBg0,
   lightBg0,
@@ -23,7 +26,8 @@ import {
   specialBg1,
 } from "./lib/constants.js";
 
-export default function ChatApp({ token, currentUser, onLogout }) {
+export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) {
+  const billing = useBilling({ currentUser, onUserUpdate });
   const [rooms, setRooms] = useState([]);
   const [activeRoomId, setActiveRoomId] = useState(null);
   const [displayRoomId, setDisplayRoomId] = useState(null);
@@ -852,6 +856,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         contacts={contacts}
         allUsers={allUsers}
         currentUser={currentUser}
+        plan={billing.plan}
+        onUpgrade={() => billing.openUpgrade()}
+        onCancelPlan={billing.cancelPlan}
         pendingUsers={pendingUsers}
         friendNotifs={friendNotifs}
         showFriends={showFriends}
@@ -909,6 +916,26 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         handleUnpinMessage={handleUnpinMessage}
         handleEditChannel={handleEditChannel}
       />
+
+      {/* Pro upgrade flow — pricing sheet + mock checkout (above all overlays) */}
+      {billing.upgrade && (
+        <UpgradeModal
+          currentPlan={billing.plan}
+          reason={billing.upgrade.reason}
+          isDark={isDark}
+          onSelect={(planId) => billing.beginCheckout(planId).catch(console.error)}
+          onClose={billing.closeUpgrade}
+        />
+      )}
+      {billing.checkout && (
+        <CheckoutModal
+          plan={billing.checkout.plan}
+          price={billing.checkout.price}
+          isDark={isDark}
+          onPay={billing.completeCheckout}
+          onClose={billing.cancelCheckout}
+        />
+      )}
     </div>
   );
 }

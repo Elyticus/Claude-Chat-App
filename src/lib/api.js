@@ -19,7 +19,14 @@ async function request(method, path, body) {
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Request failed");
+  if (!res.ok) {
+    // Preserve the server's machine-readable gate codes (UPGRADE_REQUIRED /
+    // QUOTA_EXCEEDED / AI_UNAVAILABLE) so callers can route to the upgrade flow.
+    const err = new Error(data.error || "Request failed");
+    if (data.code) err.code = data.code;
+    if (data.plan) err.plan = data.plan;
+    throw err;
+  }
   return data;
 }
 
@@ -121,4 +128,12 @@ export const api = {
 
   pushUnsubscribe: (endpoint) =>
     request("DELETE", "/push/unsubscribe", { endpoint }),
+
+  // ── Billing & plans ────────────────────────────────────────────────────────
+  getMe: () => request("GET", "/me"),
+  getPlans: () => request("GET", "/billing/plans"),
+  startCheckout: (plan) => request("POST", "/billing/checkout", { plan }),
+  confirmCheckout: (checkoutId, plan) =>
+    request("POST", "/billing/confirm", { checkoutId, plan }),
+  cancelPlan: () => request("POST", "/billing/cancel"),
 };

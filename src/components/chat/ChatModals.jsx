@@ -20,6 +20,9 @@ export function ChatModals({
   contacts,
   allUsers,
   currentUser,
+  plan,
+  onUpgrade,
+  onCancelPlan,
   pendingUsers,
   friendNotifs,
   showFriends,
@@ -107,6 +110,12 @@ export function ChatModals({
           currentUser={currentUser}
           myAvatar={myAvatar}
           isDark={isDark}
+          plan={plan}
+          onUpgrade={() => {
+            setShowAccount(false);
+            onUpgrade?.();
+          }}
+          onCancelPlan={onCancelPlan}
           onChangeAvatar={() => avatarFileRef.current?.click()}
           onLogout={() => {
             setShowAccount(false);

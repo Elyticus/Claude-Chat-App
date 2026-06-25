@@ -184,6 +184,33 @@ export async function initDb() {
       last_seen     BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
     );
     ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT;
+    -- ── Plans & billing (Linkloop Pro) ──────────────────────────────────────
+    -- plan is the source of truth for feature gating; it can change within a
+    -- token's 7-day life, so gating middleware reads it from the DB (not JWT).
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT DEFAULT 'free';
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS plan_status TEXT DEFAULT 'active';
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS plan_since BIGINT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS current_period_end BIGINT;
+    -- Per-user, per-day usage meter (e.g. free-tier AI actions). period_day is
+    -- a 'YYYY-MM-DD' string so a simple UPSERT increments today's bucket.
+    CREATE TABLE IF NOT EXISTS usage_counters (
+      user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      metric     TEXT NOT NULL,
+      period_day TEXT NOT NULL,
+      count      INT  NOT NULL DEFAULT 0,
+      PRIMARY KEY (user_id, metric, period_day)
+    );
+    -- Mock-billing audit trail — one row per checkout (mirrors a Stripe sub).
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id                 UUID PRIMARY KEY,
+      user_id            UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      plan               TEXT NOT NULL,
+      status             TEXT NOT NULL DEFAULT 'pending',
+      checkout_id        TEXT NOT NULL,
+      started_at         BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT,
+      current_period_end BIGINT
+    );
+    CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
     CREATE TABLE IF NOT EXISTS pending_verifications (
       email         TEXT PRIMARY KEY,
       username      TEXT NOT NULL,
@@ -276,6 +303,9 @@ export const queries = {
   // authenticated user) and internal username lookups; returning other
   // users' email addresses would leak PII.
   getUserById:       { get: (id)       => q("SELECT id, username, last_seen, avatar FROM users WHERE id = $1", [id]).then(r => r.rows[0] ?? null) },
+  // Self-view for GET /api/me — includes email + plan (only ever returned to
+  // the authenticated owner, never via the public /api/users/:id route).
+  getSelfById:       { get: (id)       => q("SELECT id, username, email, avatar, plan, plan_status, current_period_end FROM users WHERE id = $1", [id]).then(r => r.rows[0] ?? null) },
   getUsersWithStatus: {
     all: (currentUserId) =>
       q(`SELECT u.id, u.username, u.last_seen, u.avatar,
@@ -342,6 +372,45 @@ export const queries = {
   touchUser:      { run: (id)           => q("UPDATE users SET last_seen = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $1", [id]) },
   updateAvatar:   { run: (id, avatar)   => q("UPDATE users SET avatar = $1 WHERE id = $2", [avatar, id]) },
   updatePassword: { run: (hash, email)  => q("UPDATE users SET password_hash = $1 WHERE email = $2", [hash, email]) },
+
+  // ── Plans & billing ──────────────────────────────────────────────────────
+  // Lightweight plan lookup for gating middleware (one indexed PK read).
+  getUserPlan: {
+    get: (id) =>
+      q("SELECT plan, plan_status, plan_since, current_period_end FROM users WHERE id = $1", [id])
+        .then(r => r.rows[0] ?? null),
+  },
+  setUserPlan: {
+    run: (id, plan, status, periodEnd) =>
+      q(`UPDATE users SET plan = $2, plan_status = $3,
+                plan_since = EXTRACT(EPOCH FROM NOW())::BIGINT, current_period_end = $4
+         WHERE id = $1`, [id, plan, status, periodEnd]),
+  },
+  setPlanStatus: {
+    run: (id, status) => q("UPDATE users SET plan_status = $2 WHERE id = $1", [id, status]),
+  },
+  createSubscription: {
+    run: (id, userId, plan, status, checkoutId, periodEnd) =>
+      q(`INSERT INTO subscriptions (id, user_id, plan, status, checkout_id, current_period_end)
+         VALUES ($1, $2, $3, $4, $5, $6)`, [id, userId, plan, status, checkoutId, periodEnd]),
+  },
+
+  // ── Usage metering ───────────────────────────────────────────────────────
+  // Atomic increment of today's bucket; returns the new count so the caller
+  // can enforce a per-day quota in one round-trip.
+  incrementUsage: {
+    run: (userId, metric, periodDay) =>
+      q(`INSERT INTO usage_counters (user_id, metric, period_day, count)
+         VALUES ($1, $2, $3, 1)
+         ON CONFLICT (user_id, metric, period_day)
+         DO UPDATE SET count = usage_counters.count + 1
+         RETURNING count`, [userId, metric, periodDay]).then(r => r.rows[0].count),
+  },
+  getUsage: {
+    get: (userId, metric, periodDay) =>
+      q("SELECT count FROM usage_counters WHERE user_id = $1 AND metric = $2 AND period_day = $3",
+        [userId, metric, periodDay]).then(r => r.rows[0]?.count ?? 0),
+  },
 
   upsertResetToken: {
     run: (email, code, expiresAt) =>

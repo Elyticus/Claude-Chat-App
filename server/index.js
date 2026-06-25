@@ -13,6 +13,8 @@ import { validate as uuidValidate } from "uuid";
 
 import { queries, initDb } from "./db.js";
 import { generateToken, verifyToken } from "./auth.js";
+import { registerBillingRoutes, requirePlan, consumeQuota, getPlan } from "./billing.js";
+import { planConfig } from "./plans.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -237,6 +239,25 @@ const avatarLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Billing actions (checkout / confirm / cancel) — modest cap.
+const billingLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 60,
+  message: { error: "Too many billing requests — slow down" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// AI endpoints are the most expensive call surface — keep a hard per-IP ceiling
+// in addition to the per-user daily quota (consumeQuota).
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: { error: "Too many AI requests — slow down" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // ─── Presence ──────────────────────────────────────────────────────────────────
 const online = new Map();
 
@@ -334,7 +355,7 @@ app.post("/api/auth/verify", authLimiter, async (req, res) => {
   const { lastInsertRowid: id } = await queries.createUser.run(pending.username, pending.email, pending.password_hash);
   await queries.deletePending.run(email);
 
-  const user = { id, username: pending.username, email: pending.email, avatar: null };
+  const user = { id, username: pending.username, email: pending.email, avatar: null, plan: "free" };
   res.status(201).json({ token: generateToken(user), user });
 });
 
@@ -409,9 +430,12 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
     return res.status(401).json({ error: "Invalid email or password" });
   }
 
-  const user = { id: row.id, username: row.username, email: row.email, avatar: row.avatar || null };
+  const user = { id: row.id, username: row.username, email: row.email, avatar: row.avatar || null, plan: row.plan || "free" };
   res.json({ token: generateToken(user), user });
 });
+
+// ─── Billing & plans (Linkloop Pro) ─────────────────────────────────────────────
+registerBillingRoutes(app, { queries, requireAuth, limiter: billingLimiter });
 
 // ─── REST: Users ───────────────────────────────────────────────────────────────
 
@@ -576,6 +600,16 @@ app.post("/api/rooms/group", requireAuth, async (req, res) => {
   }
   if (userIds.length > 49) {
     return res.status(400).json({ error: "Groups are limited to 50 members" });
+  }
+  // Plan gate: Free caps group size; Pro/Business unlock the full 50.
+  const creatorPlan = await getPlan(queries, req.user.id);
+  const maxGroup = planConfig(creatorPlan).maxGroupSize;
+  if (userIds.length + 1 > maxGroup) {
+    return res.status(402).json({
+      error: `Your plan allows groups up to ${maxGroup} members — upgrade for larger groups`,
+      code: "UPGRADE_REQUIRED",
+      plan: creatorPlan,
+    });
   }
   if (userIds.some((uid) => !isId(uid))) {
     return res.status(400).json({ error: "Invalid member id" });
