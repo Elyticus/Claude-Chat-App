@@ -155,6 +155,7 @@ export const api = {
   confirmCheckout: (checkoutId, plan) =>
     request("POST", "/billing/confirm", { checkoutId, plan }),
   cancelPlan: () => request("POST", "/billing/cancel"),
+  resumePlan: () => request("POST", "/billing/resume"),
 
   // ── AI (Claude) ─────────────────────────────────────────────────────────────
   aiSummarize: (roomId) => request("POST", "/ai/summarize", { roomId }),

@@ -189,6 +189,18 @@ export function registerBillingRoutes(app, { queries, requireAuth, limiter }) {
     await queries.setPlanStatus.run(req.user.id, "canceled");
     res.json({ ok: true });
   });
+
+  // Resume — re-activate a canceled subscription that is still within its paid
+  // period, so it renews instead of lapsing to free. If the period already
+  // elapsed (effective plan is free), there's nothing to resume — re-subscribe.
+  app.post("/api/billing/resume", requireAuth, limiter, async (req, res) => {
+    const user = await queries.getSelfById.get(req.user.id);
+    if (!user || effectivePlan(user) === "free") {
+      return res.status(400).json({ error: "No active plan to resume — start a new subscription" });
+    }
+    await queries.setPlanStatus.run(req.user.id, "active");
+    res.json({ ok: true, plan: effectivePlan(user) });
+  });
 }
 
 async function processWebhook(queries, rawBody, signature) {

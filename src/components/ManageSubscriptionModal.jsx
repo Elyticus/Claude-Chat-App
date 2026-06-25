@@ -29,24 +29,41 @@ export function ManageSubscriptionModal({
   periodEnd,
   isDark,
   onCancel,
+  onResume,
   onChangePlan,
   onClose,
 }) {
-  const [view, setView] = useState("idle"); // idle | confirming | done
+  const [view, setView] = useState("idle"); // idle | confirming
+  // Track status changes the user makes in-session so the sheet updates without
+  // a re-fetch: null = unchanged, "canceled" / "active" = the new local status.
+  const [localStatus, setLocalStatus] = useState(null);
   const [busy, setBusy] = useState(false);
 
   const headerColor = isDark ? "#eef2ff" : "#0f172a";
   const subColor = isDark ? "rgba(165,180,252,0.6)" : "#64748b";
   const endsOn = fmtDate(periodEnd);
-  const canceled = planStatus === "canceled" || view === "done";
+  const canceled = (localStatus ?? planStatus) === "canceled";
 
   async function confirmCancel() {
     setBusy(true);
     try {
       await onCancel();
-      setView("done");
+      setLocalStatus("canceled");
+      setView("idle");
     } catch {
       // leave the confirm step up so the user can retry
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleResume() {
+    setBusy(true);
+    try {
+      await onResume();
+      setLocalStatus("active");
+    } catch {
+      // ignore — status stays canceled, user can retry
     } finally {
       setBusy(false);
     }
@@ -119,19 +136,14 @@ export function ManageSubscriptionModal({
             </div>
           )}
 
-          {view === "done" ? (
-            <p className="mt-4 text-sm" style={{ color: subColor }}>
-              Your subscription was canceled. You keep {planLabel(plan)} until{" "}
-              {endsOn || "the end of the current period"}.
-            </p>
-          ) : view === "confirming" ? (
+          {view === "confirming" ? (
             <div className="mt-4">
               <p className="text-sm font-medium" style={{ color: headerColor }}>
                 Cancel your {planLabel(plan)} subscription?
               </p>
               <p className="text-xs mt-1" style={{ color: subColor }}>
                 You&apos;ll keep {planLabel(plan)} features until{" "}
-                {endsOn || "the period ends"}.
+                {endsOn || "the period ends"}, then it returns to Free.
               </p>
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <button
@@ -155,6 +167,32 @@ export function ManageSubscriptionModal({
                 </button>
               </div>
             </div>
+          ) : canceled ? (
+            <div className="mt-5 space-y-2">
+              <p className="text-xs mb-1" style={{ color: subColor }}>
+                Your subscription is canceled. Resume to keep {planLabel(plan)} and
+                let it renew.
+              </p>
+              <button
+                onClick={handleResume}
+                disabled={busy}
+                className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all"
+                style={{ background: "linear-gradient(135deg,#10b981,#059669)", color: "#fff" }}
+              >
+                {busy ? "Resuming…" : "Resume subscription"}
+              </button>
+              <button
+                onClick={onChangePlan}
+                disabled={busy}
+                className="w-full py-2.5 rounded-xl text-sm font-medium transition-all"
+                style={{
+                  background: isDark ? "rgba(255,255,255,0.05)" : "rgba(15,23,42,0.04)",
+                  color: subColor,
+                }}
+              >
+                Change plan
+              </button>
+            </div>
           ) : (
             <div className="mt-5 space-y-2">
               <button
@@ -162,20 +200,18 @@ export function ManageSubscriptionModal({
                 className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all"
                 style={{ background: "linear-gradient(135deg,#6366f1,#3b82f6)", color: "#fff" }}
               >
-                {canceled ? "Resume / change plan" : "Change plan"}
+                Change plan
               </button>
-              {!canceled && (
-                <button
-                  onClick={() => setView("confirming")}
-                  className="w-full py-2.5 rounded-xl text-sm font-medium transition-all"
-                  style={{
-                    background: isDark ? "rgba(255,255,255,0.05)" : "rgba(15,23,42,0.04)",
-                    color: subColor,
-                  }}
-                >
-                  Cancel subscription
-                </button>
-              )}
+              <button
+                onClick={() => setView("confirming")}
+                className="w-full py-2.5 rounded-xl text-sm font-medium transition-all"
+                style={{
+                  background: isDark ? "rgba(255,255,255,0.05)" : "rgba(15,23,42,0.04)",
+                  color: subColor,
+                }}
+              >
+                Cancel subscription
+              </button>
             </div>
           )}
         </div>

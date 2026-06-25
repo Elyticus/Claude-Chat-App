@@ -25,7 +25,6 @@ export const PLANS = {
       "Unlimited 1-1 and group chats",
       "Image sharing up to 5 MB",
       "10 AI actions / day",
-      "Search the current conversation",
       "Groups up to 10 members",
       "1 channel",
     ],

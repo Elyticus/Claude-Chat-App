@@ -128,16 +128,18 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
   }
 
   // Cmd/Ctrl-K opens the global search palette (desktop power-user shortcut).
+  // Search is a Pro feature, so the shortcut only works for paid plans — mirrors
+  // the hidden hub button.
   useEffect(() => {
     const onKey = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setShowSearch((v) => !v);
+        if (billing.isPro) setShowSearch((v) => !v);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [billing.isPro]);
 
   // Light/dark toggle. From special mode (isDark, shows Sun) it lands on light.
   function toggleTheme() {
@@ -914,7 +916,8 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
         theme={theme}
         onToggleTheme={toggleTheme}
         onToggleSpecial={toggleSpecial}
-        specialLocked={!billing.isPro}
+        canSpecial={billing.isPro}
+        canSearch={billing.isPro}
         onOpenPlans={() => billing.openUpgrade()}
         pendingCount={pendingRequestCount}
         pendingUsers={pendingUsers}
@@ -1094,6 +1097,7 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
           periodEnd={billing.periodEnd}
           isDark={isDark}
           onCancel={billing.cancelPlan}
+          onResume={billing.resumePlan}
           onChangePlan={() => {
             setShowManageSub(false);
             billing.openUpgrade();

@@ -78,6 +78,12 @@ export function useBilling({ currentUser, onUserUpdate }) {
     setPlanStatus("canceled");
   }, []);
 
+  // Resume a canceled-but-still-active subscription.
+  const resumePlan = useCallback(async () => {
+    await api.resumePlan();
+    setPlanStatus("active");
+  }, []);
+
   return {
     plan,
     planStatus,
@@ -95,5 +101,6 @@ export function useBilling({ currentUser, onUserUpdate }) {
     completeCheckout,
     cancelCheckout,
     cancelPlan,
+    resumePlan,
   };
 }
