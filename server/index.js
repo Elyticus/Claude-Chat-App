@@ -10,8 +10,6 @@ import webpush from "web-push";
 import multer from "multer";
 import "dotenv/config";
 import path from "path";
-import fs from "fs";
-import { fileURLToPath } from "url";
 import { randomInt, timingSafeEqual, randomUUID } from "crypto";
 import { validate as uuidValidate } from "uuid";
 
@@ -20,6 +18,7 @@ import { generateToken, verifyToken } from "./auth.js";
 import { registerBillingRoutes, getPlan, meterAi } from "./billing.js";
 import { planConfig } from "./plans.js";
 import { aiReady, summarizeThread, suggestReplies, assistantAsk, translate } from "./ai.js";
+import { generateKey, putObject, streamObject } from "./storage.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -272,22 +271,15 @@ const attachmentLimiter = rateLimit({
 });
 
 // ─── Uploads (Linkloop Pro media & voice) ───────────────────────────────────────
-// Files are stored on the server filesystem under server/uploads with random
-// names and served ONLY through the auth + membership-gated stream route below —
-// never statically. The hard size ceiling is the largest plan cap; the per-plan
-// limit is enforced in the route after multer receives the file.
-const UPLOAD_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "uploads");
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+// Files are buffered in memory, validated against the uploader's plan, then handed
+// to the storage driver (local disk in dev, S3/R2 object storage in production —
+// see server/storage.js). They are served ONLY through the auth + membership-gated
+// stream route below, never via a public URL. Buffering in memory means a rejected
+// upload is never persisted. The hard ceiling is the largest plan cap; the
+// per-plan limit is enforced in the route after multer receives the file.
 const HARD_MAX_UPLOAD = 100 * 1024 * 1024;
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-    filename: (req, file, cb) => {
-      // Random stored name; keep a short sanitized extension for content-type hints.
-      const ext = path.extname(file.originalname).slice(0, 12).replace(/[^.a-zA-Z0-9]/g, "");
-      cb(null, `${randomUUID()}${ext}`);
-    },
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: HARD_MAX_UPLOAD, files: 1 },
 });
 
@@ -1307,11 +1299,9 @@ app.post("/api/rooms/:roomId/attachments", requireAuth, attachmentLimiter, uploa
   const file = req.file;
   if (!file) return res.status(400).json({ error: "No file uploaded" });
 
-  // Clean up the stored file and respond — used on every rejection path.
-  const reject = (status, body) => {
-    fs.unlink(file.path, () => {});
-    return res.status(status).json(body);
-  };
+  // Nothing is persisted until every check below passes (multer buffers in
+  // memory), so a rejection is just a status — there is no stored file to clean up.
+  const reject = (status, body) => res.status(status).json(body);
 
   if (!(await queries.isMember.get(roomId, req.user.id))) {
     return reject(403, { error: "Not a member of this room" });
@@ -1344,10 +1334,20 @@ app.post("/api/rooms/:roomId/attachments", requireAuth, attachmentLimiter, uploa
   const width = num(req.body.width, 1, 20000);
   const height = num(req.body.height, 1, 20000);
 
+  // Persist the file to the storage backend (disk or object storage) before the
+  // DB rows, so we never reference an object that failed to write.
+  const storageKey = generateKey(file.originalname);
+  try {
+    await putObject({ key: storageKey, buffer: file.buffer, mime: file.mimetype });
+  } catch (err) {
+    console.error("[attachments] storage write failed:", err);
+    return res.status(500).json({ error: "Upload failed — please try again" });
+  }
+
   const { lastInsertRowid: msgId } = await queries.insertMessage.run(roomId, req.user.id, caption);
   await queries.insertAttachment.run(
     randomUUID(), msgId, req.user.id, roomId, kind, displayName,
-    file.mimetype, file.size, file.filename, duration, width, height,
+    file.mimetype, file.size, storageKey, duration, width, height,
   );
   const message = await queries.getMessageById.get(msgId);
 
@@ -1366,16 +1366,14 @@ app.get("/api/attachments/:id", requireAuthAllowQuery, attachmentLimiter, async 
   if (!(await queries.isMember.get(att.room_id, req.user.id))) {
     return res.status(403).json({ error: "Forbidden" });
   }
-  const filePath = path.join(UPLOAD_DIR, path.basename(att.storage_path));
   res.setHeader("Content-Type", att.mime);
   res.setHeader("Cache-Control", "private, max-age=86400");
   res.setHeader(
     "Content-Disposition",
     `${att.kind === "file" ? "attachment" : "inline"}; filename="${encodeURIComponent(att.filename)}"`,
   );
-  fs.createReadStream(filePath)
-    .on("error", () => { if (!res.headersSent) res.status(404).end(); })
-    .pipe(res);
+  // Streamed from the storage backend (disk or S3/R2); never a public URL.
+  await streamObject(att.storage_path, res);
 });
 
 // ─── Push subscription ─────────────────────────────────────────────────────────

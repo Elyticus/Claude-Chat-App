@@ -26,6 +26,68 @@ services:
       # DATABASE_CA too if your provider uses a private CA.
       - key: DATABASE_SSL
         value: strict
+      # Render terminates TLS at its proxy, so trust one hop. Without this,
+      # express-rate-limit keys every request to the proxy IP (one shared
+      # bucket for all users) and rejects the X-Forwarded-For header.
+      - key: TRUST_PROXY
+        value: 1
+
+      # ─── Linkloop Pro: AI (Claude) ────────────────────────────────────────
+      # REQUIRED for AI features (Catch me up, smart replies, /ask, translate).
+      # Without it those endpoints return 503 and the client hides the AI UI.
+      # Get a key at https://console.anthropic.com → API keys.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # Optional — defaults to claude-opus-4-8. Set claude-haiku-4-5 or
+      # claude-sonnet-4-6 for lower cost/latency.
+      - key: ANTHROPIC_MODEL
+        value: claude-opus-4-8
+
+      # ─── Linkloop Pro: billing ────────────────────────────────────────────
+      # HMAC secret for the (mock) billing webhook. generateValue creates a
+      # strong random value on first deploy — without it the server falls back
+      # to an insecure dev default and webhooks could be forged.
+      - key: BILLING_WEBHOOK_SECRET
+        generateValue: true
+
+      # ─── Linkloop Pro: object storage (media & voice attachments) ─────────
+      # Render's free disk is EPHEMERAL — wiped on every restart/redeploy — so
+      # uploads must go to an S3-compatible bucket (Cloudflare R2, AWS S3, …).
+      # Attachments stay PRIVATE: served only through the auth-gated stream
+      # route, never a public bucket URL.
+      - key: STORAGE_DRIVER
+        value: s3
+      - key: S3_BUCKET
+        sync: false
+      # R2: leave as "auto". AWS S3: set the bucket's region (e.g. us-east-1).
+      - key: S3_REGION
+        value: auto
+      # R2/MinIO/B2 endpoint, e.g. https://<account>.r2.cloudflarestorage.com
+      # Leave UNSET for AWS S3 (the SDK derives it from the region).
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      # Optional — key namespace inside the bucket. Defaults to "attachments".
+      - key: S3_PREFIX
+        value: attachments
+
+      # ─── Email (SMTP) — required for sign-up verification codes ────────────
+      # Without these, codes are only printed to the server log and nobody can
+      # self-register. Gmail: enable 2-Step Verification → App Passwords.
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+
       # Optional — Web Push (offline notifications). Generate a pair with:
       #   node -e "const wp=require('web-push');const k=wp.generateVAPIDKeys();console.log(k.publicKey,k.privateKey)"
       - key: VAPID_PUBLIC_KEY
