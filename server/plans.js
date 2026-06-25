@@ -31,7 +31,7 @@ export const PLANS = {
   pro: {
     id: "pro",
     name: "Pro",
-    price: 9,
+    price: 9.99,
     aiActionsPerDay: Infinity,
     searchScope: "global",
     searchLimit: 50,
@@ -54,7 +54,7 @@ export const PLANS = {
   business: {
     id: "business",
     name: "Business",
-    price: 24,
+    price: 24.99,
     aiActionsPerDay: Infinity,
     searchScope: "global",
     searchLimit: 100,

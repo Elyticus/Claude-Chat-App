@@ -90,8 +90,10 @@ export function UpgradeModal({ currentPlan, reason, isDark, onSelect, onClose })
                   {p.name}
                 </div>
                 <div className="mt-1 flex items-baseline gap-1" style={{ color: headerColor }}>
-                  <span className="text-3xl font-bold">${p.price}</span>
-                  <span className="text-xs" style={{ color: subColor }}>/mo</span>
+                  <span className="text-3xl font-bold">{p.price === 0 ? "Free" : `${p.price}€`}</span>
+                  {p.price !== 0 && (
+                    <span className="text-xs" style={{ color: subColor }}>/mo</span>
+                  )}
                 </div>
                 <div className="text-xs mb-3" style={{ color: subColor }}>{p.tagline}</div>
 

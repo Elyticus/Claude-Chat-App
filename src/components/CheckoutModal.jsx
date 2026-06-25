@@ -84,7 +84,7 @@ export function CheckoutModal({ plan, price, isDark, onPay, onClose }) {
           <span className="text-lg font-bold">Subscribe to {planName}</span>
         </div>
         <div className="text-sm mb-4" style={{ color: subColor }}>
-          <span className="text-xl font-bold" style={{ color: headerColor }}>${price}</span> / month, cancel anytime
+          <span className="text-xl font-bold" style={{ color: headerColor }}>{price}€</span> / month, cancel anytime
         </div>
 
         <div
@@ -137,7 +137,7 @@ export function CheckoutModal({ plan, price, isDark, onPay, onClose }) {
           style={{ background: "linear-gradient(135deg,#6366f1,#3b82f6)", color: "#fff" }}
         >
           <Lock size={14} />
-          {processing ? "Processing…" : `Pay $${price}/mo`}
+          {processing ? "Processing…" : `Pay ${price}€/mo`}
         </button>
       </form>
     </div>

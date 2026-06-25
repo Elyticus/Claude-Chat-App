@@ -21,7 +21,7 @@ export const PLANS = {
   pro: {
     id: "pro",
     name: "Pro",
-    price: 9,
+    price: 9.99,
     tagline: "For power users",
     accent: "#818cf8",
     popular: true,
@@ -38,7 +38,7 @@ export const PLANS = {
   business: {
     id: "business",
     name: "Business",
-    price: 24,
+    price: 24.99,
     tagline: "For teams that ship",
     accent: "#2dd4bf",
     features: [
