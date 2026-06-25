@@ -1220,6 +1220,30 @@ app.post("/api/ai/translate", requireAuth, aiLimiter, async (req, res) => {
   res.json({ text });
 });
 
+// ─── Global search (Linkloop Pro) ───────────────────────────────────────────────
+// Full-text search across every conversation the user belongs to. Global search
+// is a Pro feature; Free users keep the in-conversation search bar and get an
+// upgrade prompt here. Membership is enforced inside the SQL join, so results
+// never include rooms the requester isn't in.
+
+app.get("/api/search", requireAuth, async (req, res) => {
+  const query = (req.query.q || "").toString().trim();
+  if (query.length < 2) return res.json({ results: [] });
+  if (query.length > 200) return res.status(400).json({ error: "Search query is too long" });
+
+  const plan = await getPlan(queries, req.user.id);
+  const cfg = planConfig(plan);
+  if (cfg.searchScope !== "global") {
+    return res.status(402).json({
+      error: "Search across all your conversations with Pro",
+      code: "UPGRADE_REQUIRED", plan,
+    });
+  }
+
+  const results = await queries.searchMessages.all(req.user.id, query, cfg.searchLimit, null);
+  res.json({ results });
+});
+
 // ─── Push subscription ─────────────────────────────────────────────────────────
 
 app.post("/api/push/subscribe", requireAuth, async (req, res) => {

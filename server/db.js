@@ -29,7 +29,10 @@ const pool = new Pool({
   min: 0,
   max: 10,
   idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 5_000,
+  // Connect timeout is env-tunable — a remote managed DB (Supabase/Render) on a
+  // slow link or cold pooler can take longer than the previous fixed 5s, which
+  // crashed startup. Default stays 5s; raise via DB_CONNECT_TIMEOUT_MS.
+  connectionTimeoutMillis: Number(process.env.DB_CONNECT_TIMEOUT_MS) || 5_000,
 });
 
 // One-time migration: converts the original SERIAL integer ids (and every
@@ -286,6 +289,11 @@ export async function initDb() {
       auth       TEXT NOT NULL,
       created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
     );
+    -- Full-text search (Linkloop Pro global search). A generated tsvector +
+    -- GIN index makes ranked search across a user's rooms fast. PG12+ (Supabase).
+    ALTER TABLE messages ADD COLUMN IF NOT EXISTS tsv tsvector
+      GENERATED ALWAYS AS (to_tsvector('english', text)) STORED;
+    CREATE INDEX IF NOT EXISTS idx_messages_tsv ON messages USING GIN(tsv);
     CREATE INDEX IF NOT EXISTS idx_messages_room ON messages(room_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_id);
     CREATE INDEX IF NOT EXISTS idx_room_members_user ON room_members(user_id);
@@ -617,6 +625,34 @@ export const queries = {
   deletePushSubscription: {
     run: (userId, endpoint) =>
       q("DELETE FROM push_subscriptions WHERE user_id = $1 AND endpoint = $2", [userId, endpoint]),
+  },
+
+  // ── Full-text message search (Pro: global, Free: single room) ──────────────
+  // Joins room_members so only the requester's own conversations are searched —
+  // never leaks messages from rooms they aren't in. `roomId` (optional) scopes
+  // to one room for the Free tier. Returns a highlighted snippet (« » markers)
+  // ranked by relevance then recency.
+  searchMessages: {
+    all: (userId, query, limit, roomId = null) => {
+      const params = roomId ? [userId, query, limit, roomId] : [userId, query, limit];
+      const roomFilter = roomId ? "AND m.room_id = $4" : "";
+      return q(
+        `SELECT m.id AS message_id, m.room_id, m.created_at,
+                u.username AS author, r.name AS room_name, r.is_group, r.type,
+                ts_headline('english', m.text, websearch_to_tsquery('english', $2),
+                  'StartSel=«,StopSel=»,MaxFragments=1,MaxWords=14,MinWords=4,ShortWord=2') AS snippet
+         FROM messages m
+         JOIN room_members rm ON rm.room_id = m.room_id AND rm.user_id = $1
+         JOIN users u  ON u.id = m.user_id
+         JOIN rooms r  ON r.id = m.room_id
+         WHERE m.is_system = 0
+           AND m.tsv @@ websearch_to_tsquery('english', $2)
+           ${roomFilter}
+         ORDER BY ts_rank(m.tsv, websearch_to_tsquery('english', $2)) DESC, m.created_at DESC
+         LIMIT $3`,
+        params,
+      ).then((r) => r.rows);
+    },
   },
 
   getPushSubscriptionsForRoom: {

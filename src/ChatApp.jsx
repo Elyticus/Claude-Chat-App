@@ -20,6 +20,7 @@ import { ChatModals } from "./components/chat/ChatModals.jsx";
 import { UpgradeModal } from "./components/UpgradeModal.jsx";
 import { CheckoutModal } from "./components/CheckoutModal.jsx";
 import { AiSummaryModal } from "./components/AiSummaryModal.jsx";
+import { SearchModal } from "./components/SearchModal.jsx";
 import {
   darkBg0,
   lightBg0,
@@ -45,6 +46,8 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
   const [showFriends, setShowFriends] = useState(false);
   // The current user's own profile (change picture / sign out).
   const [showAccount, setShowAccount] = useState(false);
+  // Global search command palette (Cmd/Ctrl-K).
+  const [showSearch, setShowSearch] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
   const [inputText, setInputText] = useState("");
   const [showMsgSearch, setShowMsgSearch] = useState(false);
@@ -121,6 +124,18 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
       setTheme(next);
     }
   }
+
+  // Cmd/Ctrl-K opens the global search palette (desktop power-user shortcut).
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setShowSearch((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Light/dark toggle. From special mode (isDark, shows Sun) it lands on light.
   function toggleTheme() {
@@ -820,6 +835,7 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
         onNewChat={() => openNewChat()}
         onOpenFriends={() => setShowFriends(true)}
         onOpenAccount={() => setShowAccount(true)}
+        onOpenSearch={() => setShowSearch(true)}
         currentUser={currentUser}
         onlineIds={onlineIds}
         unreadCounts={unreadCounts}
@@ -998,6 +1014,20 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
 
       {/* AI "Catch me up" summary */}
       <AiSummaryModal summary={ai.summary} isDark={isDark} onClose={ai.closeSummary} />
+
+      {/* Global search (Cmd/Ctrl-K) */}
+      {showSearch && (
+        <SearchModal
+          isDark={isDark}
+          onClose={() => setShowSearch(false)}
+          onOpenRoom={selectRoom}
+          onGateError={billing.handleGateError}
+          roomName={(id) => {
+            const r = rooms.find((x) => x.id === id);
+            return r ? r.name || r.other_username : "Direct message";
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { MessageCircle, Sun, Moon, Sparkles, Users } from "lucide-react";
+import { MessageCircle, Sun, Moon, Sparkles, Users, Search } from "lucide-react";
 import StarField from "./ui/star-field.jsx";
 import SpecialField from "./ui/special-field.jsx";
 import { AllChatsPanel } from "./AllChatsPanel.jsx";
@@ -29,6 +29,7 @@ export function OrbitalHub({
   avatarMap,
   myAvatar,
   onOpenAccount,
+  onOpenSearch,
   channelNotifs,
   onClearChannelNotifs,
   friendNotifs = [],
@@ -257,6 +258,22 @@ export function OrbitalHub({
                 {friendBadge > 9 ? "9+" : friendBadge}
               </span>
             )}
+          </button>
+          <button
+            onClick={onOpenSearch}
+            title="Search messages"
+            aria-label="Search messages"
+            className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+            style={{
+              background: isDark ? "rgba(99,102,241,0.12)" : "rgba(99,102,241,0.08)",
+              border: `1px solid ${isDark ? "rgba(129,140,248,0.32)" : "rgba(99,102,241,0.24)"}`,
+              color: isDark ? "#a5b4fc" : "#4f46e5",
+              boxShadow: isDark
+                ? "0 0 10px rgba(99,102,241,0.14)"
+                : "0 2px 8px rgba(99,102,241,0.1)",
+            }}
+          >
+            <Search size={16} />
           </button>
           <button
             onClick={onToggleSpecial}
