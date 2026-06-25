@@ -31,6 +31,7 @@ export const PLANS = {
       "Unlimited AI: summaries, smart replies, /ask, translate",
       "Files & voice messages up to 100 MB",
       "Global search across all conversations",
+      "Special mode — immersive time-of-day themes",
       "Groups up to 50 members",
     ],
   },

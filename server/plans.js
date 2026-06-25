@@ -18,6 +18,7 @@ export const PLANS = {
     maxUploadBytes: 5 * 1024 * 1024, // 5 MB
     allowedUploadKinds: ["image"], // images only
     voiceMessages: false,
+    specialTheme: false, // Special mode (time-of-day themes) is a Pro perk
     maxGroupSize: 10,
     features: [
       "Unlimited 1-1 and group chats",
@@ -37,12 +38,14 @@ export const PLANS = {
     maxUploadBytes: 100 * 1024 * 1024, // 100 MB
     allowedUploadKinds: ["image", "file", "voice"],
     voiceMessages: true,
+    specialTheme: true,
     maxGroupSize: 50,
     features: [
       "Everything in Free",
       "Unlimited AI: summaries, smart replies, /ask, translate",
       "Files & voice messages up to 100 MB",
       "Global search across all conversations",
+      "Special mode — immersive time-of-day themes",
       "Priority AI model",
     ],
   },
@@ -56,6 +59,7 @@ export const PLANS = {
     maxUploadBytes: 100 * 1024 * 1024,
     allowedUploadKinds: ["image", "file", "voice"],
     voiceMessages: true,
+    specialTheme: true,
     maxGroupSize: 50,
     features: [
       "Everything in Pro",

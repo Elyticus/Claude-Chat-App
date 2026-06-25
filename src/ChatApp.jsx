@@ -143,13 +143,28 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
   }
 
   // Special mode (the time-of-day scenes) has its own button; toggling it off
-  // returns to the mode the user was in before entering.
+  // returns to the mode the user was in before entering. It is a Pro perk —
+  // free users get the upgrade prompt instead of switching into it. (Cosmetic,
+  // so this gate is client-side only; there is no server resource to protect.)
   const prevThemeRef = useRef("dark");
   function toggleSpecial() {
+    if (!billing.isPro && theme !== "special") {
+      billing.openUpgrade("Special mode — immersive time-of-day themes");
+      return;
+    }
     const next = theme === "special" ? prevThemeRef.current : "special";
     if (theme !== "special") prevThemeRef.current = theme;
     applyTheme(next);
   }
+
+  // Guard: if a user is on Special mode but no longer entitled (plan lapsed, or
+  // a stale localStorage theme), fall back to dark once the live plan resolves.
+  // Deferred out of the effect body so it doesn't set state synchronously.
+  useEffect(() => {
+    if (billing.isPro || theme !== "special") return;
+    const t = setTimeout(() => applyTheme("dark"), 0);
+    return () => clearTimeout(t);
+  }, [billing.isPro, theme]);
 
   const socketRef = useRef(null);
   const typingTimerRef = useRef(null);
@@ -896,6 +911,7 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
         theme={theme}
         onToggleTheme={toggleTheme}
         onToggleSpecial={toggleSpecial}
+        specialLocked={!billing.isPro}
         pendingCount={pendingRequestCount}
         pendingUsers={pendingUsers}
         onAcceptContact={handleAcceptContact}
