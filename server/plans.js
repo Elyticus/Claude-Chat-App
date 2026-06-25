@@ -12,7 +12,7 @@ export const PLANS = {
     id: "free",
     name: "Free",
     price: 0,
-    aiActionsPerDay: 10,
+    aiActionsPerDay: 0, // AI is a Pro feature — the free tier has none
     searchScope: "room", // in-current-room only
     searchLimit: 15,
     maxUploadBytes: 5 * 1024 * 1024, // 5 MB
@@ -24,7 +24,6 @@ export const PLANS = {
     features: [
       "Unlimited 1-1 and group chats",
       "Image sharing up to 5 MB",
-      "10 AI actions / day",
       "Groups up to 10 members",
       "1 channel",
     ],

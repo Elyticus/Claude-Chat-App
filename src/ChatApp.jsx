@@ -32,7 +32,13 @@ import {
 
 export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) {
   const billing = useBilling({ currentUser, onUserUpdate });
-  const ai = useAi({ enabled: billing.aiEnabled, onGateError: billing.handleGateError });
+  // AI is a Pro feature: available only when the server has a key AND the user is
+  // on a paid plan. Gating ai.enabled here hides every AI affordance for free
+  // users (catch-up, smart replies, /ask, translate); the server re-checks too.
+  const ai = useAi({
+    enabled: billing.aiEnabled && billing.isPro,
+    onGateError: billing.handleGateError,
+  });
   const [rooms, setRooms] = useState([]);
   const [activeRoomId, setActiveRoomId] = useState(null);
   const [displayRoomId, setDisplayRoomId] = useState(null);

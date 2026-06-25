@@ -15,7 +15,7 @@ import { validate as uuidValidate } from "uuid";
 
 import { queries, initDb } from "./db.js";
 import { generateToken, verifyToken } from "./auth.js";
-import { registerBillingRoutes, getPlan, meterAi } from "./billing.js";
+import { registerBillingRoutes, getPlan } from "./billing.js";
 import { planConfig } from "./plans.js";
 import { aiReady, summarizeThread, suggestReplies, assistantAsk, translate } from "./ai.js";
 import { generateKey, putObject, streamObject } from "./storage.js";
@@ -1178,8 +1178,8 @@ app.delete("/api/messages/:messageId", requireAuth, async (req, res) => {
 
 // ─── AI features (Linkloop Pro) ─────────────────────────────────────────────────
 // Every AI route: requireAuth + per-IP aiLimiter, then membership check, then a
-// per-user daily quota meter (free tier capped; Pro/Business unlimited). Returns
-// 503 AI_UNAVAILABLE when no key is configured so the client hides AI UI.
+// plan gate — AI is a Pro feature, so free users get 402 UPGRADE_REQUIRED.
+// Returns 503 AI_UNAVAILABLE when no key is configured so the client hides AI UI.
 
 // Shared preconditions; returns false (and sends the response) when blocked.
 async function ensureRoomForAi(req, res, roomId) {
@@ -1195,12 +1195,12 @@ async function ensureRoomForAi(req, res, roomId) {
   return true;
 }
 
-async function gateAiQuota(req, res) {
-  const meter = await meterAi(queries, req.user.id);
-  if (!meter.allowed) {
+async function gateAiPlan(req, res) {
+  const plan = await getPlan(queries, req.user.id);
+  if (plan === "free") {
     res.status(402).json({
-      error: "You've reached today's AI limit on the Free plan",
-      code: "QUOTA_EXCEEDED", plan: meter.plan, limit: meter.limit,
+      error: "AI features are part of Linkloop Pro — upgrade to use them",
+      code: "UPGRADE_REQUIRED", plan,
     });
     return false;
   }
@@ -1221,7 +1221,7 @@ async function runAi(res, fn) {
 app.post("/api/ai/summarize", requireAuth, aiLimiter, async (req, res) => {
   const { roomId } = req.body ?? {};
   if (!(await ensureRoomForAi(req, res, roomId))) return;
-  if (!(await gateAiQuota(req, res))) return;
+  if (!(await gateAiPlan(req, res))) return;
   const room = await queries.getRoomById.get(roomId);
   const { messages } = await queries.getRoomMessages.page(roomId, null);
   const summary = await runAi(res, () => summarizeThread(messages, { roomName: room?.name }));
@@ -1232,7 +1232,7 @@ app.post("/api/ai/summarize", requireAuth, aiLimiter, async (req, res) => {
 app.post("/api/ai/replies", requireAuth, aiLimiter, async (req, res) => {
   const { roomId } = req.body ?? {};
   if (!(await ensureRoomForAi(req, res, roomId))) return;
-  if (!(await gateAiQuota(req, res))) return;
+  if (!(await gateAiPlan(req, res))) return;
   const { messages } = await queries.getRoomMessages.page(roomId, null);
   const suggestions = await runAi(res, () => suggestReplies(messages, { selfName: req.user.username }));
   if (suggestions === undefined) return;
@@ -1245,7 +1245,7 @@ app.post("/api/ai/ask", requireAuth, aiLimiter, async (req, res) => {
     return res.status(400).json({ error: "A question (max 1,000 characters) is required" });
   }
   if (!(await ensureRoomForAi(req, res, roomId))) return;
-  if (!(await gateAiQuota(req, res))) return;
+  if (!(await gateAiPlan(req, res))) return;
   const room = await queries.getRoomById.get(roomId);
   const { messages } = await queries.getRoomMessages.page(roomId, null);
   const answer = await runAi(res, () => assistantAsk(messages, question.trim(), { roomName: room?.name }));
@@ -1267,7 +1267,7 @@ app.post("/api/ai/translate", requireAuth, aiLimiter, async (req, res) => {
   if (!(await queries.isMember.get(msg.room_id, req.user.id))) {
     return res.status(403).json({ error: "Not a member of this room" });
   }
-  if (!(await gateAiQuota(req, res))) return;
+  if (!(await gateAiPlan(req, res))) return;
   const text = await runAi(res, () => translate(msg.text, targetLang.trim()));
   if (text === undefined) return;
   res.json({ text });
