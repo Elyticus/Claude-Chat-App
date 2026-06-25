@@ -38,10 +38,14 @@ services:
       # Get a key at https://console.anthropic.com → API keys.
       - key: ANTHROPIC_API_KEY
         sync: false
-      # Optional — defaults to claude-opus-4-8. Set claude-haiku-4-5 or
-      # claude-sonnet-4-6 for lower cost/latency.
+      # AI model tiers. ANTHROPIC_MODEL = quality (summaries + /ask);
+      # ANTHROPIC_MODEL_FAST = fast (smart replies + translate, falls back to
+      # ANTHROPIC_MODEL). Any of opus-4-8 / sonnet-4-6 / haiku-4-5 works in
+      # either; adaptive thinking is dropped automatically for older models.
       - key: ANTHROPIC_MODEL
         value: claude-opus-4-8
+      - key: ANTHROPIC_MODEL_FAST
+        value: claude-haiku-4-5
 
       # ─── Linkloop Pro: billing ────────────────────────────────────────────
       # HMAC secret for the (mock) billing webhook. generateValue creates a

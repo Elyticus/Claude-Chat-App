@@ -213,7 +213,8 @@ DB_CONNECT_TIMEOUT_MS= # pg connect timeout (default 5000); raise for a slow/col
 
 # ── Linkloop Pro ──
 ANTHROPIC_API_KEY=       # enables AI features; without it AI endpoints 503 and the UI hides them
-ANTHROPIC_MODEL=         # default claude-opus-4-8; set claude-haiku-4-5 / claude-sonnet-4-6 for cost
+ANTHROPIC_MODEL=         # "quality" tier (summaries + /ask); default claude-opus-4-8
+ANTHROPIC_MODEL_FAST=    # "fast" tier (smart replies + translate); falls back to ANTHROPIC_MODEL. e.g. claude-haiku-4-5
 BILLING_WEBHOOK_SECRET=  # HMAC secret for the (mock) billing webhook; required in production
 ```
 
