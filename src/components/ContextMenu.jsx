@@ -1,4 +1,4 @@
-import { Copy, Trash2, Pin } from "lucide-react";
+import { Copy, Trash2, Pin, Languages } from "lucide-react";
 import { REACTIONS, ROLE_LEVEL, darkBg1, darkBorder, lightBg1 } from "@/lib/constants.js";
 
 export function ContextMenu({
@@ -15,6 +15,8 @@ export function ContextMenu({
   isDark,
   isChannel,
   myRole,
+  aiEnabled,
+  onTranslate,
 }) {
   // Ids are UUID strings — compare directly, never coerce to Number.
   const isOwn = msg.user_id === currentUserId;
@@ -150,6 +152,31 @@ export function ContextMenu({
             <Copy size={17} style={{ opacity: 0.55 }} />
             Copy
           </button>
+
+          {aiEnabled && !!msg.text && (
+            <>
+              {divider}
+              <button
+                onClick={() => {
+                  onTranslate(msg);
+                  onClose();
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 text-sm transition-all"
+                style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = isDark
+                    ? "rgba(99,102,241,0.08)"
+                    : "rgba(0,0,0,0.04)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "";
+                }}
+              >
+                <Languages size={17} style={{ opacity: 0.55 }} />
+                Translate
+              </button>
+            </>
+          )}
 
           {canPin && (
             <>

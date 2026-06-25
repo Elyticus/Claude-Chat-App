@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { X, Camera, LogOut } from "lucide-react";
+import { X, Camera, LogOut, Sparkles, Crown } from "lucide-react";
 import { Avatar } from "./ui/Avatar.jsx";
+import { planLabel } from "@/lib/plans.js";
 import {
   darkBg1,
   darkBorderMid,
@@ -16,10 +17,14 @@ export function AccountModal({
   currentUser,
   myAvatar,
   isDark,
+  plan = "free",
+  onUpgrade,
+  onCancelPlan,
   onChangeAvatar,
   onLogout,
   onClose,
 }) {
+  const isPaid = plan === "pro" || plan === "business";
   const headerColor = isDark ? "#eef2ff" : "#0f172a";
   const subColor = isDark ? "rgba(165,180,252,0.5)" : "#94a3b8";
   const divider = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
@@ -88,6 +93,17 @@ export function AccountModal({
               {currentUser.email}
             </div>
           )}
+          <div
+            className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+            style={
+              isPaid
+                ? { background: "rgba(129,140,248,0.16)", color: "#a5b4fc" }
+                : { background: isDark ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.05)", color: subColor }
+            }
+          >
+            {isPaid ? <Crown size={12} /> : null}
+            {planLabel(plan)} plan
+          </div>
         </div>
 
         {/* Account actions */}
@@ -95,6 +111,27 @@ export function AccountModal({
           className="px-4 pt-4 pb-5 space-y-2"
           style={{ borderTop: `1px solid ${divider}` }}
         >
+          {!isPaid && (
+            <button
+              onClick={onUpgrade}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"
+              style={{ background: "linear-gradient(135deg,#6366f1,#3b82f6)", color: "#fff" }}
+            >
+              <Sparkles size={15} /> Upgrade to Pro
+            </button>
+          )}
+          {isPaid && onCancelPlan && (
+            <button
+              onClick={onCancelPlan}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all"
+              style={{
+                background: isDark ? "rgba(255,255,255,0.05)" : "rgba(15,23,42,0.04)",
+                color: subColor,
+              }}
+            >
+              Manage subscription
+            </button>
+          )}
           <button
             onClick={onChangeAvatar}
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"

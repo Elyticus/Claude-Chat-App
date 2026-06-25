@@ -7,12 +7,18 @@ import nodemailer from "nodemailer";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import webpush from "web-push";
+import multer from "multer";
 import "dotenv/config";
-import { randomInt, timingSafeEqual } from "crypto";
+import path from "path";
+import { randomInt, timingSafeEqual, randomUUID } from "crypto";
 import { validate as uuidValidate } from "uuid";
 
 import { queries, initDb } from "./db.js";
 import { generateToken, verifyToken } from "./auth.js";
+import { registerBillingRoutes, getPlan, meterAi } from "./billing.js";
+import { planConfig } from "./plans.js";
+import { aiReady, summarizeThread, suggestReplies, assistantAsk, translate } from "./ai.js";
+import { generateKey, putObject, streamObject } from "./storage.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -237,6 +243,46 @@ const avatarLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Billing actions (checkout / confirm / cancel) — modest cap.
+const billingLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 60,
+  message: { error: "Too many billing requests — slow down" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// AI endpoints are the most expensive call surface — keep a hard per-IP ceiling
+// in addition to the per-user daily quota (consumeQuota).
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: { error: "Too many AI requests — slow down" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const attachmentLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 40,
+  message: { error: "Too many uploads — slow down" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// ─── Uploads (Linkloop Pro media & voice) ───────────────────────────────────────
+// Files are buffered in memory, validated against the uploader's plan, then handed
+// to the storage driver (local disk in dev, S3/R2 object storage in production —
+// see server/storage.js). They are served ONLY through the auth + membership-gated
+// stream route below, never via a public URL. Buffering in memory means a rejected
+// upload is never persisted. The hard ceiling is the largest plan cap; the
+// per-plan limit is enforced in the route after multer receives the file.
+const HARD_MAX_UPLOAD = 100 * 1024 * 1024;
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: HARD_MAX_UPLOAD, files: 1 },
+});
+
 // ─── Presence ──────────────────────────────────────────────────────────────────
 const online = new Map();
 
@@ -274,6 +320,18 @@ function requireAuth(req, res, next) {
   const decoded = token ? verifyToken(token) : null;
   // Tokens minted before the UUID migration carry integer ids — treat them
   // as expired so those clients fall back to the login screen.
+  if (!decoded || !isId(decoded.id)) return res.status(401).json({ error: "Unauthorized" });
+  req.user = decoded;
+  next();
+}
+
+// Variant that also accepts the token via ?token= — needed for the attachment
+// stream route, since <img>/<audio> elements can't send an Authorization header.
+// Same-origin only; the JWT already lives in localStorage (acceptable for this
+// learning project — production would use a short-lived signed media URL).
+function requireAuthAllowQuery(req, res, next) {
+  const token = req.headers.authorization?.split(" ")[1] || req.query.token;
+  const decoded = token ? verifyToken(token) : null;
   if (!decoded || !isId(decoded.id)) return res.status(401).json({ error: "Unauthorized" });
   req.user = decoded;
   next();
@@ -334,7 +392,7 @@ app.post("/api/auth/verify", authLimiter, async (req, res) => {
   const { lastInsertRowid: id } = await queries.createUser.run(pending.username, pending.email, pending.password_hash);
   await queries.deletePending.run(email);
 
-  const user = { id, username: pending.username, email: pending.email, avatar: null };
+  const user = { id, username: pending.username, email: pending.email, avatar: null, plan: "free" };
   res.status(201).json({ token: generateToken(user), user });
 });
 
@@ -409,9 +467,12 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
     return res.status(401).json({ error: "Invalid email or password" });
   }
 
-  const user = { id: row.id, username: row.username, email: row.email, avatar: row.avatar || null };
+  const user = { id: row.id, username: row.username, email: row.email, avatar: row.avatar || null, plan: row.plan || "free" };
   res.json({ token: generateToken(user), user });
 });
+
+// ─── Billing & plans (Linkloop Pro) ─────────────────────────────────────────────
+registerBillingRoutes(app, { queries, requireAuth, limiter: billingLimiter });
 
 // ─── REST: Users ───────────────────────────────────────────────────────────────
 
@@ -576,6 +637,16 @@ app.post("/api/rooms/group", requireAuth, async (req, res) => {
   }
   if (userIds.length > 49) {
     return res.status(400).json({ error: "Groups are limited to 50 members" });
+  }
+  // Plan gate: Free caps group size; Pro/Business unlock the full 50.
+  const creatorPlan = await getPlan(queries, req.user.id);
+  const maxGroup = planConfig(creatorPlan).maxGroupSize;
+  if (userIds.length + 1 > maxGroup) {
+    return res.status(402).json({
+      error: `Your plan allows groups up to ${maxGroup} members — upgrade for larger groups`,
+      code: "UPGRADE_REQUIRED",
+      plan: creatorPlan,
+    });
   }
   if (userIds.some((uid) => !isId(uid))) {
     return res.status(400).json({ error: "Invalid member id" });
@@ -1088,6 +1159,223 @@ app.delete("/api/messages/:messageId", requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ─── AI features (Linkloop Pro) ─────────────────────────────────────────────────
+// Every AI route: requireAuth + per-IP aiLimiter, then membership check, then a
+// per-user daily quota meter (free tier capped; Pro/Business unlimited). Returns
+// 503 AI_UNAVAILABLE when no key is configured so the client hides AI UI.
+
+// Shared preconditions; returns false (and sends the response) when blocked.
+async function ensureRoomForAi(req, res, roomId) {
+  if (!aiReady) {
+    res.status(503).json({ error: "AI features are not configured", code: "AI_UNAVAILABLE" });
+    return false;
+  }
+  if (!isId(roomId)) { res.status(400).json({ error: "Invalid roomId" }); return false; }
+  if (!(await queries.isMember.get(roomId, req.user.id))) {
+    res.status(403).json({ error: "Not a member of this room" });
+    return false;
+  }
+  return true;
+}
+
+async function gateAiQuota(req, res) {
+  const meter = await meterAi(queries, req.user.id);
+  if (!meter.allowed) {
+    res.status(402).json({
+      error: "You've reached today's AI limit on the Free plan",
+      code: "QUOTA_EXCEEDED", plan: meter.plan, limit: meter.limit,
+    });
+    return false;
+  }
+  return true;
+}
+
+// Map Anthropic/SDK failures to a clean client message instead of a bare 500.
+async function runAi(res, fn) {
+  try {
+    return await fn();
+  } catch (err) {
+    console.error("[ai] request failed:", err.status || "", err.message?.slice(0, 120));
+    res.status(502).json({ error: "The AI service is busy right now — please try again." });
+    return undefined;
+  }
+}
+
+app.post("/api/ai/summarize", requireAuth, aiLimiter, async (req, res) => {
+  const { roomId } = req.body ?? {};
+  if (!(await ensureRoomForAi(req, res, roomId))) return;
+  if (!(await gateAiQuota(req, res))) return;
+  const room = await queries.getRoomById.get(roomId);
+  const { messages } = await queries.getRoomMessages.page(roomId, null);
+  const summary = await runAi(res, () => summarizeThread(messages, { roomName: room?.name }));
+  if (summary === undefined) return;
+  res.json({ summary });
+});
+
+app.post("/api/ai/replies", requireAuth, aiLimiter, async (req, res) => {
+  const { roomId } = req.body ?? {};
+  if (!(await ensureRoomForAi(req, res, roomId))) return;
+  if (!(await gateAiQuota(req, res))) return;
+  const { messages } = await queries.getRoomMessages.page(roomId, null);
+  const suggestions = await runAi(res, () => suggestReplies(messages, { selfName: req.user.username }));
+  if (suggestions === undefined) return;
+  res.json({ suggestions });
+});
+
+app.post("/api/ai/ask", requireAuth, aiLimiter, async (req, res) => {
+  const { roomId, question } = req.body ?? {};
+  if (typeof question !== "string" || !question.trim() || question.length > 1000) {
+    return res.status(400).json({ error: "A question (max 1,000 characters) is required" });
+  }
+  if (!(await ensureRoomForAi(req, res, roomId))) return;
+  if (!(await gateAiQuota(req, res))) return;
+  const room = await queries.getRoomById.get(roomId);
+  const { messages } = await queries.getRoomMessages.page(roomId, null);
+  const answer = await runAi(res, () => assistantAsk(messages, question.trim(), { roomName: room?.name }));
+  if (answer === undefined) return;
+  res.json({ answer });
+});
+
+app.post("/api/ai/translate", requireAuth, aiLimiter, async (req, res) => {
+  if (!aiReady) {
+    return res.status(503).json({ error: "AI features are not configured", code: "AI_UNAVAILABLE" });
+  }
+  const { messageId, targetLang } = req.body ?? {};
+  if (!isId(messageId)) return res.status(400).json({ error: "Invalid messageId" });
+  if (typeof targetLang !== "string" || !targetLang.trim() || targetLang.length > 40) {
+    return res.status(400).json({ error: "Invalid target language" });
+  }
+  const msg = await queries.getMessageById.get(messageId);
+  if (!msg) return res.status(404).json({ error: "Message not found" });
+  if (!(await queries.isMember.get(msg.room_id, req.user.id))) {
+    return res.status(403).json({ error: "Not a member of this room" });
+  }
+  if (!(await gateAiQuota(req, res))) return;
+  const text = await runAi(res, () => translate(msg.text, targetLang.trim()));
+  if (text === undefined) return;
+  res.json({ text });
+});
+
+// ─── Global search (Linkloop Pro) ───────────────────────────────────────────────
+// Full-text search across every conversation the user belongs to. Global search
+// is a Pro feature; Free users keep the in-conversation search bar and get an
+// upgrade prompt here. Membership is enforced inside the SQL join, so results
+// never include rooms the requester isn't in.
+
+app.get("/api/search", requireAuth, async (req, res) => {
+  const query = (req.query.q || "").toString().trim();
+  if (query.length < 2) return res.json({ results: [] });
+  if (query.length > 200) return res.status(400).json({ error: "Search query is too long" });
+
+  const plan = await getPlan(queries, req.user.id);
+  const cfg = planConfig(plan);
+  if (cfg.searchScope !== "global") {
+    return res.status(402).json({
+      error: "Search across all your conversations with Pro",
+      code: "UPGRADE_REQUIRED", plan,
+    });
+  }
+
+  const results = await queries.searchMessages.all(req.user.id, query, cfg.searchLimit, null);
+  res.json({ results });
+});
+
+// ─── Attachments (Linkloop Pro media & voice) ────────────────────────────────────
+
+function uploadKind(mime, hint) {
+  if (hint === "voice" && mime.startsWith("audio/")) return "voice";
+  if (mime.startsWith("image/")) return "image";
+  return "file";
+}
+
+const ATTACH_MAX_CAPTION = 4000;
+
+// Upload a file/image/voice note to a room. Plan-gated: Free = images only ≤ 5 MB,
+// Pro/Business = all kinds + voice ≤ 100 MB. Creates a message + attachment row,
+// then broadcasts message:new to the room (excluding the uploader's socket, which
+// swaps its optimistic bubble from the REST response — mirroring message:send).
+app.post("/api/rooms/:roomId/attachments", requireAuth, attachmentLimiter, upload.single("file"), async (req, res) => {
+  const roomId = req.params.roomId;
+  const file = req.file;
+  if (!file) return res.status(400).json({ error: "No file uploaded" });
+
+  // Nothing is persisted until every check below passes (multer buffers in
+  // memory), so a rejection is just a status — there is no stored file to clean up.
+  const reject = (status, body) => res.status(status).json(body);
+
+  if (!(await queries.isMember.get(roomId, req.user.id))) {
+    return reject(403, { error: "Not a member of this room" });
+  }
+
+  const plan = await getPlan(queries, req.user.id);
+  const cfg = planConfig(plan);
+  const kind = uploadKind(file.mimetype, req.body.kind);
+
+  if (!cfg.allowedUploadKinds.includes(kind)) {
+    return reject(402, {
+      error: kind === "voice"
+        ? "Voice messages are a Pro feature"
+        : "Sharing files is a Pro feature — upgrade to send more than images",
+      code: "UPGRADE_REQUIRED", plan,
+    });
+  }
+  if (file.size > cfg.maxUploadBytes) {
+    const mb = Math.round(cfg.maxUploadBytes / (1024 * 1024));
+    return reject(402, { error: `Files are limited to ${mb} MB on your plan`, code: "UPGRADE_REQUIRED", plan });
+  }
+
+  const caption = typeof req.body.caption === "string" ? req.body.caption.trim().slice(0, ATTACH_MAX_CAPTION) : "";
+  const displayName = path.basename(file.originalname || "file").slice(0, 200);
+  const num = (v, min, max) => {
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) && n >= min && n <= max ? n : null;
+  };
+  const duration = kind === "voice" ? num(req.body.duration, 0, 3600) : null;
+  const width = num(req.body.width, 1, 20000);
+  const height = num(req.body.height, 1, 20000);
+
+  // Persist the file to the storage backend (disk or object storage) before the
+  // DB rows, so we never reference an object that failed to write.
+  const storageKey = generateKey(file.originalname);
+  try {
+    await putObject({ key: storageKey, buffer: file.buffer, mime: file.mimetype });
+  } catch (err) {
+    console.error("[attachments] storage write failed:", err);
+    return res.status(500).json({ error: "Upload failed — please try again" });
+  }
+
+  const { lastInsertRowid: msgId } = await queries.insertMessage.run(roomId, req.user.id, caption);
+  await queries.insertAttachment.run(
+    randomUUID(), msgId, req.user.id, roomId, kind, displayName,
+    file.mimetype, file.size, storageKey, duration, width, height,
+  );
+  const message = await queries.getMessageById.get(msgId);
+
+  const socketId = req.body.socketId;
+  const target = io.to(`room:${roomId}`);
+  (socketId ? target.except(socketId) : target).emit("message:new", { roomId, message });
+
+  res.status(201).json({ message });
+});
+
+// Stream a private attachment. Auth via header OR ?token=, plus a membership
+// check on the attachment's room — files are never publicly accessible.
+app.get("/api/attachments/:id", requireAuthAllowQuery, attachmentLimiter, async (req, res) => {
+  const att = await queries.getAttachmentById.get(req.params.id);
+  if (!att) return res.status(404).json({ error: "Not found" });
+  if (!(await queries.isMember.get(att.room_id, req.user.id))) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+  res.setHeader("Content-Type", att.mime);
+  res.setHeader("Cache-Control", "private, max-age=86400");
+  res.setHeader(
+    "Content-Disposition",
+    `${att.kind === "file" ? "attachment" : "inline"}; filename="${encodeURIComponent(att.filename)}"`,
+  );
+  // Streamed from the storage backend (disk or S3/R2); never a public URL.
+  await streamObject(att.storage_path, res);
+});
+
 // ─── Push subscription ─────────────────────────────────────────────────────────
 
 app.post("/api/push/subscribe", requireAuth, async (req, res) => {
@@ -1331,6 +1619,12 @@ io.on("connection", async (socket) => {
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
+  // Oversized uploads (past the hard multer ceiling) get a clean 413 instead of
+  // a generic 500.
+  if (err instanceof multer.MulterError) {
+    const msg = err.code === "LIMIT_FILE_SIZE" ? "File is too large (max 100 MB)" : "Upload failed";
+    return res.status(413).json({ error: msg });
+  }
   console.error(err);
   res.status(500).json({ error: "Internal server error" });
 });

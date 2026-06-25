@@ -12,9 +12,15 @@ import {
   useChatDerivedState,
   MAX_MESSAGE_LENGTH,
 } from "./hooks/useChatDerivedState.js";
+import { useBilling } from "./hooks/useBilling.js";
+import { useAi } from "./hooks/useAi.js";
 import { OrbitalHub } from "./components/OrbitalHub.jsx";
 import { ChatPanel } from "./components/chat/ChatPanel.jsx";
 import { ChatModals } from "./components/chat/ChatModals.jsx";
+import { UpgradeModal } from "./components/UpgradeModal.jsx";
+import { CheckoutModal } from "./components/CheckoutModal.jsx";
+import { AiSummaryModal } from "./components/AiSummaryModal.jsx";
+import { SearchModal } from "./components/SearchModal.jsx";
 import {
   darkBg0,
   lightBg0,
@@ -23,7 +29,9 @@ import {
   specialBg1,
 } from "./lib/constants.js";
 
-export default function ChatApp({ token, currentUser, onLogout }) {
+export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) {
+  const billing = useBilling({ currentUser, onUserUpdate });
+  const ai = useAi({ enabled: billing.aiEnabled, onGateError: billing.handleGateError });
   const [rooms, setRooms] = useState([]);
   const [activeRoomId, setActiveRoomId] = useState(null);
   const [displayRoomId, setDisplayRoomId] = useState(null);
@@ -38,6 +46,8 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const [showFriends, setShowFriends] = useState(false);
   // The current user's own profile (change picture / sign out).
   const [showAccount, setShowAccount] = useState(false);
+  // Global search command palette (Cmd/Ctrl-K).
+  const [showSearch, setShowSearch] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
   const [inputText, setInputText] = useState("");
   const [showMsgSearch, setShowMsgSearch] = useState(false);
@@ -114,6 +124,18 @@ export default function ChatApp({ token, currentUser, onLogout }) {
       setTheme(next);
     }
   }
+
+  // Cmd/Ctrl-K opens the global search palette (desktop power-user shortcut).
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setShowSearch((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Light/dark toggle. From special mode (isDark, shows Sun) it lands on light.
   function toggleTheme() {
@@ -569,6 +591,55 @@ export default function ChatApp({ token, currentUser, onLogout }) {
   const sendMessage = useCallback(() => {
     const text = inputText.trim();
     if (!text || !activeRoomId || !socketRef.current) return;
+
+    // "/ask <question>" — in-chat AI assistant. Renders the question as the
+    // user's own bubble plus an ephemeral AI answer bubble. Nothing is sent to
+    // the server or other members; it's a local, private assistant turn.
+    if (ai.enabled && /^\/ask\s+/i.test(text)) {
+      const question = text.replace(/^\/ask\s+/i, "").trim();
+      if (!question) return;
+      const now = Math.floor(Date.now() / 1000);
+      const qId = `ask_q_${Date.now()}`;
+      const aId = `ask_a_${Date.now()}`;
+      const roomForAsk = activeRoomId;
+      setMessages((prev) => ({
+        ...prev,
+        [roomForAsk]: [
+          ...(prev[roomForAsk] || []),
+          { id: qId, text: question, user_id: currentUser.id, username: currentUser.username, created_at: now, reaction: null, ephemeral: true },
+          { id: aId, text: "", ai: true, aiLoading: true, created_at: now },
+        ],
+      }));
+      setInputText("");
+      stopTyping();
+      ai.runAsk(roomForAsk, question)
+        .then((answer) => {
+          setMessages((prev) => ({
+            ...prev,
+            [roomForAsk]: (prev[roomForAsk] || []).map((m) =>
+              m.id === aId ? { ...m, text: answer, aiLoading: false } : m,
+            ),
+          }));
+        })
+        .catch((err) => {
+          if (billing.handleGateError(err)) {
+            setMessages((prev) => ({
+              ...prev,
+              [roomForAsk]: (prev[roomForAsk] || []).filter((m) => m.id !== aId && m.id !== qId),
+            }));
+          } else {
+            setMessages((prev) => ({
+              ...prev,
+              [roomForAsk]: (prev[roomForAsk] || []).map((m) =>
+                m.id === aId ? { ...m, text: err.message || "The AI couldn't answer that.", aiLoading: false } : m,
+              ),
+            }));
+          }
+        });
+      inputRef.current?.focus();
+      return;
+    }
+
     // Over-limit feedback is shown live by the counter bar above the input;
     // this guard just makes sure nothing slips through to the server.
     if (text.length > MAX_MESSAGE_LENGTH) return;
@@ -594,7 +665,60 @@ export default function ChatApp({ token, currentUser, onLogout }) {
     setInputText("");
     stopTyping();
     inputRef.current?.focus();
-  }, [inputText, activeRoomId, currentUser, stopTyping]);
+  }, [inputText, activeRoomId, currentUser, stopTyping, ai, billing]);
+
+  // Upload an image / file / voice note. Optimistic temp bubble (with a local
+  // preview for images) → REST upload → swap for the real message on ack. Other
+  // members receive it via the server's message:new broadcast.
+  const handleUploadAttachment = useCallback(
+    (file, opts = {}) => {
+      if (!file || !activeRoomId) return;
+      const roomId = activeRoomId;
+      const localUrl = URL.createObjectURL(file);
+      const tempId = `temp_att_${Date.now()}`;
+      const tempMsg = {
+        id: tempId,
+        text: opts.caption || "",
+        user_id: currentUser.id,
+        username: currentUser.username,
+        created_at: Math.floor(Date.now() / 1000),
+        reaction: null,
+        temp: true,
+        attachment: {
+          kind: opts.kind,
+          name: file.name,
+          mime: file.type,
+          size: file.size,
+          duration: opts.duration ?? null,
+          width: opts.width ?? null,
+          height: opts.height ?? null,
+          localUrl,
+        },
+      };
+      setMessages((prev) => ({
+        ...prev,
+        [roomId]: [...(prev[roomId] || []), tempMsg],
+      }));
+      api
+        .uploadAttachment(roomId, file, { ...opts, socketId: socketRef.current?.id })
+        .then(({ message }) => {
+          URL.revokeObjectURL(localUrl);
+          setMessages((prev) => ({
+            ...prev,
+            [roomId]: (prev[roomId] || []).map((m) => (m.id === tempId ? message : m)),
+          }));
+        })
+        .catch((err) => {
+          URL.revokeObjectURL(localUrl);
+          setMessages((prev) => ({
+            ...prev,
+            [roomId]: (prev[roomId] || []).filter((m) => m.id !== tempId),
+          }));
+          if (!billing.handleGateError(err)) setToast(err.message || "Upload failed");
+        });
+    },
+    [activeRoomId, currentUser, billing],
+  );
 
   const handleKeyDown = useCallback(
     (e) => {
@@ -764,6 +888,7 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         onNewChat={() => openNewChat()}
         onOpenFriends={() => setShowFriends(true)}
         onOpenAccount={() => setShowAccount(true)}
+        onOpenSearch={() => setShowSearch(true)}
         currentUser={currentUser}
         onlineIds={onlineIds}
         unreadCounts={unreadCounts}
@@ -843,6 +968,14 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         handleKeyDown={handleKeyDown}
         stopTyping={stopTyping}
         sendMessage={sendMessage}
+        ai={ai}
+        onFillInput={(t) => {
+          setInputText(t);
+          inputRef.current?.focus();
+        }}
+        onUploadAttachment={handleUploadAttachment}
+        voiceEnabled={billing.plan === "pro" || billing.plan === "business"}
+        onRequireUpgrade={(reason) => billing.openUpgrade(reason)}
       />
 
       <ChatModals
@@ -852,6 +985,9 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         contacts={contacts}
         allUsers={allUsers}
         currentUser={currentUser}
+        plan={billing.plan}
+        onUpgrade={() => billing.openUpgrade()}
+        onCancelPlan={billing.cancelPlan}
         pendingUsers={pendingUsers}
         friendNotifs={friendNotifs}
         showFriends={showFriends}
@@ -908,7 +1044,46 @@ export default function ChatApp({ token, currentUser, onLogout }) {
         handlePinMessage={handlePinMessage}
         handleUnpinMessage={handleUnpinMessage}
         handleEditChannel={handleEditChannel}
+        aiEnabled={ai.enabled}
+        onTranslate={(msg) => ai.translateMessage(msg.id)}
       />
+
+      {/* Pro upgrade flow — pricing sheet + mock checkout (above all overlays) */}
+      {billing.upgrade && (
+        <UpgradeModal
+          currentPlan={billing.plan}
+          reason={billing.upgrade.reason}
+          isDark={isDark}
+          onSelect={(planId) => billing.beginCheckout(planId).catch(console.error)}
+          onClose={billing.closeUpgrade}
+        />
+      )}
+      {billing.checkout && (
+        <CheckoutModal
+          plan={billing.checkout.plan}
+          price={billing.checkout.price}
+          isDark={isDark}
+          onPay={billing.completeCheckout}
+          onClose={billing.cancelCheckout}
+        />
+      )}
+
+      {/* AI "Catch me up" summary */}
+      <AiSummaryModal summary={ai.summary} isDark={isDark} onClose={ai.closeSummary} />
+
+      {/* Global search (Cmd/Ctrl-K) */}
+      {showSearch && (
+        <SearchModal
+          isDark={isDark}
+          onClose={() => setShowSearch(false)}
+          onOpenRoom={selectRoom}
+          onGateError={billing.handleGateError}
+          roomName={(id) => {
+            const r = rooms.find((x) => x.id === id);
+            return r ? r.name || r.other_username : "Direct message";
+          }}
+        />
+      )}
     </div>
   );
 }

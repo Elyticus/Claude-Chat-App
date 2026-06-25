@@ -33,7 +33,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <Text style={styles.logo}>ChatLoop</Text>
+          <Text style={styles.logo}>Linkloop</Text>
           <Text style={styles.subtitle}>Welcome back</Text>
 
           <View style={styles.form}>

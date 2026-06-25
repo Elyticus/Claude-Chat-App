@@ -24,12 +24,21 @@ export default function RoomsListScreen() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [onlineIds, setOnlineIds] = useState<Set<number>>(new Set());
+  const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set());
 
   const fetchRooms = useCallback(async () => {
     try {
       const data = await api.get<Room[]>('/rooms');
       setRooms(data);
+      // Seed presence from the room rows so DM dots are right immediately — the
+      // live user:status snapshot can fire before this screen's listener mounts.
+      setOnlineIds(prev => {
+        const next = new Set(prev);
+        for (const r of data) {
+          if (r.other_user_id && r.other_user_online) next.add(r.other_user_id);
+        }
+        return next;
+      });
     } catch {
       // ignore — user sees stale data
     }
@@ -40,29 +49,32 @@ export default function RoomsListScreen() {
   }, [fetchRooms]);
 
   useEffect(() => {
-    function onMessageNew(msg: Message) {
+    // Server emits { roomId, message }.
+    function onMessageNew({ message }: { roomId: string; message: Message }) {
       setRooms(prev =>
         prev.map(r =>
-          r.id === msg.room_id
-            ? { ...r, last_message: msg.text, last_message_at: msg.created_at, unread_count: (r.unread_count ?? 0) + 1 }
+          r.id === message.room_id
+            ? { ...r, last_message: message.text, last_message_at: message.created_at, unread_count: (r.unread_count ?? 0) + 1 }
             : r
         )
       );
     }
 
-    function onUserStatus({ userId, online }: { userId: number; online: boolean }) {
+    function onUserStatus({ userId, online }: { userId: string; online: boolean }) {
       setOnlineIds(prev => {
         const next = new Set(prev);
-        online ? next.add(userId) : next.delete(userId);
+        if (online) next.add(userId); else next.delete(userId);
         return next;
       });
     }
 
-    function onRoomNew(room: Room) {
-      setRooms(prev => [room, ...prev]);
+    // Server emits room:new as { roomId, ...extra } (not a full Room) and has
+    // already joined this socket to the room — re-pull the list for the full row.
+    function onRoomNew() {
+      void fetchRooms();
     }
 
-    function onRoomDeleted({ roomId }: { roomId: number }) {
+    function onRoomDeleted({ roomId }: { roomId: string }) {
       setRooms(prev => prev.filter(r => r.id !== roomId));
     }
 
@@ -77,7 +89,7 @@ export default function RoomsListScreen() {
       socket?.off('room:new', onRoomNew);
       socket?.off('room:deleted', onRoomDeleted);
     };
-  }, [socket]);
+  }, [socket, fetchRooms]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -116,7 +128,7 @@ export default function RoomsListScreen() {
           <RoomListItem
             room={item}
             online={item.other_user_id ? onlineIds.has(item.other_user_id) : false}
-            currentUserId={user?.id ?? 0}
+            currentUserId={user?.id ?? ''}
             onPress={() => openChat(item)}
           />
         )}

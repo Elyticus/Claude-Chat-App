@@ -18,6 +18,12 @@ dist-ssr
 *.db-shm
 *.db-wal
 
+# Uploaded attachments (Linkloop Pro media & voice) — user files, never committed
+server/uploads/
+
+# Local helper / scratch scripts
+_*.mjs
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

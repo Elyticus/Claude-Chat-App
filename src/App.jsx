@@ -46,6 +46,17 @@ export default function App() {
     setAuthData({ token: null, user: null });
   }
 
+  // Merge a patch into the cached user (e.g. plan after upgrade) and persist it
+  // so a reload keeps the new state without a round-trip.
+  function handleUserUpdate(patch) {
+    setAuthData((prev) => {
+      if (!prev.user) return prev;
+      const user = { ...prev.user, ...patch };
+      localStorage.setItem("linkloop_user", JSON.stringify(user));
+      return { ...prev, user };
+    });
+  }
+
   if (!ready) return SPLASH_LOGO;
 
   if (!authData.token || !authData.user) {
@@ -58,6 +69,7 @@ export default function App() {
         token={authData.token}
         currentUser={authData.user}
         onLogout={handleLogout}
+        onUserUpdate={handleUserUpdate}
       />
     </Suspense>
   );

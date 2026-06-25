@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, FlatList, KeyboardAvoidingView, Platform,
-  StyleSheet, ActivityIndicator,
+  StyleSheet, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChatScreenProps } from '../../navigation/types';
@@ -34,7 +34,7 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingRef = useRef(false);
 
-  const fetchMessages = useCallback(async (before?: number): Promise<MessagesResponse> => {
+  const fetchMessages = useCallback(async (before?: string): Promise<MessagesResponse> => {
     const qs = before ? `?before=${before}` : '';
     return api.get<MessagesResponse>(`/rooms/${roomId}/messages${qs}`);
   }, [roomId]);
@@ -44,8 +44,6 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   }, [navigation, roomName]);
 
   useEffect(() => {
-    socket?.emit('room:join', { roomId });
-
     void fetchMessages().then(({ messages: msgs, hasMore: more }) => {
       // API returns newest-first; store as-is for inverted FlatList
       setMessages(msgs);
@@ -53,9 +51,15 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
       setLoading(false);
     });
 
-    function onMessageNew(msg: Message) {
-      if (msg.room_id !== roomId) return;
-      setMessages(prev => [msg, ...prev]);
+    // Opening the room marks it read server-side (advances last_read_at) so the
+    // durable unread badge on the rooms list clears.
+    socket?.emit('room:read', { roomId });
+
+    // Server emits { roomId, message }; the socket is already joined to every
+    // room server-side, so messages for other rooms arrive here too — gate on id.
+    function onMessageNew({ roomId: rid, message }: { roomId: string; message: Message }) {
+      if (rid !== roomId) return;
+      setMessages(prev => [message, ...prev]);
     }
 
     function onMessageAck({ tempId, message }: { tempId: string; message: Message }) {
@@ -64,29 +68,46 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
       );
     }
 
-    function onTypingUpdate({ roomId: rid, users }: { roomId: number; users: string[] }) {
-      if (rid !== roomId) return;
-      setTypingUsers(users.filter(u => u !== user?.username));
+    // Send failed (rate limit, muted, too long) — drop the optimistic bubble.
+    function onMessageError({ tempId, error }: { tempId: string; error: string }) {
+      setMessages(prev => prev.filter(m => m.tempId !== tempId));
+      Alert.alert('Message not sent', error);
     }
 
-    function onMessageDeleted({ messageId }: { messageId: number }) {
+    // Server: typing:update { roomId, userId, username, typing }. Track the set
+    // of usernames currently typing in THIS room.
+    function onTypingUpdate(
+      { roomId: rid, username: who, typing }: { roomId: string; userId: string; username: string; typing: boolean },
+    ) {
+      if (rid !== roomId || who === user?.username) return;
+      setTypingUsers(prev => {
+        const has = prev.includes(who);
+        if (typing && !has) return [...prev, who];
+        if (!typing && has) return prev.filter(u => u !== who);
+        return prev;
+      });
+    }
+
+    function onMessageDeleted({ messageId }: { roomId: string; messageId: string }) {
       setMessages(prev => prev.filter(m => m.id !== messageId));
     }
 
-    function onMessageReaction({ messageId, reaction }: { messageId: number; reaction: string | null }) {
-      setMessages(prev => prev.map(m => m.id === messageId ? { ...m, reaction } : m));
+    // Server emits { roomId, messageId, emoji } — map `emoji` onto `reaction`.
+    function onMessageReaction({ messageId, emoji }: { roomId: string; messageId: string; emoji: string | null }) {
+      setMessages(prev => prev.map(m => m.id === messageId ? { ...m, reaction: emoji } : m));
     }
 
     socket?.on('message:new', onMessageNew);
     socket?.on('message:ack', onMessageAck);
+    socket?.on('message:error', onMessageError);
     socket?.on('typing:update', onTypingUpdate);
     socket?.on('message:deleted', onMessageDeleted);
     socket?.on('message:reaction', onMessageReaction);
 
     return () => {
-      socket?.emit('room:leave', { roomId });
       socket?.off('message:new', onMessageNew);
       socket?.off('message:ack', onMessageAck);
+      socket?.off('message:error', onMessageError);
       socket?.off('typing:update', onTypingUpdate);
       socket?.off('message:deleted', onMessageDeleted);
       socket?.off('message:reaction', onMessageReaction);
@@ -113,7 +134,7 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
     if (!socket || !user) return;
     const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const optimistic: Message = {
-      id: -Date.now(),
+      id: tempId,
       room_id: roomId,
       user_id: user.id,
       text,
@@ -126,7 +147,7 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
       pending: true,
     };
     setMessages(prev => [optimistic, ...prev]);
-    socket.emit('message:send', { roomId, content: text, tempId });
+    socket.emit('message:send', { roomId, text, tempId });
   }, [socket, user, roomId]);
 
   const handleTyping = useCallback(() => {
