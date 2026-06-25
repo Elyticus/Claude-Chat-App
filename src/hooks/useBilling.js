@@ -7,6 +7,8 @@ import { api } from "../lib/api.js";
 // paywall when the server returns UPGRADE_REQUIRED / QUOTA_EXCEEDED.
 export function useBilling({ currentUser, onUserUpdate }) {
   const [plan, setPlan] = useState(currentUser.plan || "free");
+  const [planStatus, setPlanStatus] = useState(currentUser.plan_status || "active");
+  const [periodEnd, setPeriodEnd] = useState(currentUser.current_period_end ?? null);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [aiUsedToday, setAiUsedToday] = useState(0);
   const [aiLimit, setAiLimit] = useState(null);
@@ -23,6 +25,8 @@ export function useBilling({ currentUser, onUserUpdate }) {
       .then((me) => {
         if (!alive) return;
         setPlan(me.plan);
+        setPlanStatus(me.plan_status || "active");
+        setPeriodEnd(me.current_period_end ?? null);
         setAiEnabled(!!me.aiEnabled);
         setAiUsedToday(me.aiUsedToday ?? 0);
         setAiLimit(me.aiLimit ?? null);
@@ -56,8 +60,10 @@ export function useBilling({ currentUser, onUserUpdate }) {
   // Complete the mock payment → server flips the plan → refresh + persist.
   const completeCheckout = useCallback(async () => {
     if (!checkout) return;
-    await api.confirmCheckout(checkout.checkoutId, checkout.plan);
+    const res = await api.confirmCheckout(checkout.checkoutId, checkout.plan);
     setPlan(checkout.plan);
+    setPlanStatus("active");
+    setPeriodEnd(res?.current_period_end ?? null);
     setAiLimit(null); // paid plans are effectively unlimited
     onUserUpdate?.({ plan: checkout.plan });
     setCheckout(null);
@@ -65,13 +71,17 @@ export function useBilling({ currentUser, onUserUpdate }) {
 
   const cancelCheckout = useCallback(() => setCheckout(null), []);
 
+  // Cancel → stays active until period end; effective plan recomputed
+  // server-side. Reflect the canceled status locally so the UI updates at once.
   const cancelPlan = useCallback(async () => {
     await api.cancelPlan();
-    // Stays active until period end; effective plan recomputed server-side.
+    setPlanStatus("canceled");
   }, []);
 
   return {
     plan,
+    planStatus,
+    periodEnd,
     aiEnabled,
     aiUsedToday,
     aiLimit,

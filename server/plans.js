@@ -20,12 +20,14 @@ export const PLANS = {
     voiceMessages: false,
     specialTheme: false, // Special mode (time-of-day themes) is a Pro perk
     maxGroupSize: 10,
+    maxChannels: 1, // channels the user can own/create
     features: [
       "Unlimited 1-1 and group chats",
       "Image sharing up to 5 MB",
       "10 AI actions / day",
       "Search the current conversation",
       "Groups up to 10 members",
+      "1 channel",
     ],
   },
   pro: {
@@ -40,12 +42,14 @@ export const PLANS = {
     voiceMessages: true,
     specialTheme: true,
     maxGroupSize: 50,
+    maxChannels: 10,
     features: [
       "Everything in Free",
       "Unlimited AI: summaries, smart replies, /ask, translate",
       "Files & voice messages up to 100 MB",
       "Global search across all conversations",
       "Special mode — immersive time-of-day themes",
+      "Up to 10 channels",
       "Priority AI model",
     ],
   },
@@ -61,8 +65,10 @@ export const PLANS = {
     voiceMessages: true,
     specialTheme: true,
     maxGroupSize: 50,
+    maxChannels: Infinity,
     features: [
       "Everything in Pro",
+      "Unlimited channels",
       "Highest AI rate limits",
       "Deeper search history",
       "Priority support",

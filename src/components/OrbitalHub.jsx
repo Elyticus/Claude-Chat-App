@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { MessageCircle, Sun, Moon, Sparkles, Users, Search, Lock } from "lucide-react";
+import { MessageCircle, Sun, Moon, Sparkles, Users, Search, Lock, Crown } from "lucide-react";
 import StarField from "./ui/star-field.jsx";
 import SpecialField from "./ui/special-field.jsx";
 import { AllChatsPanel } from "./AllChatsPanel.jsx";
@@ -23,6 +23,7 @@ export function OrbitalHub({
   onToggleTheme,
   onToggleSpecial,
   specialLocked = false,
+  onOpenPlans,
   pendingCount,
   pendingUsers,
   onAcceptContact,
@@ -276,6 +277,24 @@ export function OrbitalHub({
           >
             <Search size={16} />
           </button>
+          {onOpenPlans && (
+            <button
+              onClick={onOpenPlans}
+              title="Plans & pricing"
+              aria-label="View plans and pricing"
+              className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+              style={{
+                background: isDark ? "rgba(234,179,8,0.12)" : "rgba(234,179,8,0.1)",
+                border: `1px solid ${isDark ? "rgba(250,204,21,0.34)" : "rgba(202,138,4,0.26)"}`,
+                color: isDark ? "#facc15" : "#ca8a04",
+                boxShadow: isDark
+                  ? "0 0 10px rgba(234,179,8,0.14)"
+                  : "0 2px 8px rgba(234,179,8,0.12)",
+              }}
+            >
+              <Crown size={16} />
+            </button>
+          )}
           <button
             onClick={onToggleSpecial}
             title={

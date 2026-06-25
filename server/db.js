@@ -563,6 +563,17 @@ export const queries = {
         .then(r => r.rows[0]?.user_id ?? null),
   },
 
+  // How many channels this user currently owns — drives the per-plan channel cap.
+  countOwnedChannels: {
+    get: (userId) =>
+      q(`SELECT COUNT(*)::int AS n
+           FROM room_members rm
+           JOIN rooms r ON r.id = rm.room_id
+          WHERE rm.user_id = $1 AND rm.role = 'owner'
+            AND r.type IN ('channel', 'private_channel')`, [userId])
+        .then(r => r.rows[0]?.n ?? 0),
+  },
+
   updateRoom: {
     run: (roomId, name, description, slug = null) =>
       q("UPDATE rooms SET name = $1, description = $2, slug = COALESCE($3, slug) WHERE id = $4", [name, description ?? null, slug, roomId]),

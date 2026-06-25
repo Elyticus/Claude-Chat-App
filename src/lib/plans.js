@@ -17,6 +17,7 @@ export const PLANS = {
       "10 AI actions / day",
       "Search the current conversation",
       "Groups up to 10 members",
+      "1 channel",
     ],
   },
   pro: {
@@ -33,6 +34,7 @@ export const PLANS = {
       "Global search across all conversations",
       "Special mode — immersive time-of-day themes",
       "Groups up to 50 members",
+      "Up to 10 channels",
     ],
   },
   business: {
@@ -43,6 +45,7 @@ export const PLANS = {
     accent: "#2dd4bf",
     features: [
       "Everything in Pro",
+      "Unlimited channels",
       "Highest AI rate limits",
       "Deeper search history",
       "Priority support",

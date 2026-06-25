@@ -823,6 +823,23 @@ app.post("/api/channels", requireAuth, async (req, res) => {
   const existing = await queries.getChannelBySlug.get(cleanSlug);
   if (existing) return res.status(409).json({ error: "Channel address already taken" });
 
+  // Per-plan channel cap (Free 1, Pro 10, Business unlimited). Counts channels
+  // the user already owns; enforced here so the client can never bypass it.
+  const plan = await getPlan(queries, req.user.id);
+  const maxChannels = planConfig(plan).maxChannels;
+  if (Number.isFinite(maxChannels)) {
+    const owned = await queries.countOwnedChannels.get(req.user.id);
+    if (owned >= maxChannels) {
+      return res.status(402).json({
+        error: maxChannels === 1
+          ? "The Free plan includes 1 channel. Upgrade to Pro to create more."
+          : `Your plan allows ${maxChannels} channels. Upgrade to create more.`,
+        code: "UPGRADE_REQUIRED",
+        plan,
+      });
+    }
+  }
+
   const { lastInsertRowid: roomId } = await queries.createChannel.run(
     name.trim(), cleanSlug, description?.trim() || null, !!isPrivate,
   );

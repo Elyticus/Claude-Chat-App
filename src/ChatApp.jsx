@@ -19,6 +19,7 @@ import { ChatPanel } from "./components/chat/ChatPanel.jsx";
 import { ChatModals } from "./components/chat/ChatModals.jsx";
 import { UpgradeModal } from "./components/UpgradeModal.jsx";
 import { CheckoutModal } from "./components/CheckoutModal.jsx";
+import { ManageSubscriptionModal } from "./components/ManageSubscriptionModal.jsx";
 import { AiSummaryModal } from "./components/AiSummaryModal.jsx";
 import { SearchModal } from "./components/SearchModal.jsx";
 import {
@@ -48,6 +49,7 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
   const [showAccount, setShowAccount] = useState(false);
   // Global search command palette (Cmd/Ctrl-K).
   const [showSearch, setShowSearch] = useState(false);
+  const [showManageSub, setShowManageSub] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
   const [inputText, setInputText] = useState("");
   const [showMsgSearch, setShowMsgSearch] = useState(false);
@@ -842,6 +844,7 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
     setGroupMembersPanel,
     setConfirmModal,
     setEditChannelModal,
+    onGateError: billing.handleGateError,
   });
 
   // ── Derived ──────────────────────────────────────────────────────────────────
@@ -912,6 +915,7 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
         onToggleTheme={toggleTheme}
         onToggleSpecial={toggleSpecial}
         specialLocked={!billing.isPro}
+        onOpenPlans={() => billing.openUpgrade()}
         pendingCount={pendingRequestCount}
         pendingUsers={pendingUsers}
         onAcceptContact={handleAcceptContact}
@@ -1003,7 +1007,7 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
         currentUser={currentUser}
         plan={billing.plan}
         onUpgrade={() => billing.openUpgrade()}
-        onCancelPlan={billing.cancelPlan}
+        onManageSubscription={() => setShowManageSub(true)}
         pendingUsers={pendingUsers}
         friendNotifs={friendNotifs}
         showFriends={showFriends}
@@ -1081,6 +1085,20 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
           isDark={isDark}
           onPay={billing.completeCheckout}
           onClose={billing.cancelCheckout}
+        />
+      )}
+      {showManageSub && (
+        <ManageSubscriptionModal
+          plan={billing.plan}
+          planStatus={billing.planStatus}
+          periodEnd={billing.periodEnd}
+          isDark={isDark}
+          onCancel={billing.cancelPlan}
+          onChangePlan={() => {
+            setShowManageSub(false);
+            billing.openUpgrade();
+          }}
+          onClose={() => setShowManageSub(false)}
         />
       )}
 

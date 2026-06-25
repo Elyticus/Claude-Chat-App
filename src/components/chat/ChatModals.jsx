@@ -22,7 +22,7 @@ export function ChatModals({
   currentUser,
   plan,
   onUpgrade,
-  onCancelPlan,
+  onManageSubscription,
   pendingUsers,
   friendNotifs,
   showFriends,
@@ -117,7 +117,7 @@ export function ChatModals({
             setShowAccount(false);
             onUpgrade?.();
           }}
-          onCancelPlan={onCancelPlan}
+          onManageSubscription={onManageSubscription}
           onChangeAvatar={() => avatarFileRef.current?.click()}
           onLogout={() => {
             setShowAccount(false);
