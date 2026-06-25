@@ -57,13 +57,17 @@ export const SCENES = {
   },
 };
 
+// Relative luminance of a #rrggbb color > 0.55 → "light" (use dark text over it).
+export function isHexLight(hex) {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.55;
+}
+
 // Whether the hub should use dark text over the scene — decided from the TOP of
 // the sky (where the top-bar text sits). Morning/night keep dark crowns (white
 // text); the bright afternoon sky returns true (dark text).
 export function isSpecialSkyLight(hour) {
-  const top = SCENES[getScene(hour)].sky[0][1];
-  const r = parseInt(top.slice(1, 3), 16) / 255;
-  const g = parseInt(top.slice(3, 5), 16) / 255;
-  const b = parseInt(top.slice(5, 7), 16) / 255;
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.55;
+  return isHexLight(SCENES[getScene(hour)].sky[0][1]);
 }

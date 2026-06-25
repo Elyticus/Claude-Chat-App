@@ -176,3 +176,74 @@ export async function translate(text, targetLang) {
   });
   return textOf(message);
 }
+
+// ─── AI-generated background (Business) ──────────────────────────────────────
+// Claude can't produce raster images, so the "AI background" is a designed COLOR
+// PALETTE for the same vector coastline (SpecialField). The user describes a
+// vibe; the model returns harmonious, contrasted colors for each scene role.
+const HEX = /^#[0-9a-fA-F]{6}$/;
+const isHex = (v, fallback) => (typeof v === "string" && HEX.test(v) ? v : fallback);
+
+// Coerce the model's flat color arrays into SpecialField's exact palette shape,
+// guaranteeing valid hex everywhere (a bad value falls back to a sane default).
+function normalizePalette(raw = {}) {
+  const sky = Array.isArray(raw.sky) ? raw.sky.slice(0, 4) : [];
+  while (sky.length < 4) sky.push(sky[sky.length - 1]);
+  const s = sky.map((c, i) => isHex(c, ["#1b2a5c", "#46487f", "#7a6aa0", "#b9a6cf"][i]));
+  return {
+    name: typeof raw.name === "string" ? raw.name.slice(0, 40) : "Custom",
+    sky: [[0, s[0]], [0.5, s[1]], [0.82, s[2]], [1, s[3]]],
+    sea: [isHex(raw.sea?.[0], "#1f6f86"), isHex(raw.sea?.[1], "#3f97ac")],
+    foam: isHex(raw.foam, "#eef7f2"),
+    sand: [isHex(raw.sand?.[0], "#ebc983"), isHex(raw.sand?.[1], "#d4ac61")],
+    cliffs: [isHex(raw.cliffs?.[0], "#a4727e"), isHex(raw.cliffs?.[1], "#7c4b54"), isHex(raw.cliffs?.[2], "#4c3038")],
+    rock: [isHex(raw.rock?.[0], "#6e5560"), isHex(raw.rock?.[1], "#4a3a44")],
+    foliage: isHex(raw.foliage, "#21492c"),
+    flowers: [isHex(raw.flowers?.[0], "#ea6230"), isHex(raw.flowers?.[1], "#dd3a3a")],
+    stars: !!raw.stars,
+  };
+}
+
+// Schema arrays can't constrain length (the API rejects minItems>1), so we ask
+// for the counts in the prompt and enforce the exact shape in normalizePalette.
+const colorArray = { type: "array", items: { type: "string" } };
+
+export async function generateBackgroundScene(prompt) {
+  const message = await client.messages.create({
+    model: QUALITY_MODEL,
+    max_tokens: 700,
+    ...fastParams(QUALITY_MODEL),
+    output_config: {
+      format: {
+        type: "json_schema",
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            name: { type: "string" },
+            sky: colorArray, // 4 colors, top → horizon
+            sea: colorArray, // 2: deep, shallow
+            foam: { type: "string" },
+            sand: colorArray, // 2: light, shade
+            cliffs: colorArray, // 3: far, mid, near
+            rock: colorArray, // 2: face, shade
+            foliage: { type: "string" },
+            flowers: colorArray, // 2 accents
+            stars: { type: "boolean" },
+          },
+          required: ["name", "sky", "sea", "foam", "sand", "cliffs", "rock", "foliage", "flowers", "stars"],
+        },
+      },
+    },
+    system:
+      "You design color palettes for a stylized vector COASTLINE wallpaper. Return " +
+      "exactly: sky = 4 colors (top→horizon), sea = 2 (deep, shallow), foam = 1, " +
+      "sand = 2 (light, shade), cliffs = 3 (far/hazy→near/dark), rock = 2 (face, " +
+      "shade), foliage = 1 (trees+grass), flowers = 2 (accents). Given a vibe, make " +
+      "a harmonious, well-CONTRASTED palette. Keep the SKY TOP fairly dark or medium " +
+      "so light UI text stays readable; push brightness toward the horizon. Set " +
+      "stars=true for night/space moods. Every value is a #rrggbb hex string.",
+    messages: [{ role: "user", content: `Background vibe: ${prompt}` }],
+  });
+  return normalizePalette(JSON.parse(textOf(message)));
+}

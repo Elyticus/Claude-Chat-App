@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { MessageCircle, Sun, Moon, Sparkles, Users, Search, Crown } from "lucide-react";
+import { MessageCircle, Sun, Moon, Sparkles, Users, Search, Crown, Wand2 } from "lucide-react";
 import StarField from "./ui/star-field.jsx";
 import SpecialField from "./ui/special-field.jsx";
 import { AllChatsPanel } from "./AllChatsPanel.jsx";
-import { isSpecialSkyLight } from "@/lib/special-scenes.js";
+import { isSpecialSkyLight, isHexLight } from "@/lib/special-scenes.js";
 import { Avatar } from "./ui/Avatar.jsx";
 import { userBg } from "@/lib/helpers.js";
 import { isChannel, unreadBadgeStyle } from "@/lib/room-helpers.js";
@@ -24,6 +24,9 @@ export function OrbitalHub({
   onToggleSpecial,
   canSpecial = false,
   canSearch = false,
+  specialPalette = null,
+  canGenerateBg = false,
+  onOpenAiBg,
   onOpenPlans,
   pendingCount,
   pendingUsers,
@@ -88,7 +91,11 @@ export function OrbitalHub({
     const id = setInterval(() => setHour(new Date().getHours()), 60000);
     return () => clearInterval(id);
   }, []);
-  const specialSkyLight = isSpecialSkyLight(hour);
+  // Text contrast follows the active scene: a custom (AI) palette uses its own
+  // sky-top luminance; otherwise the time-of-day scene decides.
+  const specialSkyLight = specialPalette
+    ? isHexLight(specialPalette.sky[0][1])
+    : isSpecialSkyLight(hour);
 
   // Strong text color for names over the background canvas: white on dark,
   // black on light, brightness-dependent in special mode.
@@ -173,7 +180,7 @@ export function OrbitalHub({
       {/* Background canvas — all glow drawn on canvas, zero CSS blur layers.
           Special mode swaps the starfield for the time-of-day aurora scene. */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {isSpecial ? <SpecialField /> : <StarField isDark={isDark} />}
+        {isSpecial ? <SpecialField palette={specialPalette} /> : <StarField isDark={isDark} />}
       </div>
 
       {/* Top bar */}
@@ -328,6 +335,22 @@ export function OrbitalHub({
               }
             >
               <Sparkles size={16} />
+            </button>
+          )}
+          {canGenerateBg && isSpecial && (
+            <button
+              onClick={onOpenAiBg}
+              title="AI background"
+              aria-label="Generate an AI background"
+              className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+              style={{
+                background: isDark ? "rgba(20,184,166,0.14)" : "rgba(13,148,136,0.1)",
+                border: `1px solid ${isDark ? "rgba(45,212,191,0.4)" : "rgba(13,148,136,0.3)"}`,
+                color: isDark ? "#5eead4" : "#0d9488",
+                boxShadow: isDark ? "0 0 12px rgba(45,212,191,0.18)" : "0 2px 8px rgba(13,148,136,0.12)",
+              }}
+            >
+              <Wand2 size={16} />
             </button>
           )}
           <button

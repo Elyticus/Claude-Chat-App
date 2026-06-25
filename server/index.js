@@ -17,7 +17,7 @@ import { queries, initDb } from "./db.js";
 import { generateToken, verifyToken } from "./auth.js";
 import { registerBillingRoutes, getPlan } from "./billing.js";
 import { planConfig } from "./plans.js";
-import { aiReady, summarizeThread, suggestReplies, assistantAsk, translate } from "./ai.js";
+import { aiReady, summarizeThread, suggestReplies, assistantAsk, translate, generateBackgroundScene } from "./ai.js";
 import { generateKey, putObject, streamObject } from "./storage.js";
 
 const app = express();
@@ -1271,6 +1271,26 @@ app.post("/api/ai/translate", requireAuth, aiLimiter, async (req, res) => {
   const text = await runAi(res, () => translate(msg.text, targetLang.trim()));
   if (text === undefined) return;
   res.json({ text });
+});
+
+// AI-generated background — a Business feature. Returns a custom color palette
+// for the coastal scene (SpecialField), designed by Claude from a vibe prompt.
+app.post("/api/ai/background", requireAuth, aiLimiter, async (req, res) => {
+  if (!aiReady) {
+    return res.status(503).json({ error: "AI features are not configured", code: "AI_UNAVAILABLE" });
+  }
+  const plan = await getPlan(queries, req.user.id);
+  if (plan !== "business") {
+    return res.status(402).json({
+      error: "AI-generated backgrounds are a Business feature — upgrade to unlock",
+      code: "UPGRADE_REQUIRED", plan,
+    });
+  }
+  const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim().slice(0, 300) : "";
+  if (!prompt) return res.status(400).json({ error: "Describe the background you'd like" });
+  const palette = await runAi(res, () => generateBackgroundScene(prompt));
+  if (palette === undefined) return;
+  res.json({ palette });
 });
 
 // ─── Global search (Linkloop Pro) ───────────────────────────────────────────────

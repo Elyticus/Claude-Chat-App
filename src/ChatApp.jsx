@@ -20,6 +20,7 @@ import { ChatModals } from "./components/chat/ChatModals.jsx";
 import { UpgradeModal } from "./components/UpgradeModal.jsx";
 import { CheckoutModal } from "./components/CheckoutModal.jsx";
 import { ManageSubscriptionModal } from "./components/ManageSubscriptionModal.jsx";
+import { AiBackgroundModal } from "./components/AiBackgroundModal.jsx";
 import { AiSummaryModal } from "./components/AiSummaryModal.jsx";
 import { SearchModal } from "./components/SearchModal.jsx";
 import {
@@ -56,6 +57,16 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
   // Global search command palette (Cmd/Ctrl-K).
   const [showSearch, setShowSearch] = useState(false);
   const [showManageSub, setShowManageSub] = useState(false);
+  const [showAiBg, setShowAiBg] = useState(false);
+  // Business: an AI-generated custom palette for Special mode (null = time-of-day).
+  const [specialPalette, setSpecialPalette] = useState(() => {
+    try {
+      const s = localStorage.getItem("linkloop_special_palette");
+      return s ? JSON.parse(s) : null;
+    } catch {
+      return null;
+    }
+  });
   const [contextMenu, setContextMenu] = useState(null);
   const [inputText, setInputText] = useState("");
   const [showMsgSearch, setShowMsgSearch] = useState(false);
@@ -175,6 +186,22 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
     const t = setTimeout(() => applyTheme("dark"), 0);
     return () => clearTimeout(t);
   }, [billing.isPro, theme]);
+
+  // Apply an AI-generated palette to Special mode (and switch into it so it
+  // shows). Only Business users see/keep a custom palette (gated below).
+  function applyAiBackground(palette) {
+    setSpecialPalette(palette);
+    try {
+      localStorage.setItem("linkloop_special_palette", JSON.stringify(palette));
+    } catch { /* storage full / disabled — keep it in memory */ }
+    if (theme !== "special") applyTheme("special");
+  }
+  function resetAiBackground() {
+    setSpecialPalette(null);
+    localStorage.removeItem("linkloop_special_palette");
+  }
+  // A custom palette is honored only for Business; everyone else gets time-of-day.
+  const activeSpecialPalette = billing.plan === "business" ? specialPalette : null;
 
   const socketRef = useRef(null);
   const typingTimerRef = useRef(null);
@@ -924,6 +951,9 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
         onToggleSpecial={toggleSpecial}
         canSpecial={billing.isPro}
         canSearch={billing.isPro}
+        specialPalette={activeSpecialPalette}
+        canGenerateBg={billing.plan === "business"}
+        onOpenAiBg={() => setShowAiBg(true)}
         onOpenPlans={() => billing.openUpgrade()}
         pendingCount={pendingRequestCount}
         pendingUsers={pendingUsers}
@@ -1109,6 +1139,17 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
             billing.openUpgrade();
           }}
           onClose={() => setShowManageSub(false)}
+        />
+      )}
+      {showAiBg && (
+        <AiBackgroundModal
+          isDark={isDark}
+          activeName={activeSpecialPalette?.name || null}
+          onGenerate={(prompt) => api.aiBackground(prompt).then((r) => r.palette)}
+          onApply={applyAiBackground}
+          onReset={resetAiBackground}
+          onClose={() => setShowAiBg(false)}
+          onGateError={billing.handleGateError}
         />
       )}
 

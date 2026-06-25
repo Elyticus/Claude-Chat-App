@@ -24,9 +24,16 @@ rendering lives in `src/lib/plans.js`.
   `/webhook` (verified, then plan flips). `GET /api/me` returns live plan + AI
   usage + `aiEnabled`. UI: `UpgradeModal`, `CheckoutModal`, `useBilling` hook.
 - **AI (Claude)** — `server/ai.js` (Anthropic SDK, key server-side only; degrades to
-  503 when `ANTHROPIC_API_KEY` unset). `POST /api/ai/{summarize,replies,ask,translate}`.
-  UI: Catch-me-up (`AiSummaryModal`), `SmartReplies`, Translate (context menu),
-  `/ask` ephemeral bubble. `useAi` hook routes gate errors to the paywall.
+  503 when `ANTHROPIC_API_KEY` unset). Two model tiers via env: `ANTHROPIC_MODEL`
+  (quality: summaries + `/ask`) and `ANTHROPIC_MODEL_FAST` (replies + translate);
+  adaptive thinking is auto-dropped for pre-4.6 models. `POST /api/ai/{summarize,
+  replies,ask,translate,background}`. **AI is Pro-gated** (free → 402
+  `UPGRADE_REQUIRED`; `useAi` is enabled only when `aiEnabled && isPro`).
+  `/api/ai/background` is **Business-only**: Claude returns a custom color palette
+  for the coastal Special-mode scene (`AiBackgroundModal` → `applyAiBackground`,
+  persisted in `linkloop_special_palette`). UI: Catch-me-up (`AiSummaryModal`),
+  `SmartReplies`, Translate (context menu), `/ask` ephemeral bubble. `useAi` routes
+  gate errors to the paywall.
 - **Global search** — Postgres FTS (generated `messages.tsv` + GIN). `GET /api/search`
   (Pro-gated; membership enforced in SQL). UI: `SearchModal` command palette (Cmd/Ctrl-K).
 - **Media & voice** — `attachments` table; `POST /api/rooms/:roomId/attachments`
