@@ -17,21 +17,30 @@ import { randomUUID } from "crypto";
 
 const UPLOAD_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "uploads");
 
-export const storageDriver = (
-  process.env.STORAGE_DRIVER || (process.env.S3_BUCKET ? "s3" : "disk")
-).toLowerCase();
-
 const S3_BUCKET = process.env.S3_BUCKET;
 // Keys are namespaced under a prefix so the bucket can be shared with other data.
 const S3_PREFIX = (process.env.S3_PREFIX ?? "attachments").replace(/^\/+|\/+$/g, "");
+
+// Want S3 if explicitly requested, or auto when a bucket is configured. If S3 is
+// requested but no bucket is set, fall back to disk (with a loud warning) rather
+// than crash the server — so a half-configured production deploy stays UP and you
+// can finish wiring the bucket later. Uploads simply won't persist until then.
+const requestedS3 =
+  (process.env.STORAGE_DRIVER || (S3_BUCKET ? "s3" : "disk")).toLowerCase() === "s3";
+export const storageDriver = requestedS3 && S3_BUCKET ? "s3" : "disk";
+
+if (requestedS3 && !S3_BUCKET) {
+  console.warn(
+    "[storage] STORAGE_DRIVER=s3 but S3_BUCKET is not set — falling back to LOCAL DISK. " +
+      "On an ephemeral host (e.g. Render's free tier) uploads will NOT survive a restart. " +
+      "Set S3_BUCKET + S3_* to enable durable object storage.",
+  );
+}
 
 let s3 = null;
 let sdk = null;
 
 if (storageDriver === "s3") {
-  if (!S3_BUCKET) {
-    throw new Error("[storage] STORAGE_DRIVER=s3 but S3_BUCKET is not set");
-  }
   // Imported lazily so a disk-only deployment never loads the AWS SDK.
   sdk = await import("@aws-sdk/client-s3");
   s3 = new sdk.S3Client({
