@@ -78,7 +78,6 @@ export async function suggestReplies(messages, { selfName } = {}) {
     output_config: {
       format: {
         type: "json_schema",
-        name: "reply_suggestions",
         schema: {
           type: "object",
           additionalProperties: false,
