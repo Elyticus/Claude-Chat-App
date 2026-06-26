@@ -4,15 +4,15 @@ import { darkBg1, darkBorderMid, lightBg1, lightBorderMid } from "@/lib/constant
 
 // ─── AI background generator (Business) ──────────────────────────────────────
 // Business users describe a vibe; Claude returns a custom color palette for the
-// coastal scene (server/ai.js → generateBackgroundScene), applied to Special
+// landscape scene (server/ai.js → generateBackgroundScene), applied to Special
 // mode. Claude can't make raster images, so this recolours the vector scene.
 
 const IDEAS = [
-  "Misty Nordic fjord at dawn",
-  "Tropical sunset paradise",
-  "Neon cyberpunk night coast",
+  "Misty mountain valley at dawn",
+  "Golden sunset over the hills",
+  "Moonlit river under the stars",
   "Cherry-blossom spring morning",
-  "Volcanic black-sand beach",
+  "Autumn alpine afternoon",
 ];
 
 export function AiBackgroundModal({
@@ -83,7 +83,7 @@ export function AiBackgroundModal({
             </div>
             <div>
               <h2 className="text-lg font-bold leading-tight" style={{ color: headerColor }}>AI background</h2>
-              <p className="text-xs font-medium" style={{ color: subColor }}>Describe a vibe — Claude paints your coast</p>
+              <p className="text-xs font-medium" style={{ color: subColor }}>Describe a vibe — Claude paints your landscape</p>
             </div>
           </div>
 
@@ -92,7 +92,7 @@ export function AiBackgroundModal({
             onChange={(e) => setPrompt(e.target.value)}
             rows={2}
             maxLength={300}
-            placeholder="e.g. stormy emerald coast at twilight"
+            placeholder="e.g. stormy emerald valley at twilight"
             className="mt-4 w-full resize-none rounded-xl px-3 py-2.5 text-sm outline-none"
             style={{ background: fieldBg, border: `1px solid ${fieldBorder}`, color: headerColor }}
           />

@@ -1,58 +1,81 @@
-// ─── Special mode — time-of-day coastal scene (vector) ───────────────────────
-// A macOS-style "Dynamic Desktop" done in SVG (SpecialField): ONE stylised
-// coastline — sea, foamy shoreline, sandy beach, layered cliffs with umbrella
-// pines, foreground rocks and wildflowers — recoloured by the real clock into
-// three atmospheres (see getScene). Inspired by Apple/Arch "After Dark" style
-// coastal art; the geometry is fixed and only the palette changes per time.
+// ─── Special mode — time-of-day landscape scene (vector) ─────────────────────
+// A macOS-style "Dynamic Desktop" in SVG (SpecialField): ONE stylised valley —
+// layered mountains with a snow-capped peak, rolling green hills, a winding
+// river, scattered cypress/round trees and a sun or moon — recoloured by the
+// real clock into FOUR atmospheres (see getScene). Inspired by flat vector
+// landscape wallpaper art; the geometry is fixed and only the palette changes.
 
 export function getScene(h) {
-  if (h >= 5 && h < 11) return "morning";
-  if (h >= 11 && h < 18) return "afternoon";
-  return "night";
+  if (h >= 5 && h < 10) return "morning"; // dawn — pink/peach sunrise
+  if (h >= 10 && h < 17) return "afternoon"; // day — bright blue
+  if (h >= 17 && h < 20) return "evening"; // sunset — orange/red
+  return "night"; // moon + stars
 }
 
 // Palette roles consumed by SpecialField:
-//   sky      — vertical gradient stops [offset, color] (top → horizon)
-//   sea      — [deep, shallow] (vertical gradient toward the shore)
-//   foam     — the bright wave line where sea meets sand
-//   sand     — [light, shade]
-//   cliffs   — [far/hazy, mid, near/dark] headland layers
-//   rock     — [face, shade] foreground rocks
-//   foliage  — trees + grass
-//   flowers  — [warm, cool] wildflower accents
-//   stars    — scatter stars across the upper sky (night)
+//   sky       — vertical gradient stops [offset 0..1, color] (top → horizon)
+//   orb       — the sun (day/dawn/sunset) or moon (night) disc color
+//   orbGlow   — soft halo color/strength around the orb
+//   mountains — [far/hazy, mid, near] receding ridge layers
+//   snow      — snow cap on the prominent peak
+//   hills     — [back/hazy, mid, front] rolling hill bands (front = nearest)
+//   river     — [water, sheen] the winding river + its highlight
+//   trees     — cypress + round-tree foliage
+//   clouds    — wispy cloud color (false → none, e.g. clear night)
+//   stars     — scatter stars across the upper sky + render a moon (night)
 export const SCENES = {
+  // Dawn — soft blue-purple top warming to a peach horizon, low warm sun.
   morning: {
-    sky: [[0, "#5b5a96"], [0.5, "#b07ea0"], [0.8, "#ec9e6e"], [1, "#ffd0a4"]],
-    sea: ["#2f6f86", "#5a9aa8"],
-    foam: "#f4e7e1",
-    sand: ["#edc99b", "#d6a877"],
-    cliffs: ["#8a6a86", "#6a4a68", "#43304a"],
-    rock: ["#6a5a72", "#473a4e"],
-    foliage: "#34474a",
-    flowers: ["#ef7a44", "#e0566a"],
+    sky: [[0, "#5d76b0"], [0.4, "#9d8fc0"], [0.72, "#f1b39a"], [1, "#ffd9b0"]],
+    orb: "#fff3d6",
+    orbGlow: "rgba(255,221,170,0.55)",
+    mountains: ["#b9aecf", "#9b8fc0", "#7d6fae"],
+    snow: "#fbeede",
+    hills: ["#a7b886", "#8aa86a", "#6f9656"],
+    river: ["#cdc0dc", "#efe4ec"],
+    trees: "#4d6b4a",
+    clouds: "#ffe6d0",
     stars: false,
   },
+  // Day — vivid blue sky, white sun, blue-haze mountains, lush green hills.
   afternoon: {
-    sky: [[0, "#3fb6c2"], [0.5, "#76cdd0"], [0.82, "#aee0dd"], [1, "#dcf2ec"]],
-    sea: ["#1f6f86", "#3f97ac"],
-    foam: "#eef7f2",
-    sand: ["#ebc983", "#d4ac61"],
-    cliffs: ["#a4727e", "#7c4b54", "#4c3038"],
-    rock: ["#6e5560", "#4a3a44"],
-    foliage: "#21492c",
-    flowers: ["#ea6230", "#dd3a3a"],
+    sky: [[0, "#1f7fd6"], [0.45, "#3f9ae6"], [0.78, "#8fc8f2"], [1, "#d2ecfb"]],
+    orb: "#fffdf2",
+    orbGlow: "rgba(255,255,235,0.5)",
+    mountains: ["#9fc2e6", "#7aa6d8", "#5b86c0"],
+    snow: "#eef6ff",
+    hills: ["#7fb06a", "#5e9e4e", "#3f8a36"],
+    river: ["#9fd2f0", "#cfeafa"],
+    trees: "#2f6f34",
+    clouds: "#ffffff",
     stars: false,
   },
+  // Sunset — deep purple top, fiery orange band, bright yellow horizon, the sun
+  // setting low; hills fall into warm silhouette and the river catches the glow.
+  evening: {
+    sky: [[0, "#3a2350"], [0.4, "#7a2f63"], [0.66, "#d8542f"], [0.86, "#f59a2e"], [1, "#ffd24a"]],
+    orb: "#fff1c4",
+    orbGlow: "rgba(255,168,74,0.6)",
+    mountains: ["#7a4a66", "#5e3556", "#412445"],
+    snow: "#f7d9c4",
+    hills: ["#5a3a52", "#3f2742", "#281a30"],
+    river: ["#e8863a", "#ffd06a"],
+    trees: "#241a30",
+    clouds: "#f6a25a",
+    stars: false,
+  },
+  // Night — deep navy with a faint warm horizon glow, a bright moon, stars, the
+  // peak catching moonlight and a moonlit river threading the dark hills.
   night: {
-    sky: [[0, "#0c1240"], [0.5, "#151c54"], [0.82, "#1f2c6e"], [1, "#2c3c88"]],
-    sea: ["#0e1745", "#1d2e68"],
-    foam: "#46599a",
-    sand: ["#2b3a6c", "#1f2c56"],
-    cliffs: ["#1b2856", "#121b40", "#0a1028"],
-    rock: ["#172450", "#0e1736"],
-    foliage: "#0b1430",
-    flowers: ["#4a5ea4", "#5a6eb4"],
+    sky: [[0, "#070c24"], [0.5, "#0e1640"], [0.8, "#1a2456"], [0.93, "#2a2f5e"], [1, "#574a52"]],
+    orb: "#eaf0ff",
+    orbGlow: "rgba(200,214,255,0.45)",
+    mountains: ["#26335f", "#1b2750", "#121b3c"],
+    snow: "#c6d2f0",
+    hills: ["#1a2750", "#121d3e", "#0b1430"],
+    river: ["#2f4a86", "#86a0dc"],
+    trees: "#0a1430",
+    clouds: false,
     stars: true,
   },
 };
@@ -66,8 +89,8 @@ export function isHexLight(hex) {
 }
 
 // Whether the hub should use dark text over the scene — decided from the TOP of
-// the sky (where the top-bar text sits). Morning/night keep dark crowns (white
-// text); the bright afternoon sky returns true (dark text).
+// the sky (where the top-bar text sits). All four built-in skies are dark/medium
+// at the top, so the hub keeps white text; a bright custom (AI) sky flips it.
 export function isSpecialSkyLight(hour) {
   return isHexLight(SCENES[getScene(hour)].sky[0][1]);
 }

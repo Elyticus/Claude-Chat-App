@@ -30,7 +30,7 @@ rendering lives in `src/lib/plans.js`.
   replies,ask,translate,background}`. **AI is Pro-gated** (free → 402
   `UPGRADE_REQUIRED`; `useAi` is enabled only when `aiEnabled && isPro`).
   `/api/ai/background` is **Business-only**: Claude returns a custom color palette
-  for the coastal Special-mode scene (`AiBackgroundModal` → `applyAiBackground`,
+  for the landscape Special-mode scene (`AiBackgroundModal` → `applyAiBackground`,
   persisted in `linkloop_special_palette`). UI: Catch-me-up (`AiSummaryModal`),
   `SmartReplies`, Translate (context menu), `/ask` ephemeral bubble. `useAi` routes
   gate errors to the paywall.

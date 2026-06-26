@@ -1,18 +1,21 @@
 import { useEffect, useState } from "react";
 import { getScene, SCENES } from "@/lib/special-scenes.js";
 
-// ─── Special mode — dynamic coastal background (vector) ──────────────────────
-// A macOS-style "Dynamic Desktop" in pure SVG: ONE stylised coastline recoloured
-// by the real clock into morning / afternoon / night (see special-scenes.js).
-// Geometry is fixed; only the palette changes. No canvas, no rAF loop, no CSS
-// blur — just gradients and paths, so it is cheap and safe behind the orbital
-// nodes. Re-checks the clock each minute and re-renders when the scene flips.
+// ─── Special mode — dynamic landscape background (vector) ─────────────────────
+// A macOS-style "Dynamic Desktop" in pure SVG + CSS: ONE stylised valley (layered
+// mountains with a snow-capped peak, rolling hills, a winding river, scattered
+// trees, a sun or moon) recoloured by the real clock into morning / afternoon /
+// evening / night (see special-scenes.js). Geometry is fixed; only the palette
+// changes. No canvas, no rAF loop, no CSS blur — cheap and safe behind the hub.
+//
+// Responsive by construction: the SKY is a full-bleed CSS gradient and the sun/
+// moon/stars float in an absolutely-positioned sky layer, so they never crop.
+// The scenery is a full-WIDTH band anchored to the bottom (h-44% on phones,
+// h-70% on desktop) — phones get a tall sky + a full-width land strip, matching
+// the portrait reference art; desktops get a taller landscape.
 //
 // Optional `palette` prop overrides the time-of-day scene with a custom one
 // (e.g. an AI-generated Business background); falls back to the clock otherwise.
-
-const VW = 1600;
-const VH = 900;
 
 function shade(hex, amt) {
   const n = parseInt(hex.slice(1), 16);
@@ -23,152 +26,227 @@ function shade(hex, amt) {
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
 }
 
-const STARS = Array.from({ length: 70 }, (_, i) => ({
+// A custom palette is only honoured if it carries the landscape role shape
+// (guards against stale localStorage palettes from an older scene version).
+function isValidPalette(p) {
+  return (
+    p &&
+    Array.isArray(p.sky) && p.sky.length &&
+    Array.isArray(p.mountains) && p.mountains.length >= 3 &&
+    Array.isArray(p.hills) && p.hills.length >= 3 &&
+    Array.isArray(p.river) && p.river.length >= 2 &&
+    typeof p.trees === "string" && typeof p.orb === "string"
+  );
+}
+
+// Where the sun/moon sits per mood (percent of viewport — safely in the sky on
+// both phone and desktop layouts). Custom palettes reuse day/night placement.
+const ORB_POS = {
+  morning: { x: 22, y: 24 },
+  afternoon: { x: 24, y: 15 },
+  evening: { x: 30, y: 26 },
+  night: { x: 74, y: 15 },
+};
+
+// Deterministic star scatter across the upper sky (x, y as 0..1, r in px).
+const STARS = Array.from({ length: 64 }, (_, i) => ({
   x: ((i * 97.13) % 100) / 100,
-  y: ((i * 31.7) % 34) / 100,
-  r: 0.6 + ((i * 7) % 10) / 9,
-  o: 0.4 + ((i * 13) % 10) / 16,
+  y: ((i * 28.7) % 56) / 100,
+  r: 0.7 + ((i * 7) % 10) / 7,
+  o: 0.35 + ((i * 13) % 10) / 14,
 }));
 
-function Tree({ x, y, s, fill }) {
+// Wispy contrail-style clouds (day/dawn/sunset).
+const CLOUDS = [
+  { left: 14, top: 16, w: 240, h: 16, rot: -8, o: 0.5 },
+  { left: 52, top: 11, w: 300, h: 13, rot: -4, o: 0.4 },
+  { left: 30, top: 26, w: 180, h: 12, rot: 6, o: 0.34 },
+];
+
+function Cypress({ x, y, s, fill }) {
   return (
     <g transform={`translate(${x} ${y}) scale(${s})`}>
-      <path d="M-2.5,0 L2.5,0 L1.5,-56 L-1.5,-56 Z" fill={fill} />
-      <ellipse cx="0" cy="-72" rx="36" ry="13" fill={fill} />
-      <ellipse cx="0" cy="-63" rx="52" ry="15" fill={fill} />
-      <ellipse cx="-24" cy="-56" rx="30" ry="12" fill={fill} />
-      <ellipse cx="26" cy="-58" rx="28" ry="11" fill={fill} />
+      <rect x="-2.4" y="-12" width="4.8" height="14" fill={shade(fill, -26)} />
+      <path
+        d="M0,2 C -10,-10 -9,-40 -6,-70 C -4,-92 -2,-104 0,-120 C 2,-104 4,-92 6,-70 C 9,-40 10,-10 0,2 Z"
+        fill={fill}
+      />
     </g>
   );
 }
 
-function Grass({ x, y, s, fill }) {
-  return (
-    <g transform={`translate(${x} ${y}) scale(${s})`} stroke={fill} strokeWidth="3.4" strokeLinecap="round" fill="none">
-      <path d="M0,0 C -2,-15 -6,-24 -11,-30" />
-      <path d="M0,0 C 0,-17 0,-28 0,-36" />
-      <path d="M0,0 C 2,-15 6,-24 11,-30" />
-      <path d="M0,0 C 5,-12 9,-19 13,-24" />
-    </g>
-  );
-}
-
-function Flower({ x, y, s, petal, stem }) {
-  const pet = [0, 72, 144, 216, 288].map((a) => {
-    const r = (a * Math.PI) / 180;
-    return { cx: Math.cos(r) * 9, cy: -90 + Math.sin(r) * 9 };
-  });
+function RoundTree({ x, y, s, fill }) {
   return (
     <g transform={`translate(${x} ${y}) scale(${s})`}>
-      <path d="M0,0 C -4,-34 -3,-64 0,-90" stroke={stem} strokeWidth="3.5" fill="none" strokeLinecap="round" />
-      <ellipse cx="-11" cy="-44" rx="10" ry="4.5" fill={stem} transform="rotate(-32 -11 -44)" />
-      <ellipse cx="11" cy="-32" rx="10" ry="4.5" fill={stem} transform="rotate(32 11 -32)" />
-      {pet.map((q, i) => (
-        <circle key={i} cx={q.cx} cy={q.cy} r="7.5" fill={petal} />
-      ))}
-      <circle cx="0" cy="-90" r="4.5" fill={shade(petal, -55)} />
+      <rect x="-3.4" y="-30" width="6.8" height="32" fill={shade(fill, -34)} />
+      <circle cx="-16" cy="-44" r="17" fill={shade(fill, -10)} />
+      <circle cx="15" cy="-46" r="16" fill={shade(fill, -4)} />
+      <circle cx="0" cy="-56" r="22" fill={fill} />
     </g>
   );
 }
 
 export default function SpecialField({ palette = null }) {
   const [scene, setScene] = useState(() => getScene(new Date().getHours()));
+  const custom = palette && isValidPalette(palette) ? palette : null;
 
   useEffect(() => {
-    if (palette) return; // custom palette: no clock ticking
+    if (custom) return; // custom palette: no clock ticking
     const id = setInterval(() => setScene(getScene(new Date().getHours())), 60000);
     return () => clearInterval(id);
-  }, [palette]);
+  }, [custom]);
 
-  const p = palette || SCENES[scene];
-  const [cFar, cMid, cNear] = p.cliffs;
-  const [rockFace, rockShade] = p.rock;
+  const p = custom || SCENES[scene];
+  const [mFar, mMid, mNear] = p.mountains;
+  const [hBack, hMid, hFront] = p.hills;
+  const [water, sheen] = p.river;
+  const isMoon = !!p.stars;
+  const orbName = custom ? (isMoon ? "night" : "afternoon") : scene;
+  const pos = ORB_POS[orbName] || ORB_POS.afternoon;
+
+  const skyGradient = `linear-gradient(to bottom, ${p.sky
+    .map(([o, c]) => `${c} ${Math.round(o * 100)}%`)
+    .join(", ")})`;
 
   return (
-    <svg
-      className="absolute inset-0 w-full h-full"
-      viewBox={`0 0 ${VW} ${VH}`}
-      preserveAspectRatio="xMidYMid slice"
-      aria-hidden="true"
-    >
-      <defs>
-        <linearGradient id="sf-sky" x1="0" y1="0" x2="0" y2="1">
-          {p.sky.map(([o, c]) => (
-            <stop key={o} offset={o} stopColor={c} />
-          ))}
-        </linearGradient>
-        <linearGradient id="sf-sea" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={p.sea[0]} />
-          <stop offset="100%" stopColor={p.sea[1]} />
-        </linearGradient>
-        <linearGradient id="sf-sand" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={p.sand[0]} />
-          <stop offset="100%" stopColor={p.sand[1]} />
-        </linearGradient>
-        <linearGradient id="sf-cliff" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={cNear} />
-          <stop offset="100%" stopColor={shade(cNear, -14)} />
-        </linearGradient>
-        <linearGradient id="sf-rock" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={rockFace} />
-          <stop offset="100%" stopColor={rockShade} />
-        </linearGradient>
-      </defs>
+    <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
+      {/* Sky — full-bleed gradient, never cropped */}
+      <div className="absolute inset-0" style={{ background: skyGradient }} />
 
-      {/* Sky */}
-      <rect width={VW} height={372} fill="url(#sf-sky)" />
+      {/* Stars (night) */}
       {p.stars &&
         STARS.map((s, i) => (
-          <circle key={i} cx={s.x * VW} cy={s.y * VH} r={s.r} fill="#ffffff" opacity={s.o} />
+          <span
+            key={i}
+            className="absolute rounded-full bg-white"
+            style={{
+              left: `${(s.x * 100).toFixed(2)}%`,
+              top: `${(s.y * 60).toFixed(2)}%`,
+              width: `${s.r}px`,
+              height: `${s.r}px`,
+              opacity: s.o,
+            }}
+          />
         ))}
 
-      {/* Far hazy cape on the horizon */}
-      <path d="M1040,338 C1150,308 1270,316 1380,338 L1380,372 L1040,372 Z" fill={cFar} opacity="0.8" />
+      {/* Wispy clouds (day / dawn / sunset) */}
+      {p.clouds &&
+        CLOUDS.map((c, i) => (
+          <span
+            key={i}
+            className="absolute rounded-full"
+            style={{
+              left: `${c.left}%`,
+              top: `${c.top}%`,
+              width: `${c.w}px`,
+              height: `${c.h}px`,
+              maxWidth: "40vw",
+              background: p.clouds,
+              opacity: c.o,
+              transform: `rotate(${c.rot}deg)`,
+            }}
+          />
+        ))}
 
-      {/* Sea */}
-      <rect y="338" width={VW} height={232} fill="url(#sf-sea)" />
-
-      {/* Foam where the sea meets the sand */}
-      <path
-        d="M0,512 C 300,494 580,542 900,512 C 1150,488 1400,532 1600,508 L1600,552 C 1360,576 1120,540 900,562 C 580,590 300,544 0,564 Z"
-        fill={p.foam}
-        opacity="0.92"
+      {/* Sun / moon */}
+      <span
+        className="absolute rounded-full"
+        style={{
+          left: `${pos.x}%`,
+          top: `${pos.y}%`,
+          width: isMoon ? "clamp(46px, 6vw, 92px)" : "clamp(56px, 7.5vw, 116px)",
+          height: isMoon ? "clamp(46px, 6vw, 92px)" : "clamp(56px, 7.5vw, 116px)",
+          background: isMoon
+            ? `radial-gradient(circle at 38% 34%, #ffffff, ${p.orb} 58%, ${shade(p.orb, -22)} 100%)`
+            : `radial-gradient(circle at 50% 50%, #ffffff 8%, ${p.orb} 62%)`,
+          boxShadow: isMoon
+            ? `0 0 42px 2px ${p.orbGlow || "rgba(200,214,255,0.45)"}`
+            : `0 0 64px 8px ${p.orbGlow || "rgba(255,240,200,0.5)"}`,
+        }}
       />
 
-      {/* Beach */}
-      <path d="M0,548 C 300,530 580,578 900,548 C 1150,524 1400,568 1600,544 L1600,900 L0,900 Z" fill="url(#sf-sand)" />
+      {/* Scenery — full-width band anchored to the bottom. Phones show a short
+          full-width strip (tall sky above); desktop shows a taller landscape. */}
+      <svg
+        className="absolute inset-x-0 bottom-0 w-full h-[44%] sm:h-[70%]"
+        viewBox="0 0 1600 600"
+        preserveAspectRatio="xMidYMax slice"
+      >
+        <defs>
+          <linearGradient id="sf-river" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={sheen} />
+            <stop offset="100%" stopColor={water} />
+          </linearGradient>
+        </defs>
 
-      {/* Right headland — three receding facets, near = darkest */}
-      <path d="M1015,372 C 1095,250 1190,205 1255,205 L1255,372 Z" fill={cFar} />
-      <path d="M1150,372 C 1230,210 1340,150 1430,140 L1430,372 Z" fill={cMid} />
-      <path d="M1255,640 C 1255,430 1350,235 1500,150 L1600,110 L1600,640 Z" fill="url(#sf-cliff)" />
-      {/* cliff edge highlight */}
-      <path d="M1500,150 L1600,110 L1600,210 L1520,240 Z" fill={shade(cNear, 26)} opacity="0.7" />
+        {/* Mountains — three receding ridges, far = hazy */}
+        <path
+          d="M0,180 L120,150 L280,170 L430,140 L600,165 L760,135 L920,158 L1080,128 L1240,160 L1400,140 L1600,165 L1600,600 L0,600 Z"
+          fill={mFar}
+          opacity="0.85"
+        />
+        <path
+          d="M0,200 L160,176 L340,150 L520,186 L700,150 L880,124 L1040,152 L1180,172 L1360,150 L1600,186 L1600,600 L0,600 Z"
+          fill={mMid}
+        />
+        {/* Prominent snow-capped peak */}
+        <path
+          d="M0,216 L240,196 L470,206 L700,176 L860,150 L1010,58 L1170,150 L1330,190 L1520,206 L1600,212 L1600,600 L0,600 Z"
+          fill={mNear}
+        />
+        <path d="M1010,60 L1050,116 L1034,108 L1020,122 L1006,112 L992,122 L978,108 L970,116 Z" fill={p.snow} />
 
-      {/* Umbrella pines on the ridge */}
-      <Tree x={1372} y={196} s={1.05} fill={p.foliage} />
-      <Tree x={1268} y={250} s={0.78} fill={p.foliage} />
+        {/* Rolling hills — receding bands */}
+        <path
+          d="M0,205 C 260,165 520,205 820,180 C 1080,160 1340,205 1600,185 L1600,600 L0,600 Z"
+          fill={hBack}
+        />
+        <path
+          d="M0,300 C 280,255 560,305 860,280 C 1120,258 1380,310 1600,288 L1600,600 L0,600 Z"
+          fill={hMid}
+        />
 
-      {/* Foreground — big rock bottom-left */}
-      <path d="M0,792 L96,720 L250,802 L300,900 L0,900 Z" fill="url(#sf-rock)" />
-      <path d="M96,720 L250,802 L150,806 Z" fill={shade(rockFace, 22)} opacity="0.6" />
+        {/* Winding river — emerges from the valley and snakes to the foreground */}
+        <path
+          d="M 858,296 C 792,348 742,360 766,408 C 788,452 862,452 826,506 C 798,548 700,556 706,600"
+          fill="none"
+          stroke="url(#sf-river)"
+          strokeWidth="46"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M 858,296 C 792,348 742,360 766,408 C 788,452 862,452 826,506 C 798,548 700,556 706,600"
+          fill="none"
+          stroke={sheen}
+          strokeWidth="14"
+          strokeLinecap="round"
+          opacity="0.8"
+        />
 
-      {/* Scattered rocks on the sand */}
-      <path d="M470,724 L520,700 L600,726 L582,760 L486,758 Z" fill={rockFace} />
-      <path d="M700,690 L744,672 L806,694 L790,722 L708,720 Z" fill={shade(rockFace, -10)} />
-      <path d="M980,756 L1040,730 L1130,758 L1108,796 L996,792 Z" fill={rockFace} />
+        {/* Nearest hills frame the valley so the river runs between them */}
+        <path
+          d="M0,430 C 180,392 360,420 520,452 C 600,468 642,500 660,600 L0,600 Z"
+          fill={hFront}
+        />
+        <path
+          d="M1600,440 C 1420,400 1240,424 1080,452 C 980,470 902,500 884,600 L1600,600 Z"
+          fill={hFront}
+        />
 
-      {/* Grass tufts */}
-      <Grass x={300} y={764} s={1.5} fill={p.foliage} />
-      <Grass x={642} y={742} s={1.3} fill={p.foliage} />
-      <Grass x={1160} y={804} s={1.5} fill={p.foliage} />
-
-      {/* Wildflowers, both lower corners */}
-      <Flower x={250} y={862} s={1.05} petal={p.flowers[0]} stem={p.foliage} />
-      <Flower x={310} y={892} s={0.9} petal={p.flowers[1]} stem={p.foliage} />
-      <Flower x={188} y={898} s={0.82} petal={p.flowers[0]} stem={p.foliage} />
-      <Flower x={1486} y={874} s={1.05} petal={p.flowers[1]} stem={p.foliage} />
-      <Flower x={1556} y={900} s={0.92} petal={p.flowers[0]} stem={p.foliage} />
-    </svg>
+        {/* Trees — cypress cluster left, round trees right, a few mid for depth */}
+        <Cypress x={112} y={452} s={0.95} fill={p.trees} />
+        <Cypress x={158} y={440} s={1.15} fill={p.trees} />
+        <Cypress x={206} y={460} s={0.85} fill={p.trees} />
+        <RoundTree x={556} y={470} s={0.92} fill={p.trees} />
+        <RoundTree x={1180} y={470} s={1.1} fill={p.trees} />
+        <RoundTree x={1316} y={452} s={0.9} fill={p.trees} />
+        <RoundTree x={1460} y={478} s={1.05} fill={p.trees} />
+        <Cypress x={988} y={486} s={1.0} fill={p.trees} />
+        {/* Small far trees on the mid hill for depth */}
+        <RoundTree x={360} y={300} s={0.5} fill={shade(p.trees, 8)} />
+        <RoundTree x={1240} y={300} s={0.5} fill={shade(p.trees, 8)} />
+      </svg>
+    </div>
   );
 }

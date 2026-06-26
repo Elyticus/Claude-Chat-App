@@ -19,7 +19,7 @@ src/
 │   └── useChatDerivedState.js # Pure derived values (contacts, avatarMap, activeRoom + metadata, divider index, profile context); exports MAX_MESSAGE_LENGTH
 ├── components/
 │   ├── AccountModal.jsx         # Current user's own profile — tap avatar to enlarge, change-picture button, sign out (opens from hub avatar)
-│   ├── AiBackgroundModal.jsx    # Business: describe a vibe → Claude returns a custom palette for the Special-mode coastal scene
+│   ├── AiBackgroundModal.jsx    # Business: describe a vibe → Claude returns a custom palette for the Special-mode landscape scene
 │   ├── ManageSubscriptionModal.jsx # Paid plan: status + renewal date, cancel/resume, change plan
 │   ├── AllChatsPanel.jsx        # Slide-up "All Chats" sheet (requests + channel activity + room list) — used by OrbitalHub
 │   ├── AuthScreen.jsx           # Login / Register form
@@ -43,14 +43,14 @@ src/
 │       ├── badge.jsx                 # shadcn-pattern Badge (cva + cn)
 │       ├── button.jsx                # shadcn-pattern Button (cva + cn + Radix Slot)
 │       ├── card.jsx                  # shadcn-pattern Card family
-│       ├── special-field.jsx         # SVG dynamic background — time-of-day scenes (morning / afternoon / night), macOS Dynamic-Desktop style
+│       ├── special-field.jsx         # SVG+CSS dynamic background — responsive time-of-day landscape (morning / afternoon / evening / night), macOS Dynamic-Desktop style
 │       ├── ContactStatusButton.jsx   # Add / remove contact button (status-aware)
 │       ├── shader-background.jsx     # Three.js GLSL shader canvas background
 │       ├── star-field.jsx            # Canvas starfield + comets (dark) / sunrise + birds (light)
 │       └── TypingIndicator.jsx       # "X is typing…" label
 └── lib/
     ├── api.js        # fetch() wrappers for every REST endpoint
-    ├── special-scenes.js # Special-mode scene selector (getScene → morning/afternoon/night) + per-scene vector palettes + isSpecialSkyLight() contrast helper
+    ├── special-scenes.js # Special-mode scene selector (getScene → morning/afternoon/evening/night) + per-scene landscape palettes + isSpecialSkyLight() contrast helper
     ├── constants.js  # Shared style tokens (COLORS, REACTIONS, ROLE_LEVEL, theme vars)
     ├── helpers.js    # userBg, initials, formatTime, formatDateSeparator, toSlug
     ├── room-helpers.js # isChannel(room) + unreadBadgeStyle(room) — shared by OrbitalHub + AllChatsPanel
@@ -130,16 +130,22 @@ Message deletion is also optimistic: message removed from state immediately, the
   palette** (`isDark = theme !== "light"`) so all `isDark` styling keeps
   working, but swaps backgrounds for `specialBg0/1` (deep navy, see
   `constants.js`) and renders `SpecialField` instead of `StarField` in the hub.
-  `SpecialField` is a **macOS-style dynamic background in pure SVG**: ONE layered-
-  dune landscape recoloured by the real clock (`getScene` in
-  `lib/special-scenes.js`) into **morning** (5–11, indigo→amber sunrise, warm
-  dunes, sun rising behind the hills), **afternoon** (11–18, bright blue sky,
-  high sun, green hills) and **night** (18–5, deep navy, stars, pale moon, dark
-  dunes). It re-checks the clock each minute and re-renders when the scene flips.
-  No canvas, no rAF loop, no CSS blur — just gradients, a glowing sun/moon and
-  dune paths. Each scene keeps a **dark upper sky** so the hub's white top-bar
-  text stays legible (`isSpecialSkyLight` decides from the top sky stop). Special
-  mode is a **Pro** feature — the Sparkles button is hidden for free users.
+  `SpecialField` is a **macOS-style dynamic background (SVG + CSS)**: ONE stylised
+  valley — layered mountains with a snow-capped peak, rolling hills, a winding
+  river, scattered cypress/round trees and a sun or moon — recoloured by the real
+  clock (`getScene` in `lib/special-scenes.js`) into **morning** (5–10, peach
+  sunrise), **afternoon** (10–17, bright blue sky), **evening** (17–20, fiery
+  sunset) and **night** (20–5, deep navy, stars, moon). It re-checks the clock
+  each minute and re-renders when the scene flips. **Responsive by construction:**
+  the sky is a full-bleed CSS gradient and the sun/moon/stars float in an
+  absolutely-positioned sky layer (never cropped), while the scenery is a
+  full-WIDTH SVG band anchored to the bottom (`h-44%` on phones → tall sky + land
+  strip like the portrait art; `h-70%` on desktop). No canvas, no rAF loop, no CSS
+  blur — just gradients and paths. Each scene keeps a **dark/medium upper sky** so
+  the hub's white top-bar text stays legible (`isSpecialSkyLight` decides from the
+  top sky stop). Special mode is a **Pro** feature — the Sparkles button is hidden
+  for free users; **Business** users can additionally generate a custom palette
+  (`AiBackgroundModal`) that overrides the time-of-day scene.
 - **Tailwind v4 syntax** — this project uses `@import "tailwindcss"` + `@theme {}` blocks in `globals.css`. There is no `tailwind.config.js`. Do not add one.
 - **`@` path alias** — configured in `vite.config.js` via `resolve.alias`. Import as `@/lib/utils`, `@/components/ui/button`, etc.
 
