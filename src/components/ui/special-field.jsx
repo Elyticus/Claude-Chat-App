@@ -275,9 +275,18 @@ function VectorScene({ p, name }) {
   );
 }
 
+// Kick off image fetches as early as possible (before first render) so the
+// browser has a head-start on every scene the user might see.
+const allSrcs = Object.values(IMAGES).flatMap((o) => Object.values(o));
+allSrcs.forEach((s) => {
+  const img = new Image();
+  img.src = s;
+});
+
 export default function SpecialField({ treatment = null }) {
   const [scene, setScene] = useState(() => getScene(new Date().getHours()));
   const [failedSrc, setFailedSrc] = useState(null);
+  const [photoReady, setPhotoReady] = useState(false);
   const portrait = useOrientation();
 
   useEffect(() => {
@@ -288,14 +297,14 @@ export default function SpecialField({ treatment = null }) {
     return () => clearInterval(id);
   }, []);
 
-  // The live time-of-day illustration (orientation-aware); the vector scene is a
-  // fallback if the image is missing or fails to load.
   const src = IMAGES[scene][portrait ? "portrait" : "landscape"];
   const showVector = failedSrc === src;
 
-  // A Business AI "background" is a colour-GRADE applied ON TOP of the real photo
-  // (CSS filters + a tint overlay) — it recolours the actual scene rather than
-  // replacing it.
+  // Reset ready flag whenever the target image changes.
+  useEffect(() => {
+    setPhotoReady(false);
+  }, [src]);
+
   const filter = treatment
     ? `hue-rotate(${treatment.hueRotate}deg) saturate(${treatment.saturate}) brightness(${treatment.brightness}) contrast(${treatment.contrast})`
     : undefined;
@@ -306,19 +315,32 @@ export default function SpecialField({ treatment = null }) {
       aria-hidden="true"
       style={{ background: SCENES[scene].sky[0][1] }}
     >
-      {showVector ? (
-        <div className="absolute inset-0" style={{ filter }}>
-          <VectorScene p={SCENES[scene]} name={scene} />
-        </div>
-      ) : (
+      {/*
+        Vector scene always renders immediately as the base layer — zero network
+        wait, no blank flash. The photo fades in on top once it's decoded.
+        When the photo has failed (showVector), the vector IS the final view.
+      */}
+      <div className="absolute inset-0" style={{ filter: showVector ? filter : undefined }}>
+        <VectorScene p={SCENES[scene]} name={scene} />
+      </div>
+
+      {!showVector && (
         <img
           src={src}
           alt=""
+          fetchPriority="high"
+          onLoad={() => setPhotoReady(true)}
           onError={() => setFailedSrc(src)}
           className="absolute inset-0 w-full h-full object-cover"
-          style={{ objectPosition: "center", filter }}
+          style={{
+            objectPosition: "center",
+            filter,
+            opacity: photoReady ? 1 : 0,
+            transition: photoReady ? "opacity 0.4s ease" : "none",
+          }}
         />
       )}
+
       {treatment && treatment.overlayOpacity > 0 && (
         <div
           className="absolute inset-0"
