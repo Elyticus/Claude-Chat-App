@@ -26,7 +26,7 @@
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "no-referrer"
-    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+    Permissions-Policy = "geolocation=(), microphone=(self), camera=()"
 
 # Hashed Vite assets are content-addressed and safe to cache forever.
 [[headers]]

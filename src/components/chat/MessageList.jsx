@@ -35,9 +35,8 @@ function AttachmentBlock({ att, isMine, isDark }) {
         <img
           src={url}
           alt={att.name || "image"}
-          loading="lazy"
-          className="rounded-lg max-w-full"
-          style={{ maxHeight: 320, objectFit: "cover" }}
+          className="rounded-lg max-w-full block"
+          style={{ maxHeight: 320, maxWidth: "100%", objectFit: "cover", minHeight: 48 }}
         />
       </a>
     );
