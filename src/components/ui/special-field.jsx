@@ -267,6 +267,13 @@ export default function SpecialField({ treatment = null }) {
       ty = e.clientY / window.innerHeight - 0.5;
     }
 
+    function onTouch(e) {
+      if (e.touches.length > 0) {
+        tx = e.touches[0].clientX / window.innerWidth - 0.5;
+        ty = e.touches[0].clientY / window.innerHeight - 0.5;
+      }
+    }
+
     function onGyro(e) {
       tx = Math.max(-0.5, Math.min(0.5, (e.gamma || 0) / 45));
       ty = Math.max(-0.5, Math.min(0.5, ((e.beta || 0) - 45) / 45));
@@ -289,11 +296,13 @@ export default function SpecialField({ treatment = null }) {
     }
 
     window.addEventListener("mousemove", onMouse, { passive: true });
+    window.addEventListener("touchmove", onTouch, { passive: true });
     window.addEventListener("deviceorientation", onGyro, { passive: true });
     rafId = requestAnimationFrame(frame);
 
     return () => {
       window.removeEventListener("mousemove", onMouse);
+      window.removeEventListener("touchmove", onTouch);
       window.removeEventListener("deviceorientation", onGyro);
       cancelAnimationFrame(rafId);
     };

@@ -1398,20 +1398,52 @@ app.post("/api/rooms/:roomId/attachments", requireAuth, attachmentLimiter, uploa
 
 // Stream a private attachment. Auth via header OR ?token=, plus a membership
 // check on the attachment's room — files are never publicly accessible.
+// Handles Range requests so browsers can seek audio/video and Safari can play audio at all.
 app.get("/api/attachments/:id", requireAuthAllowQuery, attachmentLimiter, async (req, res) => {
   const att = await queries.getAttachmentById.get(req.params.id);
   if (!att) return res.status(404).json({ error: "Not found" });
   if (!(await queries.isMember.get(att.room_id, req.user.id))) {
     return res.status(403).json({ error: "Forbidden" });
   }
+
+  const fileSize = att.size;
+  const rangeHeader = req.headers.range;
+
   res.setHeader("Content-Type", att.mime);
   res.setHeader("Cache-Control", "private, max-age=86400");
+  res.setHeader("Accept-Ranges", "bytes");
   res.setHeader(
     "Content-Disposition",
     `${att.kind === "file" ? "attachment" : "inline"}; filename="${encodeURIComponent(att.filename)}"`,
   );
-  // Streamed from the storage backend (disk or S3/R2); never a public URL.
-  await streamObject(att.storage_path, res);
+
+  if (rangeHeader && fileSize) {
+    const m = rangeHeader.match(/bytes=(\d*)-(\d*)/);
+    if (m) {
+      const rawStart = m[1];
+      const rawEnd = m[2];
+      let start, end;
+      if (rawStart === "" && rawEnd !== "") {
+        // suffix range: bytes=-M → last M bytes
+        start = Math.max(0, fileSize - parseInt(rawEnd, 10));
+        end = fileSize - 1;
+      } else {
+        start = rawStart !== "" ? parseInt(rawStart, 10) : 0;
+        end = rawEnd !== "" ? Math.min(parseInt(rawEnd, 10), fileSize - 1) : fileSize - 1;
+      }
+      if (start > end || start >= fileSize) {
+        return res.status(416).setHeader("Content-Range", `bytes */${fileSize}`).end();
+      }
+      res.status(206);
+      res.setHeader("Content-Range", `bytes ${start}-${end}/${fileSize}`);
+      res.setHeader("Content-Length", end - start + 1);
+      await streamObject(att.storage_path, res, { start, end });
+      return;
+    }
+  }
+
+  if (fileSize) res.setHeader("Content-Length", fileSize);
+  await streamObject(att.storage_path, res, null);
 });
 
 // ─── Push subscription ─────────────────────────────────────────────────────────

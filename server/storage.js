@@ -101,14 +101,15 @@ export async function putObject({ key, buffer, mime }) {
 }
 
 // Pipe a stored object to an Express response. The caller has already set the
-// response headers and done the auth + membership check; a missing object yields
-// a bare 404 (never leaks bucket/path details).
-export async function streamObject(key, res) {
+// response headers (including Accept-Ranges, Content-Range, Content-Length) and
+// done the auth + membership check. Optional `range` = { start, end } bytes.
+export async function streamObject(key, res, range = null) {
   if (storageDriver === "s3") {
     try {
-      const out = await s3.send(
-        new sdk.GetObjectCommand({ Bucket: S3_BUCKET, Key: objectKey(key) }),
-      );
+      const cmdInput = { Bucket: S3_BUCKET, Key: objectKey(key) };
+      if (range) cmdInput.Range = `bytes=${range.start}-${range.end}`;
+      const out = await s3.send(new sdk.GetObjectCommand(cmdInput));
+      if (out.ContentLength != null) res.setHeader("Content-Length", out.ContentLength);
       out.Body.on("error", () => {
         if (!res.headersSent) res.status(500).end();
       }).pipe(res);
@@ -116,7 +117,8 @@ export async function streamObject(key, res) {
       if (!res.headersSent) res.status(404).end();
     }
   } else {
-    fs.createReadStream(diskPath(key))
+    const opts = range ? { start: range.start, end: range.end } : {};
+    fs.createReadStream(diskPath(key), opts)
       .on("error", () => {
         if (!res.headersSent) res.status(404).end();
       })
