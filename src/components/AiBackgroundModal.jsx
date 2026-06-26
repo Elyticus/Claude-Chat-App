@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { X, Wand2 } from "lucide-react";
-import { darkBg1, darkBorderMid, lightBg1, lightBorderMid } from "@/lib/constants.js";
+import {
+  darkBg1,
+  darkBorderMid,
+  lightBg1,
+  lightBorderMid,
+} from "@/lib/constants.js";
 
 // ─── AI background grader (Business) ─────────────────────────────────────────
 // Business users describe a vibe; Claude returns a colour-GRADE (CSS filters +
@@ -44,17 +49,24 @@ export function AiBackgroundModal({
       onApply(palette);
       onClose();
     } catch (err) {
-      if (!onGateError?.(err)) setError(err.message || "Couldn't generate that — try again");
+      if (!onGateError?.(err))
+        setError(err.message || "Couldn't generate that — try again");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 flex items-end sm:items-center justify-center p-4" style={{ zIndex: 800 }}>
+    <div
+      className="fixed inset-0 flex items-end sm:items-center justify-center p-4"
+      style={{ zIndex: 800 }}
+    >
       <div
         className="absolute inset-0"
-        style={{ background: isDark ? "rgba(7,13,28,0.9)" : "rgba(15,23,42,0.35)", backdropFilter: "blur(10px)" }}
+        style={{
+          background: isDark ? "rgba(7,13,28,0.9)" : "rgba(15,23,42,0.35)",
+          backdropFilter: "blur(10px)",
+        }}
         onClick={onClose}
       />
       <div
@@ -79,12 +91,22 @@ export function AiBackgroundModal({
 
         <div className="px-6 pt-6 pb-6">
           <div className="flex items-center gap-2.5 mb-1">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(45,212,191,0.16)", color: "#5eead4" }}>
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: "rgba(45,212,191,0.16)", color: "#5eead4" }}
+            >
               <Wand2 size={17} />
             </div>
             <div>
-              <h2 className="text-lg font-bold leading-tight" style={{ color: headerColor }}>AI background</h2>
-              <p className="text-xs font-medium" style={{ color: subColor }}>Describe a vibe — Claude recolours your scene</p>
+              <h2
+                className="text-lg font-bold leading-tight"
+                style={{ color: headerColor }}
+              >
+                AI background
+              </h2>
+              <p className="text-xs font-medium" style={{ color: subColor }}>
+                Describe a vibe
+              </p>
             </div>
           </div>
 
@@ -95,7 +117,11 @@ export function AiBackgroundModal({
             maxLength={300}
             placeholder="e.g. stormy emerald valley at twilight"
             className="mt-4 w-full resize-none rounded-xl px-3 py-2.5 text-sm outline-none"
-            style={{ background: fieldBg, border: `1px solid ${fieldBorder}`, color: headerColor }}
+            style={{
+              background: fieldBg,
+              border: `1px solid ${fieldBorder}`,
+              color: headerColor,
+            }}
           />
 
           <div className="mt-2.5 flex flex-wrap gap-1.5">
@@ -105,7 +131,11 @@ export function AiBackgroundModal({
                 onClick={() => setPrompt(idea)}
                 disabled={busy}
                 className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
-                style={{ background: fieldBg, border: `1px solid ${fieldBorder}`, color: subColor }}
+                style={{
+                  background: fieldBg,
+                  border: `1px solid ${fieldBorder}`,
+                  color: subColor,
+                }}
               >
                 {idea}
               </button>
@@ -113,21 +143,29 @@ export function AiBackgroundModal({
           </div>
 
           {error && (
-            <p className="mt-3 text-xs" style={{ color: "#fb7185" }}>{error}</p>
+            <p className="mt-3 text-xs" style={{ color: "#fb7185" }}>
+              {error}
+            </p>
           )}
 
           <button
             onClick={generate}
             disabled={busy || !prompt.trim()}
             className="mt-4 w-full py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
-            style={{ background: "linear-gradient(135deg,#14b8a6,#0ea5e9)", color: "#fff" }}
+            style={{
+              background: "linear-gradient(135deg,#14b8a6,#0ea5e9)",
+              color: "#fff",
+            }}
           >
             {busy ? "Painting…" : "Generate background"}
           </button>
 
           {activeName && (
             <button
-              onClick={() => { onReset(); onClose(); }}
+              onClick={() => {
+                onReset();
+                onClose();
+              }}
               disabled={busy}
               className="mt-2 w-full py-2 rounded-xl text-xs font-medium transition-all"
               style={{ background: fieldBg, color: subColor }}
