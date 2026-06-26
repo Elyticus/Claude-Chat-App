@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { MessageCircle, Sun, Moon, Sparkles, Users } from "lucide-react";
+import { MessageCircle, Sun, Moon, Sparkles, Users, Search, Crown, Wand2 } from "lucide-react";
 import StarField from "./ui/star-field.jsx";
 import SpecialField from "./ui/special-field.jsx";
 import { AllChatsPanel } from "./AllChatsPanel.jsx";
@@ -22,6 +22,12 @@ export function OrbitalHub({
   theme,
   onToggleTheme,
   onToggleSpecial,
+  canSpecial = false,
+  canSearch = false,
+  specialTreatment = null,
+  canGenerateBg = false,
+  onOpenAiBg,
+  onOpenPlans,
   pendingCount,
   pendingUsers,
   onAcceptContact,
@@ -29,6 +35,7 @@ export function OrbitalHub({
   avatarMap,
   myAvatar,
   onOpenAccount,
+  onOpenSearch,
   channelNotifs,
   onClearChannelNotifs,
   friendNotifs = [],
@@ -84,6 +91,8 @@ export function OrbitalHub({
     const id = setInterval(() => setHour(new Date().getHours()), 60000);
     return () => clearInterval(id);
   }, []);
+  // Text contrast follows the time-of-day scene's sky-top luminance. An AI grade
+  // recolours the same photo, so the base scene still governs legibility.
   const specialSkyLight = isSpecialSkyLight(hour);
 
   // Strong text color for names over the background canvas: white on dark,
@@ -169,15 +178,18 @@ export function OrbitalHub({
       {/* Background canvas — all glow drawn on canvas, zero CSS blur layers.
           Special mode swaps the starfield for the time-of-day aurora scene. */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {isSpecial ? <SpecialField /> : <StarField isDark={isDark} />}
+        {isSpecial ? <SpecialField treatment={specialTreatment} /> : <StarField isDark={isDark} />}
       </div>
 
       {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 z-30">
+      <div className="absolute top-0 left-0 right-0 flex items-center justify-between gap-2 px-3 sm:px-6 py-3 sm:py-4 z-30">
         <div className="flex items-center gap-2.5">
           <span
-            className="font-bold tracking-wide text-xl"
-            style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+            className="font-bold tracking-wide text-lg sm:text-xl"
+            style={{
+              color: isSpecial ? textStrong : isDark ? "#eef2ff" : "#0f172a",
+              textShadow: isSpecial ? textStrongShadow : undefined,
+            }}
           >
             Linkloop
             <span style={{ color: "#818cf8" }}>.</span>
@@ -194,7 +206,7 @@ export function OrbitalHub({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           <button
             onClick={onOpenAccount}
             title="Your profile"
@@ -230,7 +242,7 @@ export function OrbitalHub({
             onClick={onOpenFriends}
             title="Friends"
             aria-label="Friends"
-            className="relative w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+            className="relative w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
             style={{
               background: isDark
                 ? "rgba(99,102,241,0.12)"
@@ -258,40 +270,92 @@ export function OrbitalHub({
               </span>
             )}
           </button>
-          <button
-            onClick={onToggleSpecial}
-            title={isSpecial ? "Exit special mode" : "Special mode"}
-            aria-label={
-              isSpecial ? "Exit special mode" : "Switch to special mode"
-            }
-            className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-            style={
-              isSpecial
-                ? {
-                    background: "rgba(45,212,191,0.18)",
-                    border: "1px solid rgba(45,212,191,0.45)",
-                    color: "#5eead4",
-                    boxShadow: "0 0 14px rgba(45,212,191,0.3)",
-                  }
-                : {
-                    background: isDark
-                      ? "rgba(45,212,191,0.10)"
-                      : "rgba(13,148,136,0.08)",
-                    border: `1px solid ${isDark ? "rgba(45,212,191,0.28)" : "rgba(13,148,136,0.22)"}`,
-                    color: isDark ? "#2dd4bf" : "#0d9488",
-                    boxShadow: isDark
-                      ? "0 0 10px rgba(45,212,191,0.12)"
-                      : "0 2px 8px rgba(13,148,136,0.10)",
-                  }
-            }
-          >
-            <Sparkles size={16} />
-          </button>
+          {canSearch && (
+            <button
+              onClick={onOpenSearch}
+              title="Search messages"
+              aria-label="Search messages"
+              className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+              style={{
+                background: isDark ? "rgba(99,102,241,0.12)" : "rgba(99,102,241,0.08)",
+                border: `1px solid ${isDark ? "rgba(129,140,248,0.32)" : "rgba(99,102,241,0.24)"}`,
+                color: isDark ? "#a5b4fc" : "#4f46e5",
+                boxShadow: isDark
+                  ? "0 0 10px rgba(99,102,241,0.14)"
+                  : "0 2px 8px rgba(99,102,241,0.1)",
+              }}
+            >
+              <Search size={16} />
+            </button>
+          )}
+          {onOpenPlans && (
+            <button
+              onClick={onOpenPlans}
+              title="Plans & pricing"
+              aria-label="View plans and pricing"
+              className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+              style={{
+                background: isDark ? "rgba(234,179,8,0.12)" : "rgba(234,179,8,0.1)",
+                border: `1px solid ${isDark ? "rgba(250,204,21,0.34)" : "rgba(202,138,4,0.26)"}`,
+                color: isDark ? "#facc15" : "#ca8a04",
+                boxShadow: isDark
+                  ? "0 0 10px rgba(234,179,8,0.14)"
+                  : "0 2px 8px rgba(234,179,8,0.12)",
+              }}
+            >
+              <Crown size={16} />
+            </button>
+          )}
+          {canSpecial && (
+            <button
+              onClick={onToggleSpecial}
+              title={isSpecial ? "Exit special mode" : "Special mode"}
+              aria-label={isSpecial ? "Exit special mode" : "Switch to special mode"}
+              className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+              style={
+                isSpecial
+                  ? {
+                      background: "rgba(45,212,191,0.18)",
+                      border: "1px solid rgba(45,212,191,0.45)",
+                      color: "#5eead4",
+                      boxShadow: "0 0 14px rgba(45,212,191,0.3)",
+                    }
+                  : {
+                      background: isDark
+                        ? "rgba(45,212,191,0.10)"
+                        : "rgba(13,148,136,0.08)",
+                      border: `1px solid ${isDark ? "rgba(45,212,191,0.28)" : "rgba(13,148,136,0.22)"}`,
+                      color: isDark ? "#2dd4bf" : "#0d9488",
+                      boxShadow: isDark
+                        ? "0 0 10px rgba(45,212,191,0.12)"
+                        : "0 2px 8px rgba(13,148,136,0.10)",
+                    }
+              }
+            >
+              <Sparkles size={16} />
+            </button>
+          )}
+          {canGenerateBg && isSpecial && (
+            <button
+              onClick={onOpenAiBg}
+              title="AI background"
+              aria-label="Generate an AI background"
+              className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+              style={{
+                background: isDark ? "rgba(20,184,166,0.14)" : "rgba(13,148,136,0.1)",
+                border: `1px solid ${isDark ? "rgba(45,212,191,0.4)" : "rgba(13,148,136,0.3)"}`,
+                color: isDark ? "#5eead4" : "#0d9488",
+                boxShadow: isDark ? "0 0 12px rgba(45,212,191,0.18)" : "0 2px 8px rgba(13,148,136,0.12)",
+              }}
+            >
+              <Wand2 size={16} />
+            </button>
+          )}
           <button
             onClick={onToggleTheme}
             title={isDark ? "Light mode" : "Dark mode"}
             aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-            className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+            className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
             style={{
               background: isDark
                 ? "rgba(129,140,248,0.14)"

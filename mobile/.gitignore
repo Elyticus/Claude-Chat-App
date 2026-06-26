@@ -1,0 +1,26 @@
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Dependencies
+node_modules/
+
+# Env (local backend overrides — never commit)
+.env
+.env.local
+
+# macOS
+.DS_Store
+
+# Metro
+.metro-health-check*

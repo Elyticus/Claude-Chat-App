@@ -20,6 +20,9 @@ export function ChatModals({
   contacts,
   allUsers,
   currentUser,
+  plan,
+  onUpgrade,
+  onManageSubscription,
   pendingUsers,
   friendNotifs,
   showFriends,
@@ -76,6 +79,8 @@ export function ChatModals({
   handlePinMessage,
   handleUnpinMessage,
   handleEditChannel,
+  aiEnabled,
+  onTranslate,
 }) {
   return (
     <>
@@ -107,6 +112,12 @@ export function ChatModals({
           currentUser={currentUser}
           myAvatar={myAvatar}
           isDark={isDark}
+          plan={plan}
+          onUpgrade={() => {
+            setShowAccount(false);
+            onUpgrade?.();
+          }}
+          onManageSubscription={onManageSubscription}
           onChangeAvatar={() => avatarFileRef.current?.click()}
           onLogout={() => {
             setShowAccount(false);
@@ -211,6 +222,8 @@ export function ChatModals({
           isDark={isDark}
           isChannel={!!isActiveChannel}
           myRole={myActiveRole}
+          aiEnabled={aiEnabled}
+          onTranslate={onTranslate}
         />
       )}
 

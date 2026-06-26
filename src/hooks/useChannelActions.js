@@ -13,15 +13,24 @@ export function useChannelActions({
   setGroupMembersPanel,
   setConfirmModal,
   setEditChannelModal,
+  onGateError,
 }) {
   async function handleCreateChannel(name, slug, description, isPrivate) {
+    // Create first, then close — so a failure (e.g. the per-plan channel cap)
+    // keeps the create sheet open to show the error instead of closing silently.
+    let roomId;
+    try {
+      ({ roomId } = await api.createChannel(name, slug, description, isPrivate));
+    } catch (err) {
+      // A plan-gate error (402 UPGRADE_REQUIRED) opens the upgrade modal; close
+      // the create sheet so the paywall is unobstructed.
+      if (onGateError?.(err)) {
+        setShowNewChat(false);
+        return;
+      }
+      throw err; // let NewChatModal surface the inline error
+    }
     setShowNewChat(false);
-    const { roomId } = await api.createChannel(
-      name,
-      slug,
-      description,
-      isPrivate,
-    );
     // Channels show in the list immediately (not pending) — they're a
     // deliberate, named space, unlike a freshly-opened empty DM.
     selectRoom(roomId);

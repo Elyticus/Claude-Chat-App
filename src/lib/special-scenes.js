@@ -1,72 +1,96 @@
-// ─── Special mode — time-of-day scenes ───────────────────────────────────────
-// Special mode is no longer a single aurora. It now picks ONE of three visually
-// distinct canvas scenes from the real clock:
-//   • Blue hour   (dawn / early morning) — cool pre-sunrise haze + fading stars
-//   • Golden hour (late afternoon)       — warm low sun, god rays, drifting dust
-//   • Aurora      (twilight → night)     — the original flowing curtains + motes
-// Shared between SpecialField (the canvas) and the hub's text-contrast helper.
+// ─── Special mode — time-of-day landscape scene (vector) ─────────────────────
+// A macOS-style "Dynamic Desktop" in SVG (SpecialField): ONE stylised valley —
+// layered mountains with a snow-capped peak, rolling green hills, a winding
+// river, scattered cypress/round trees and a sun or moon — recoloured by the
+// real clock into FOUR atmospheres (see getScene). Inspired by flat vector
+// landscape wallpaper art; the geometry is fixed and only the palette changes.
 
-// The three scenes tile the whole day. Each flows naturally into the next:
-// the dawn blues brighten, the afternoon warms to gold, then night brings the
-// aurora. Boundaries are deliberately broad so every hour maps to a scene.
 export function getScene(h) {
-  if (h >= 5 && h < 11) return "blue"; // dawn → late morning: blue hour
-  if (h >= 11 && h < 18) return "golden"; // midday → late afternoon: golden hour
-  return "aurora"; // dusk, twilight, night
+  if (h >= 5 && h < 10) return "morning"; // dawn — pink/peach sunrise
+  if (h >= 10 && h < 17) return "afternoon"; // day — bright blue
+  if (h >= 17 && h < 20) return "evening"; // sunset — orange/red
+  return "night"; // moon + stars
 }
 
-// Per-scene palette. `sky` is the vertical backdrop gradient (top → bottom);
-// the remaining colors are "r,g,b" strings consumed with rgba() in the canvas.
+// Palette roles consumed by SpecialField:
+//   sky       — vertical gradient stops [offset 0..1, color] (top → horizon)
+//   orb       — the sun (day/dawn/sunset) or moon (night) disc color
+//   orbGlow   — soft halo color/strength around the orb
+//   mountains — [far/hazy, mid, near] receding ridge layers
+//   snow      — snow cap on the prominent peak
+//   hills     — [back/hazy, mid, front] rolling hill bands (front = nearest)
+//   river     — [water, sheen] the winding river + its highlight
+//   trees     — cypress + round-tree foliage
+//   clouds    — wispy cloud color (false → none, e.g. clear night)
+//   stars     — scatter stars across the upper sky + render a moon (night)
 export const SCENES = {
-  // Pre-sunrise: deep navy climbing to a cool steel blue at the horizon.
-  blue: {
-    sky: [
-      [0, "#060f24"],
-      [0.45, "#0e2148"],
-      [0.78, "#22416f"],
-      [1, "#3a648f"],
-    ],
-    glow: "150,196,255", // brightening horizon (the coming sun, still cool)
-    mote: "200,224,255", // cool rising motes + the fading dawn stars
+  // Dawn — soft blue-purple top warming to a peach horizon, low warm sun.
+  morning: {
+    sky: [[0, "#5d76b0"], [0.4, "#9d8fc0"], [0.72, "#f1b39a"], [1, "#ffd9b0"]],
+    orb: "#fff3d6",
+    orbGlow: "rgba(255,221,170,0.55)",
+    mountains: ["#b9aecf", "#9b8fc0", "#7d6fae"],
+    snow: "#fbeede",
+    hills: ["#a7b886", "#8aa86a", "#6f9656"],
+    river: ["#cdc0dc", "#efe4ec"],
+    trees: "#4d6b4a",
+    clouds: "#ffe6d0",
+    stars: false,
   },
-  // Late afternoon: dusky violet up top melting into amber and gold at the sun.
-  golden: {
-    sky: [
-      [0, "#241433"],
-      [0.4, "#5e2f50"],
-      [0.66, "#a85436"],
-      [0.85, "#d9863a"],
-      [1, "#f2b85a"],
-    ],
-    glow: "255,184,92", // the low sun, its rays and glow
-    mote: "255,226,170", // drifting warm dust
+  // Day — vivid blue sky, white sun, blue-haze mountains, lush green hills.
+  afternoon: {
+    sky: [[0, "#1f7fd6"], [0.45, "#3f9ae6"], [0.78, "#8fc8f2"], [1, "#d2ecfb"]],
+    orb: "#fffdf2",
+    orbGlow: "rgba(255,255,235,0.5)",
+    mountains: ["#9fc2e6", "#7aa6d8", "#5b86c0"],
+    snow: "#eef6ff",
+    hills: ["#7fb06a", "#5e9e4e", "#3f8a36"],
+    river: ["#9fd2f0", "#cfeafa"],
+    trees: "#2f6f34",
+    clouds: "#ffffff",
+    stars: false,
   },
-  // Twilight → night: the original aurora palette (dark sky, green ribbons).
-  aurora: {
-    sky: [
-      [0, "#020610"],
-      [0.55, "#04101e"],
-      [1, "#09202b"],
-    ],
-    ribbons: ["52,211,153", "45,212,191", "167,139,250"],
-    horizon: "52,211,153",
-    mote: "167,243,208",
+  // Sunset — deep purple top, fiery orange band, bright yellow horizon, the sun
+  // setting low; hills fall into warm silhouette and the river catches the glow.
+  evening: {
+    sky: [[0, "#3a2350"], [0.4, "#7a2f63"], [0.66, "#d8542f"], [0.86, "#f59a2e"], [1, "#ffd24a"]],
+    orb: "#fff1c4",
+    orbGlow: "rgba(255,168,74,0.6)",
+    mountains: ["#7a4a66", "#5e3556", "#412445"],
+    snow: "#f7d9c4",
+    hills: ["#5a3a52", "#3f2742", "#281a30"],
+    river: ["#e8863a", "#ffd06a"],
+    trees: "#241a30",
+    clouds: "#f6a25a",
+    stars: false,
+  },
+  // Night — deep navy with a faint warm horizon glow, a bright moon, stars, the
+  // peak catching moonlight and a moonlit river threading the dark hills.
+  night: {
+    sky: [[0, "#070c24"], [0.5, "#0e1640"], [0.8, "#1a2456"], [0.93, "#2a2f5e"], [1, "#574a52"]],
+    orb: "#eaf0ff",
+    orbGlow: "rgba(200,214,255,0.45)",
+    mountains: ["#26335f", "#1b2750", "#121b3c"],
+    snow: "#c6d2f0",
+    hills: ["#1a2750", "#121d3e", "#0b1430"],
+    river: ["#2f4a86", "#86a0dc"],
+    trees: "#0a1430",
+    clouds: false,
+    stars: true,
   },
 };
 
-// Whether the current scene's sky reads as light (average relative luminance of
-// its gradient stops > 0.5). The hub uses this to pick black or white text over
-// the scene. All three scenes are dark-skied (the UI inherits the dark
-// palette), so this returns false today, but it keeps text correct if a
-// brighter palette is ever added.
+// Relative luminance of a #rrggbb color > 0.55 → "light" (use dark text over it).
+export function isHexLight(hex) {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.55;
+}
+
+// Whether the hub should use dark text over the scene — decided from the TOP of
+// the sky (where the top-bar text sits). All four built-in skies are dark/medium
+// at the top, so the hub keeps white text; a bright custom (AI) sky flips it.
 export function isSpecialSkyLight(hour) {
-  const p = SCENES[getScene(hour)];
-  const lum =
-    p.sky.reduce((sum, [, hex]) => {
-      const r = parseInt(hex.slice(1, 3), 16) / 255;
-      const g = parseInt(hex.slice(3, 5), 16) / 255;
-      const b = parseInt(hex.slice(5, 7), 16) / 255;
-      return sum + (0.2126 * r + 0.7152 * g + 0.0722 * b);
-    }, 0) / p.sky.length;
-  return lum > 0.5;
+  return isHexLight(SCENES[getScene(hour)].sky[0][1]);
 }

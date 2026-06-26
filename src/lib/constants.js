@@ -27,8 +27,8 @@ export const lightBg0 = "#f5f7ff";
 export const lightBg1 = "#ffffff";
 export const lightBorderMid = "rgba(226,232,240,1)";
 
-// Special (aurora) theme tokens. The special theme inherits the dark UI
-// palette (isDark stays true) but swaps the deep-indigo backgrounds for a
-// teal-black so panels sit naturally on the aurora scene.
-export const specialBg0 = "#04100f";
-export const specialBg1 = "#071a18";
+// Special (dynamic-background) theme tokens. The special theme inherits the dark
+// UI palette (isDark stays true) but swaps the deep-indigo backgrounds for a deep
+// navy that sits naturally behind the time-of-day scene (see special-scenes.js).
+export const specialBg0 = "#070b1c";
+export const specialBg1 = "#0c1430";

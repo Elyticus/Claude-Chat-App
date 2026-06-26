@@ -12,6 +12,25 @@ function authHeaders() {
   };
 }
 
+// Multipart upload — must NOT set Content-Type (the browser adds the multipart
+// boundary). Preserves the server's gate codes like request() does.
+async function upload(path, formData) {
+  const t = token();
+  const res = await fetch(BASE + path, {
+    method: "POST",
+    headers: t ? { Authorization: `Bearer ${t}` } : {},
+    body: formData,
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    const err = new Error(data.error || "Upload failed");
+    if (data.code) err.code = data.code;
+    if (data.plan) err.plan = data.plan;
+    throw err;
+  }
+  return data;
+}
+
 async function request(method, path, body) {
   const res = await fetch(BASE + path, {
     method,
@@ -19,7 +38,14 @@ async function request(method, path, body) {
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Request failed");
+  if (!res.ok) {
+    // Preserve the server's machine-readable gate codes (UPGRADE_REQUIRED /
+    // QUOTA_EXCEEDED / AI_UNAVAILABLE) so callers can route to the upgrade flow.
+    const err = new Error(data.error || "Request failed");
+    if (data.code) err.code = data.code;
+    if (data.plan) err.plan = data.plan;
+    throw err;
+  }
   return data;
 }
 
@@ -121,4 +147,39 @@ export const api = {
 
   pushUnsubscribe: (endpoint) =>
     request("DELETE", "/push/unsubscribe", { endpoint }),
+
+  // ── Billing & plans ────────────────────────────────────────────────────────
+  getMe: () => request("GET", "/me"),
+  getPlans: () => request("GET", "/billing/plans"),
+  startCheckout: (plan) => request("POST", "/billing/checkout", { plan }),
+  confirmCheckout: (checkoutId, plan) =>
+    request("POST", "/billing/confirm", { checkoutId, plan }),
+  cancelPlan: () => request("POST", "/billing/cancel"),
+  resumePlan: () => request("POST", "/billing/resume"),
+
+  // ── AI (Claude) ─────────────────────────────────────────────────────────────
+  aiSummarize: (roomId) => request("POST", "/ai/summarize", { roomId }),
+  aiReplies: (roomId) => request("POST", "/ai/replies", { roomId }),
+  aiAsk: (roomId, question) => request("POST", "/ai/ask", { roomId, question }),
+  aiTranslate: (messageId, targetLang) =>
+    request("POST", "/ai/translate", { messageId, targetLang }),
+  aiBackground: (prompt) => request("POST", "/ai/background", { prompt }),
+
+  // ── Global search ───────────────────────────────────────────────────────────
+  searchMessages: (q) => request("GET", `/search?q=${encodeURIComponent(q)}`),
+
+  // ── Attachments (media & voice) ──────────────────────────────────────────────
+  uploadAttachment: (roomId, file, { caption, kind, duration, width, height, socketId } = {}) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    if (caption) fd.append("caption", caption);
+    if (kind) fd.append("kind", kind);
+    if (duration != null) fd.append("duration", String(duration));
+    if (width != null) fd.append("width", String(width));
+    if (height != null) fd.append("height", String(height));
+    if (socketId) fd.append("socketId", socketId);
+    return upload(`/rooms/${roomId}/attachments`, fd);
+  },
+  // Token in the query so <img>/<audio> elements can load private files.
+  attachmentUrl: (id) => `${BASE}/attachments/${id}?token=${encodeURIComponent(token() || "")}`,
 };

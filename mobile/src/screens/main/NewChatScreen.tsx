@@ -36,7 +36,7 @@ export default function NewChatScreen() {
 
   const openDM = useCallback(async (contact: Contact) => {
     try {
-      const room = await api.post<Room>('/rooms/dm', { userId: contact.id });
+      const room = await api.post<Room>('/rooms/dm', { targetUserId: contact.id });
       navigation.replace('Chat', {
         roomId: room.id,
         roomName: contact.username,

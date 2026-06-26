@@ -2,6 +2,7 @@ import { Search, X, Pin } from "lucide-react";
 import { ChatHeader } from "./ChatHeader.jsx";
 import { MessageList } from "./MessageList.jsx";
 import { MessageComposer } from "./MessageComposer.jsx";
+import { SmartReplies } from "./SmartReplies.jsx";
 import { ChatBackdrop } from "./ChatBackdrop.jsx";
 import { MAX_MESSAGE_LENGTH } from "../../hooks/useChatDerivedState.js";
 import {
@@ -73,6 +74,11 @@ export function ChatPanel({
   handleKeyDown,
   stopTyping,
   sendMessage,
+  ai,
+  onFillInput,
+  onUploadAttachment,
+  voiceEnabled,
+  onRequireUpgrade,
 }) {
   const roomKind = activeRoom
     ? isActiveChannel
@@ -162,6 +168,8 @@ export function ChatPanel({
                 }}
                 onOpenMembers={openGroupMembers}
                 onDeleteRoom={() => handleDeleteRoom(activeRoomId)}
+                aiEnabled={ai?.enabled}
+                onCatchUp={() => ai?.openSummary(displayRoomId, activeRoomName)}
               />
 
               {/* Message search bar */}
@@ -273,7 +281,23 @@ export function ChatPanel({
                 setContextMenu={setContextMenu}
                 longPressTimerRef={longPressTimerRef}
                 messagesEndRef={messagesEndRef}
+                translations={ai?.translations}
+                onClearTranslation={ai?.clearTranslation}
               />
+
+              {ai && (
+                <SmartReplies
+                  enabled={ai.enabled}
+                  replies={ai.replies && ai.replies.roomId === activeRoomId ? ai.replies : null}
+                  isDark={isDark}
+                  onLoad={() => ai.loadReplies(activeRoomId)}
+                  onClear={ai.clearReplies}
+                  onPick={(t) => {
+                    onFillInput(t);
+                    ai.clearReplies();
+                  }}
+                />
+              )}
 
               <MessageComposer
                 inputRef={inputRef}
@@ -290,6 +314,9 @@ export function ChatPanel({
                 maxLength={MAX_MESSAGE_LENGTH}
                 isDark={isDark}
                 bgRaised={barBg}
+                onUploadAttachment={onUploadAttachment}
+                voiceEnabled={voiceEnabled}
+                onRequireUpgrade={onRequireUpgrade}
               />
             </>
           )}

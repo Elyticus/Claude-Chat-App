@@ -29,7 +29,10 @@ const pool = new Pool({
   min: 0,
   max: 10,
   idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 5_000,
+  // Connect timeout is env-tunable — a remote managed DB (Supabase/Render) on a
+  // slow link or cold pooler can take longer than the previous fixed 5s, which
+  // crashed startup. Default stays 5s; raise via DB_CONNECT_TIMEOUT_MS.
+  connectionTimeoutMillis: Number(process.env.DB_CONNECT_TIMEOUT_MS) || 5_000,
 });
 
 // One-time migration: converts the original SERIAL integer ids (and every
@@ -184,6 +187,33 @@ export async function initDb() {
       last_seen     BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
     );
     ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT;
+    -- ── Plans & billing (Linkloop Pro) ──────────────────────────────────────
+    -- plan is the source of truth for feature gating; it can change within a
+    -- token's 7-day life, so gating middleware reads it from the DB (not JWT).
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT DEFAULT 'free';
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS plan_status TEXT DEFAULT 'active';
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS plan_since BIGINT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS current_period_end BIGINT;
+    -- Per-user, per-day usage meter (e.g. free-tier AI actions). period_day is
+    -- a 'YYYY-MM-DD' string so a simple UPSERT increments today's bucket.
+    CREATE TABLE IF NOT EXISTS usage_counters (
+      user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      metric     TEXT NOT NULL,
+      period_day TEXT NOT NULL,
+      count      INT  NOT NULL DEFAULT 0,
+      PRIMARY KEY (user_id, metric, period_day)
+    );
+    -- Mock-billing audit trail — one row per checkout (mirrors a Stripe sub).
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id                 UUID PRIMARY KEY,
+      user_id            UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      plan               TEXT NOT NULL,
+      status             TEXT NOT NULL DEFAULT 'pending',
+      checkout_id        TEXT NOT NULL,
+      started_at         BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT,
+      current_period_end BIGINT
+    );
+    CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
     CREATE TABLE IF NOT EXISTS pending_verifications (
       email         TEXT PRIMARY KEY,
       username      TEXT NOT NULL,
@@ -259,6 +289,30 @@ export async function initDb() {
       auth       TEXT NOT NULL,
       created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
     );
+    -- Message attachments (Linkloop Pro media & voice). One row per uploaded
+    -- file; storage_path is the on-disk name under server/uploads (files are
+    -- served only through the auth+membership-gated stream route, never public).
+    CREATE TABLE IF NOT EXISTS attachments (
+      id           UUID PRIMARY KEY,
+      message_id   UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+      user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      room_id      UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+      kind         TEXT NOT NULL,            -- image | file | voice
+      filename     TEXT NOT NULL,            -- original (display) name
+      mime         TEXT NOT NULL,
+      size         BIGINT NOT NULL,
+      storage_path TEXT NOT NULL,
+      duration     INT,                      -- seconds, voice only
+      width        INT,
+      height       INT,
+      created_at   BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
+    );
+    CREATE INDEX IF NOT EXISTS idx_attachments_message ON attachments(message_id);
+    -- Full-text search (Linkloop Pro global search). A generated tsvector +
+    -- GIN index makes ranked search across a user's rooms fast. PG12+ (Supabase).
+    ALTER TABLE messages ADD COLUMN IF NOT EXISTS tsv tsvector
+      GENERATED ALWAYS AS (to_tsvector('english', text)) STORED;
+    CREATE INDEX IF NOT EXISTS idx_messages_tsv ON messages USING GIN(tsv);
     CREATE INDEX IF NOT EXISTS idx_messages_room ON messages(room_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_id);
     CREATE INDEX IF NOT EXISTS idx_room_members_user ON room_members(user_id);
@@ -290,6 +344,9 @@ export const queries = {
   // authenticated user) and internal username lookups; returning other
   // users' email addresses would leak PII.
   getUserById:       { get: (id)       => q("SELECT id, username, last_seen, avatar FROM users WHERE id = $1", [id]).then(r => r.rows[0] ?? null) },
+  // Self-view for GET /api/me — includes email + plan (only ever returned to
+  // the authenticated owner, never via the public /api/users/:id route).
+  getSelfById:       { get: (id)       => q("SELECT id, username, email, avatar, plan, plan_status, current_period_end FROM users WHERE id = $1", [id]).then(r => r.rows[0] ?? null) },
   getUsersWithStatus: {
     all: (currentUserId) =>
       q(`SELECT u.id, u.username, u.last_seen, u.avatar,
@@ -357,6 +414,45 @@ export const queries = {
   updateAvatar:   { run: (id, avatar)   => q("UPDATE users SET avatar = $1 WHERE id = $2", [avatar, id]) },
   updatePassword: { run: (hash, email)  => q("UPDATE users SET password_hash = $1 WHERE email = $2", [hash, email]) },
 
+  // ── Plans & billing ──────────────────────────────────────────────────────
+  // Lightweight plan lookup for gating middleware (one indexed PK read).
+  getUserPlan: {
+    get: (id) =>
+      q("SELECT plan, plan_status, plan_since, current_period_end FROM users WHERE id = $1", [id])
+        .then(r => r.rows[0] ?? null),
+  },
+  setUserPlan: {
+    run: (id, plan, status, periodEnd) =>
+      q(`UPDATE users SET plan = $2, plan_status = $3,
+                plan_since = EXTRACT(EPOCH FROM NOW())::BIGINT, current_period_end = $4
+         WHERE id = $1`, [id, plan, status, periodEnd]),
+  },
+  setPlanStatus: {
+    run: (id, status) => q("UPDATE users SET plan_status = $2 WHERE id = $1", [id, status]),
+  },
+  createSubscription: {
+    run: (id, userId, plan, status, checkoutId, periodEnd) =>
+      q(`INSERT INTO subscriptions (id, user_id, plan, status, checkout_id, current_period_end)
+         VALUES ($1, $2, $3, $4, $5, $6)`, [id, userId, plan, status, checkoutId, periodEnd]),
+  },
+
+  // ── Usage metering ───────────────────────────────────────────────────────
+  // Atomic increment of today's bucket; returns the new count so the caller
+  // can enforce a per-day quota in one round-trip.
+  incrementUsage: {
+    run: (userId, metric, periodDay) =>
+      q(`INSERT INTO usage_counters (user_id, metric, period_day, count)
+         VALUES ($1, $2, $3, 1)
+         ON CONFLICT (user_id, metric, period_day)
+         DO UPDATE SET count = usage_counters.count + 1
+         RETURNING count`, [userId, metric, periodDay]).then(r => r.rows[0].count),
+  },
+  getUsage: {
+    get: (userId, metric, periodDay) =>
+      q("SELECT count FROM usage_counters WHERE user_id = $1 AND metric = $2 AND period_day = $3",
+        [userId, metric, periodDay]).then(r => r.rows[0]?.count ?? 0),
+  },
+
   upsertResetToken: {
     run: (email, code, expiresAt) =>
       q(`INSERT INTO password_reset_tokens (email, code, expires_at) VALUES ($1, $2, $3)
@@ -419,8 +515,13 @@ export const queries = {
       const params = before ? [roomId, before] : [roomId];
       const cursor = before ? "AND m.created_at < $2" : "";
       return q(
-        `SELECT m.id, m.text, m.reaction, m.created_at, m.is_system AS system, u.id AS user_id, u.username
+        `SELECT m.id, m.text, m.reaction, m.created_at, m.is_system AS system, u.id AS user_id, u.username,
+                CASE WHEN a.id IS NOT NULL THEN json_build_object(
+                  'id', a.id, 'kind', a.kind, 'name', a.filename, 'mime', a.mime,
+                  'size', a.size, 'duration', a.duration, 'width', a.width, 'height', a.height
+                ) END AS attachment
          FROM messages m JOIN users u ON u.id = m.user_id
+         LEFT JOIN attachments a ON a.message_id = m.id
          WHERE m.room_id = $1 ${cursor}
          ORDER BY m.created_at DESC LIMIT 51`,
         params,
@@ -441,8 +542,14 @@ export const queries = {
 
   getMessageById: {
     get: (id) =>
-      q(`SELECT m.id, m.text, m.reaction, m.created_at, u.id AS user_id, u.username, m.room_id
-         FROM messages m JOIN users u ON u.id = m.user_id WHERE m.id = $1`, [id]).then(r => r.rows[0] ?? null),
+      q(`SELECT m.id, m.text, m.reaction, m.created_at, u.id AS user_id, u.username, m.room_id,
+                CASE WHEN a.id IS NOT NULL THEN json_build_object(
+                  'id', a.id, 'kind', a.kind, 'name', a.filename, 'mime', a.mime,
+                  'size', a.size, 'duration', a.duration, 'width', a.width, 'height', a.height
+                ) END AS attachment
+         FROM messages m JOIN users u ON u.id = m.user_id
+         LEFT JOIN attachments a ON a.message_id = m.id
+         WHERE m.id = $1`, [id]).then(r => r.rows[0] ?? null),
   },
 
   setReaction:    { run: (reaction, id)   => q("UPDATE messages SET reaction = $1 WHERE id = $2", [reaction, id]) },
@@ -468,6 +575,17 @@ export const queries = {
     get: (roomId) =>
       q("SELECT user_id FROM room_members WHERE room_id = $1 AND role = 'owner'", [roomId])
         .then(r => r.rows[0]?.user_id ?? null),
+  },
+
+  // How many channels this user currently owns — drives the per-plan channel cap.
+  countOwnedChannels: {
+    get: (userId) =>
+      q(`SELECT COUNT(*)::int AS n
+           FROM room_members rm
+           JOIN rooms r ON r.id = rm.room_id
+          WHERE rm.user_id = $1 AND rm.role = 'owner'
+            AND r.type IN ('channel', 'private_channel')`, [userId])
+        .then(r => r.rows[0]?.n ?? 0),
   },
 
   updateRoom: {
@@ -562,6 +680,48 @@ export const queries = {
   deletePushSubscription: {
     run: (userId, endpoint) =>
       q("DELETE FROM push_subscriptions WHERE user_id = $1 AND endpoint = $2", [userId, endpoint]),
+  },
+
+  // ── Full-text message search (Pro: global, Free: single room) ──────────────
+  // Joins room_members so only the requester's own conversations are searched —
+  // never leaks messages from rooms they aren't in. `roomId` (optional) scopes
+  // to one room for the Free tier. Returns a highlighted snippet (« » markers)
+  // ranked by relevance then recency.
+  searchMessages: {
+    all: (userId, query, limit, roomId = null) => {
+      const params = roomId ? [userId, query, limit, roomId] : [userId, query, limit];
+      const roomFilter = roomId ? "AND m.room_id = $4" : "";
+      return q(
+        `SELECT m.id AS message_id, m.room_id, m.created_at,
+                u.username AS author, r.name AS room_name, r.is_group, r.type,
+                ts_headline('english', m.text, websearch_to_tsquery('english', $2),
+                  'StartSel=«,StopSel=»,MaxFragments=1,MaxWords=14,MinWords=4,ShortWord=2') AS snippet
+         FROM messages m
+         JOIN room_members rm ON rm.room_id = m.room_id AND rm.user_id = $1
+         JOIN users u  ON u.id = m.user_id
+         JOIN rooms r  ON r.id = m.room_id
+         WHERE m.is_system = 0
+           AND m.tsv @@ websearch_to_tsquery('english', $2)
+           ${roomFilter}
+         ORDER BY ts_rank(m.tsv, websearch_to_tsquery('english', $2)) DESC, m.created_at DESC
+         LIMIT $3`,
+        params,
+      ).then((r) => r.rows);
+    },
+  },
+
+  // ── Attachments ────────────────────────────────────────────────────────────
+  insertAttachment: {
+    run: (id, messageId, userId, roomId, kind, filename, mime, size, storagePath, duration, width, height) =>
+      q(`INSERT INTO attachments
+            (id, message_id, user_id, room_id, kind, filename, mime, size, storage_path, duration, width, height)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+        [id, messageId, userId, roomId, kind, filename, mime, size, storagePath, duration, width, height]),
+  },
+  getAttachmentById: {
+    get: (id) =>
+      q("SELECT id, room_id, kind, filename, mime, size, storage_path FROM attachments WHERE id = $1", [id])
+        .then(r => r.rows[0] ?? null),
   },
 
   getPushSubscriptionsForRoom: {

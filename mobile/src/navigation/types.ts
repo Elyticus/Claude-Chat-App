@@ -11,11 +11,11 @@ export type AuthStackParamList = {
 export type RootStackParamList = {
   MainTabs: undefined;
   Chat: {
-    roomId: number;
+    roomId: string;
     roomName: string;
     isGroup: boolean;
     type: 'room' | 'channel' | 'private_channel';
-    otherUserId?: number;
+    otherUserId?: string;
   };
   NewChat: undefined;
 };
