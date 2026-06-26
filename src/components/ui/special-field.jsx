@@ -78,16 +78,30 @@ function RoundTree({ x, y, s, fill }) {
 // /public/special. If a file is missing (e.g. assets not added yet) we fall back
 // to the vector scene below, so Special mode never breaks.
 const IMAGES = {
-  morning: { landscape: "/special/Morning.jpg", portrait: "/special/Morning-Mobile.jpg" },
-  afternoon: { landscape: "/special/Afternoon.jpg", portrait: "/special/Afternoon-Mobile.jpg" },
-  evening: { landscape: "/special/Sunset.jpg", portrait: "/special/Sunset-Mobile.jpg" },
-  night: { landscape: "/special/Night.jpg", portrait: "/special/Night-Mobile.jpg" },
+  morning: {
+    landscape: "/special/morning-landscape.svg",
+    portrait: "/special//morning-portrait.svg",
+  },
+  afternoon: {
+    landscape: "/special/afternoon-landscape.svg",
+    portrait: "/special/afternoon-portrait.svg",
+  },
+  evening: {
+    landscape: "/special/evening-landscape.svg",
+    portrait: "/special/evening-portrait.svg",
+  },
+  night: {
+    landscape: "/special/night-landscape.svg",
+    portrait: "/special/night-portrait.svg",
+  },
 };
 
 // Track portrait vs landscape so phones get the tall art and desktops the wide.
 function useOrientation() {
   const [portrait, setPortrait] = useState(
-    () => typeof window !== "undefined" && window.matchMedia("(orientation: portrait)").matches,
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(orientation: portrait)").matches,
   );
   useEffect(() => {
     const m = window.matchMedia("(orientation: portrait)");
@@ -157,8 +171,12 @@ function VectorScene({ p, name }) {
         style={{
           left: `${pos.x}%`,
           top: `${pos.y}%`,
-          width: isMoon ? "clamp(46px, 6vw, 92px)" : "clamp(56px, 7.5vw, 116px)",
-          height: isMoon ? "clamp(46px, 6vw, 92px)" : "clamp(56px, 7.5vw, 116px)",
+          width: isMoon
+            ? "clamp(46px, 6vw, 92px)"
+            : "clamp(56px, 7.5vw, 116px)",
+          height: isMoon
+            ? "clamp(46px, 6vw, 92px)"
+            : "clamp(56px, 7.5vw, 116px)",
           background: isMoon
             ? `radial-gradient(circle at 38% 34%, #ffffff, ${p.orb} 58%, ${shade(p.orb, -22)} 100%)`
             : `radial-gradient(circle at 50% 50%, #ffffff 8%, ${p.orb} 62%)`,
@@ -197,7 +215,10 @@ function VectorScene({ p, name }) {
           d="M0,216 L240,196 L470,206 L700,176 L860,150 L1010,58 L1170,150 L1330,190 L1520,206 L1600,212 L1600,600 L0,600 Z"
           fill={mNear}
         />
-        <path d="M1010,60 L1050,116 L1034,108 L1020,122 L1006,112 L992,122 L978,108 L970,116 Z" fill={p.snow} />
+        <path
+          d="M1010,60 L1050,116 L1034,108 L1020,122 L1006,112 L992,122 L978,108 L970,116 Z"
+          fill={p.snow}
+        />
 
         {/* Rolling hills — receding bands */}
         <path
@@ -260,7 +281,10 @@ export default function SpecialField({ treatment = null }) {
   const portrait = useOrientation();
 
   useEffect(() => {
-    const id = setInterval(() => setScene(getScene(new Date().getHours())), 60000);
+    const id = setInterval(
+      () => setScene(getScene(new Date().getHours())),
+      60000,
+    );
     return () => clearInterval(id);
   }, []);
 
