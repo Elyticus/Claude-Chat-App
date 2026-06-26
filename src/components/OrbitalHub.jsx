@@ -340,7 +340,7 @@ export function OrbitalHub({
               onClick={onOpenAiBg}
               title="AI background"
               aria-label="Generate an AI background"
-              className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+              className="hidden sm:flex w-11 h-11 rounded-full items-center justify-center transition-all hover:scale-105 active:scale-95"
               style={{
                 background: isDark ? "rgba(20,184,166,0.14)" : "rgba(13,148,136,0.1)",
                 border: `1px solid ${isDark ? "rgba(45,212,191,0.4)" : "rgba(13,148,136,0.3)"}`,
@@ -656,6 +656,24 @@ export function OrbitalHub({
           </div>
         );
       })}
+
+      {/* AI background button — mobile only, fixed bottom-right */}
+      {canGenerateBg && isSpecial && (
+        <button
+          onClick={onOpenAiBg}
+          title="AI background"
+          aria-label="Generate an AI background"
+          className="sm:hidden absolute bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 z-30"
+          style={{
+            background: isDark ? "rgba(20,184,166,0.22)" : "rgba(13,148,136,0.16)",
+            border: `1px solid ${isDark ? "rgba(45,212,191,0.5)" : "rgba(13,148,136,0.4)"}`,
+            color: isDark ? "#5eead4" : "#0d9488",
+            boxShadow: isDark ? "0 0 18px rgba(45,212,191,0.28)" : "0 4px 16px rgba(13,148,136,0.2)",
+          }}
+        >
+          <Wand2 size={22} />
+        </button>
+      )}
 
       {/* All-chats bottom panel */}
       {showContactsList && (
