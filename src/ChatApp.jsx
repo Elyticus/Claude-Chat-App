@@ -58,10 +58,10 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
   const [showSearch, setShowSearch] = useState(false);
   const [showManageSub, setShowManageSub] = useState(false);
   const [showAiBg, setShowAiBg] = useState(false);
-  // Business: an AI-generated custom palette for Special mode (null = time-of-day).
-  const [specialPalette, setSpecialPalette] = useState(() => {
+  // Business: an AI colour-grade applied to the Special-mode photo (null = none).
+  const [specialTreatment, setSpecialTreatment] = useState(() => {
     try {
-      const s = localStorage.getItem("linkloop_special_palette");
+      const s = localStorage.getItem("linkloop_special_bg");
       return s ? JSON.parse(s) : null;
     } catch {
       return null;
@@ -187,21 +187,21 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
     return () => clearTimeout(t);
   }, [billing.isPro, theme]);
 
-  // Apply an AI-generated palette to Special mode (and switch into it so it
-  // shows). Only Business users see/keep a custom palette (gated below).
-  function applyAiBackground(palette) {
-    setSpecialPalette(palette);
+  // Apply an AI colour-grade to Special mode (and switch into it so it shows).
+  // Only Business users see/keep a custom grade (gated below).
+  function applyAiBackground(treatment) {
+    setSpecialTreatment(treatment);
     try {
-      localStorage.setItem("linkloop_special_palette", JSON.stringify(palette));
+      localStorage.setItem("linkloop_special_bg", JSON.stringify(treatment));
     } catch { /* storage full / disabled — keep it in memory */ }
     if (theme !== "special") applyTheme("special");
   }
   function resetAiBackground() {
-    setSpecialPalette(null);
-    localStorage.removeItem("linkloop_special_palette");
+    setSpecialTreatment(null);
+    localStorage.removeItem("linkloop_special_bg");
   }
-  // A custom palette is honored only for Business; everyone else gets time-of-day.
-  const activeSpecialPalette = billing.plan === "business" ? specialPalette : null;
+  // A custom grade is honored only for Business; everyone else gets time-of-day.
+  const activeSpecialTreatment = billing.plan === "business" ? specialTreatment : null;
 
   const socketRef = useRef(null);
   const typingTimerRef = useRef(null);
@@ -951,7 +951,7 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
         onToggleSpecial={toggleSpecial}
         canSpecial={billing.isPro}
         canSearch={billing.isPro}
-        specialPalette={activeSpecialPalette}
+        specialTreatment={activeSpecialTreatment}
         canGenerateBg={billing.plan === "business"}
         onOpenAiBg={() => setShowAiBg(true)}
         onOpenPlans={() => billing.openUpgrade()}
@@ -1144,8 +1144,8 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
       {showAiBg && (
         <AiBackgroundModal
           isDark={isDark}
-          activeName={activeSpecialPalette?.name || null}
-          onGenerate={(prompt) => api.aiBackground(prompt).then((r) => r.palette)}
+          activeName={activeSpecialTreatment?.name || null}
+          onGenerate={(prompt) => api.aiBackground(prompt).then((r) => r.treatment)}
           onApply={applyAiBackground}
           onReset={resetAiBackground}
           onClose={() => setShowAiBg(false)}

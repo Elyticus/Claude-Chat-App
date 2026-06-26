@@ -1273,8 +1273,9 @@ app.post("/api/ai/translate", requireAuth, aiLimiter, async (req, res) => {
   res.json({ text });
 });
 
-// AI-generated background — a Business feature. Returns a custom color palette
-// for the coastal scene (SpecialField), designed by Claude from a vibe prompt.
+// AI-graded background — a Business feature. Returns a colour-grading treatment
+// (CSS filters + tint) applied to the live time-of-day photo (SpecialField),
+// designed by Claude from a vibe prompt.
 app.post("/api/ai/background", requireAuth, aiLimiter, async (req, res) => {
   if (!aiReady) {
     return res.status(503).json({ error: "AI features are not configured", code: "AI_UNAVAILABLE" });
@@ -1288,9 +1289,9 @@ app.post("/api/ai/background", requireAuth, aiLimiter, async (req, res) => {
   }
   const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim().slice(0, 300) : "";
   if (!prompt) return res.status(400).json({ error: "Describe the background you'd like" });
-  const palette = await runAi(res, () => generateBackgroundScene(prompt));
-  if (palette === undefined) return;
-  res.json({ palette });
+  const treatment = await runAi(res, () => generateBackgroundScene(prompt));
+  if (treatment === undefined) return;
+  res.json({ treatment });
 });
 
 // ─── Global search (Linkloop Pro) ───────────────────────────────────────────────

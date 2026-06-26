@@ -2,10 +2,11 @@ import { useState } from "react";
 import { X, Wand2 } from "lucide-react";
 import { darkBg1, darkBorderMid, lightBg1, lightBorderMid } from "@/lib/constants.js";
 
-// ─── AI background generator (Business) ──────────────────────────────────────
-// Business users describe a vibe; Claude returns a custom color palette for the
-// landscape scene (server/ai.js → generateBackgroundScene), applied to Special
-// mode. Claude can't make raster images, so this recolours the vector scene.
+// ─── AI background grader (Business) ─────────────────────────────────────────
+// Business users describe a vibe; Claude returns a colour-GRADE (CSS filters +
+// tint — server/ai.js → generateBackgroundScene) applied on top of the live
+// time-of-day photo in Special mode, recolouring the actual scene rather than
+// replacing it.
 
 const IDEAS = [
   "Misty mountain valley at dawn",
@@ -83,7 +84,7 @@ export function AiBackgroundModal({
             </div>
             <div>
               <h2 className="text-lg font-bold leading-tight" style={{ color: headerColor }}>AI background</h2>
-              <p className="text-xs font-medium" style={{ color: subColor }}>Describe a vibe — Claude paints your landscape</p>
+              <p className="text-xs font-medium" style={{ color: subColor }}>Describe a vibe — Claude recolours your scene</p>
             </div>
           </div>
 

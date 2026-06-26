@@ -177,60 +177,36 @@ export async function translate(text, targetLang) {
   return textOf(message);
 }
 
-// ─── AI-generated background (Business) ──────────────────────────────────────
-// Claude can't produce raster images, so the "AI background" is a designed COLOR
-// PALETTE for the same vector LANDSCAPE (SpecialField: mountains with a snow-capped
-// peak, rolling hills, a winding river, trees, a sun/moon). The user describes a
-// vibe; the model returns harmonious, contrasted colors for each scene role.
+// ─── AI-graded background (Business) ─────────────────────────────────────────
+// Claude can't produce raster images, so the "AI background" does NOT swap the
+// scene — it returns a colour-GRADING treatment (CSS filters + one tint overlay)
+// applied on top of the live time-of-day photo, shifting the REAL background to
+// the requested vibe (see SpecialField).
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const isHex = (v, fallback) => (typeof v === "string" && HEX.test(v) ? v : fallback);
+const clampNum = (v, lo, hi, dflt) =>
+  typeof v === "number" && Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : dflt;
+const BLENDS = ["soft-light", "overlay", "color", "multiply", "screen", "hue", "lighten", "color-dodge"];
 
-// A translucent halo color for the sun/moon, derived from the orb hex.
-function glowOf(hex) {
-  const n = parseInt(hex.slice(1), 16);
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},0.5)`;
-}
-
-// Coerce the model's flat color arrays into SpecialField's exact palette shape,
-// guaranteeing valid hex everywhere (a bad value falls back to a sane default).
-function normalizePalette(raw = {}) {
-  const sky = Array.isArray(raw.sky) ? raw.sky.slice(0, 4) : [];
-  while (sky.length < 4) sky.push(sky[sky.length - 1]);
-  const s = sky.map((c, i) => isHex(c, ["#1b2a5c", "#46487f", "#7a6aa0", "#b9a6cf"][i]));
-  const orb = isHex(raw.orb, "#fff3d6");
-  const stars = !!raw.stars;
+// Coerce the model output into a safe CSS treatment (clamped so the scene stays
+// visible and white UI text stays legible).
+function normalizeTreatment(raw = {}) {
   return {
     name: typeof raw.name === "string" ? raw.name.slice(0, 40) : "Custom",
-    sky: [[0, s[0]], [0.45, s[1]], [0.78, s[2]], [1, s[3]]],
-    orb,
-    orbGlow: glowOf(orb),
-    mountains: [
-      isHex(raw.mountains?.[0], "#9fc2e6"),
-      isHex(raw.mountains?.[1], "#7aa6d8"),
-      isHex(raw.mountains?.[2], "#5b86c0"),
-    ],
-    snow: isHex(raw.snow, "#eef6ff"),
-    hills: [
-      isHex(raw.hills?.[0], "#7fb06a"),
-      isHex(raw.hills?.[1], "#5e9e4e"),
-      isHex(raw.hills?.[2], "#3f8a36"),
-    ],
-    river: [isHex(raw.river?.[0], "#9fd2f0"), isHex(raw.river?.[1], "#cfeafa")],
-    trees: isHex(raw.trees, "#2f6f34"),
-    // No clouds at night; otherwise a soft cloud color (default near-white).
-    clouds: stars ? false : isHex(raw.clouds, "#ffffff"),
-    stars,
+    hueRotate: clampNum(raw.hueRotate, -180, 180, 0),
+    saturate: clampNum(raw.saturate, 0, 2.4, 1.1),
+    brightness: clampNum(raw.brightness, 0.45, 1.35, 1),
+    contrast: clampNum(raw.contrast, 0.7, 1.6, 1.05),
+    overlay: isHex(raw.overlay, "#000000"),
+    overlayOpacity: clampNum(raw.overlayOpacity, 0, 0.6, 0.18),
+    blend: BLENDS.includes(raw.blend) ? raw.blend : "soft-light",
   };
 }
-
-// Schema arrays can't constrain length (the API rejects minItems>1), so we ask
-// for the counts in the prompt and enforce the exact shape in normalizePalette.
-const colorArray = { type: "array", items: { type: "string" } };
 
 export async function generateBackgroundScene(prompt) {
   const message = await client.messages.create({
     model: QUALITY_MODEL,
-    max_tokens: 700,
+    max_tokens: 500,
     ...fastParams(QUALITY_MODEL),
     output_config: {
       format: {
@@ -240,32 +216,31 @@ export async function generateBackgroundScene(prompt) {
           additionalProperties: false,
           properties: {
             name: { type: "string" },
-            sky: colorArray, // 4 colors, top → horizon
-            orb: { type: "string" }, // sun/moon disc
-            mountains: colorArray, // 3: far/hazy → near
-            snow: { type: "string" }, // snow cap on the peak
-            hills: colorArray, // 3: back/hazy → front
-            river: colorArray, // 2: water, sheen
-            trees: { type: "string" }, // foliage
-            clouds: { type: "string" }, // wispy clouds
-            stars: { type: "boolean" }, // night → moon + stars
+            hueRotate: { type: "number" }, // degrees, -180..180
+            saturate: { type: "number" }, // 0..2.4 (1 = unchanged)
+            brightness: { type: "number" }, // 0.45..1.35 (1 = unchanged)
+            contrast: { type: "number" }, // 0.7..1.6 (1 = unchanged)
+            overlay: { type: "string" }, // #rrggbb tint
+            overlayOpacity: { type: "number" }, // 0..0.6
+            blend: { type: "string", enum: BLENDS }, // CSS mix-blend-mode
           },
-          required: ["name", "sky", "orb", "mountains", "snow", "hills", "river", "trees", "clouds", "stars"],
+          required: ["name", "hueRotate", "saturate", "brightness", "contrast", "overlay", "overlayOpacity", "blend"],
         },
       },
     },
     system:
-      "You design color palettes for a stylized flat-vector LANDSCAPE wallpaper — " +
-      "layered mountains with a snow-capped peak, rolling hills, a winding river, " +
-      "trees and a sun or moon. Return exactly: sky = 4 colors (top→horizon), " +
-      "orb = 1 (sun or moon disc), mountains = 3 (far/hazy→near/dark), snow = 1 " +
-      "(light cap, must read against the near mountain), hills = 3 (back/hazy→front/" +
-      "near), river = 2 (water, brighter sheen), trees = 1 (foliage), clouds = 1. " +
-      "Given a vibe, make a harmonious, well-CONTRASTED palette. Keep the SKY TOP " +
-      "fairly dark or medium so light UI text stays readable; push brightness toward " +
-      "the horizon. Set stars=true for night/space moods (the orb becomes a moon). " +
-      "Every color value is a #rrggbb hex string.",
+      "You are a colour GRADER. A fixed, photographic landscape wallpaper (mountains, " +
+      "hills, a river, sky) sits behind a chat UI, and you recolour it to match a vibe " +
+      "using CSS filters plus ONE tint overlay — you do NOT redraw the scene. Return: " +
+      "hueRotate (degrees -180..180, shifts overall hue), saturate (0..2.4; 1 = " +
+      "unchanged), brightness (0.45..1.35; 1 = unchanged), contrast (0.7..1.6; 1 = " +
+      "unchanged), overlay (a #rrggbb tint), overlayOpacity (0..0.6), and blend (a CSS " +
+      "mix-blend-mode from the allowed list). Make a bold, atmospheric grade that " +
+      "clearly reads as the vibe, but keep the scene visible and not so dark or washed " +
+      "out that white UI text becomes illegible. Choose a blend suited to the tint " +
+      "(soft-light/overlay for mood, screen/lighten to glow, multiply/color to deepen). " +
+      "'name' is a short title for the look.",
     messages: [{ role: "user", content: `Background vibe: ${prompt}` }],
   });
-  return normalizePalette(JSON.parse(textOf(message)));
+  return normalizeTreatment(JSON.parse(textOf(message)));
 }

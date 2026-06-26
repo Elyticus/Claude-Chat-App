@@ -3,7 +3,7 @@ import { MessageCircle, Sun, Moon, Sparkles, Users, Search, Crown, Wand2 } from 
 import StarField from "./ui/star-field.jsx";
 import SpecialField from "./ui/special-field.jsx";
 import { AllChatsPanel } from "./AllChatsPanel.jsx";
-import { isSpecialSkyLight, isHexLight } from "@/lib/special-scenes.js";
+import { isSpecialSkyLight } from "@/lib/special-scenes.js";
 import { Avatar } from "./ui/Avatar.jsx";
 import { userBg } from "@/lib/helpers.js";
 import { isChannel, unreadBadgeStyle } from "@/lib/room-helpers.js";
@@ -24,7 +24,7 @@ export function OrbitalHub({
   onToggleSpecial,
   canSpecial = false,
   canSearch = false,
-  specialPalette = null,
+  specialTreatment = null,
   canGenerateBg = false,
   onOpenAiBg,
   onOpenPlans,
@@ -91,11 +91,9 @@ export function OrbitalHub({
     const id = setInterval(() => setHour(new Date().getHours()), 60000);
     return () => clearInterval(id);
   }, []);
-  // Text contrast follows the active scene: a custom (AI) palette uses its own
-  // sky-top luminance; otherwise the time-of-day scene decides.
-  const specialSkyLight = specialPalette
-    ? isHexLight(specialPalette.sky[0][1])
-    : isSpecialSkyLight(hour);
+  // Text contrast follows the time-of-day scene's sky-top luminance. An AI grade
+  // recolours the same photo, so the base scene still governs legibility.
+  const specialSkyLight = isSpecialSkyLight(hour);
 
   // Strong text color for names over the background canvas: white on dark,
   // black on light, brightness-dependent in special mode.
@@ -180,7 +178,7 @@ export function OrbitalHub({
       {/* Background canvas — all glow drawn on canvas, zero CSS blur layers.
           Special mode swaps the starfield for the time-of-day aurora scene. */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {isSpecial ? <SpecialField palette={specialPalette} /> : <StarField isDark={isDark} />}
+        {isSpecial ? <SpecialField treatment={specialTreatment} /> : <StarField isDark={isDark} />}
       </div>
 
       {/* Top bar */}

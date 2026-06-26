@@ -26,21 +26,8 @@ function shade(hex, amt) {
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
 }
 
-// A custom palette is only honoured if it carries the landscape role shape
-// (guards against stale localStorage palettes from an older scene version).
-function isValidPalette(p) {
-  return (
-    p &&
-    Array.isArray(p.sky) && p.sky.length &&
-    Array.isArray(p.mountains) && p.mountains.length >= 3 &&
-    Array.isArray(p.hills) && p.hills.length >= 3 &&
-    Array.isArray(p.river) && p.river.length >= 2 &&
-    typeof p.trees === "string" && typeof p.orb === "string"
-  );
-}
-
 // Where the sun/moon sits per mood (percent of viewport — safely in the sky on
-// both phone and desktop layouts). Custom palettes reuse day/night placement.
+// both phone and desktop layouts), used by the vector fallback scene.
 const ORB_POS = {
   morning: { x: 22, y: 24 },
   afternoon: { x: 24, y: 15 },
@@ -267,25 +254,27 @@ function VectorScene({ p, name }) {
   );
 }
 
-export default function SpecialField({ palette = null }) {
+export default function SpecialField({ treatment = null }) {
   const [scene, setScene] = useState(() => getScene(new Date().getHours()));
   const [failedSrc, setFailedSrc] = useState(null);
   const portrait = useOrientation();
-  const custom = palette && isValidPalette(palette) ? palette : null;
 
   useEffect(() => {
-    if (custom) return; // custom palette: no clock ticking
     const id = setInterval(() => setScene(getScene(new Date().getHours())), 60000);
     return () => clearInterval(id);
-  }, [custom]);
+  }, []);
 
-  // Business AI palette → render the recoloured vector scene.
-  if (custom) return <VectorScene p={custom} name={custom.stars ? "night" : "afternoon"} />;
-
-  // Pro → the provided time-of-day illustration (orientation-aware), with the
-  // vector scene as a fallback if the image is missing or fails to load.
+  // The live time-of-day illustration (orientation-aware); the vector scene is a
+  // fallback if the image is missing or fails to load.
   const src = IMAGES[scene][portrait ? "portrait" : "landscape"];
-  if (failedSrc === src) return <VectorScene p={SCENES[scene]} name={scene} />;
+  const showVector = failedSrc === src;
+
+  // A Business AI "background" is a colour-GRADE applied ON TOP of the real photo
+  // (CSS filters + a tint overlay) — it recolours the actual scene rather than
+  // replacing it.
+  const filter = treatment
+    ? `hue-rotate(${treatment.hueRotate}deg) saturate(${treatment.saturate}) brightness(${treatment.brightness}) contrast(${treatment.contrast})`
+    : undefined;
 
   return (
     <div
@@ -293,13 +282,29 @@ export default function SpecialField({ palette = null }) {
       aria-hidden="true"
       style={{ background: SCENES[scene].sky[0][1] }}
     >
-      <img
-        src={src}
-        alt=""
-        onError={() => setFailedSrc(src)}
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ objectPosition: "center" }}
-      />
+      {showVector ? (
+        <div className="absolute inset-0" style={{ filter }}>
+          <VectorScene p={SCENES[scene]} name={scene} />
+        </div>
+      ) : (
+        <img
+          src={src}
+          alt=""
+          onError={() => setFailedSrc(src)}
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ objectPosition: "center", filter }}
+        />
+      )}
+      {treatment && treatment.overlayOpacity > 0 && (
+        <div
+          className="absolute inset-0"
+          style={{
+            background: treatment.overlay,
+            mixBlendMode: treatment.blend,
+            opacity: treatment.overlayOpacity,
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -19,7 +19,7 @@ src/
 │   └── useChatDerivedState.js # Pure derived values (contacts, avatarMap, activeRoom + metadata, divider index, profile context); exports MAX_MESSAGE_LENGTH
 ├── components/
 │   ├── AccountModal.jsx         # Current user's own profile — tap avatar to enlarge, change-picture button, sign out (opens from hub avatar)
-│   ├── AiBackgroundModal.jsx    # Business: describe a vibe → Claude returns a custom palette for the Special-mode landscape scene
+│   ├── AiBackgroundModal.jsx    # Business: describe a vibe → Claude returns a colour-grade (CSS filters + tint) applied to the live Special-mode photo
 │   ├── ManageSubscriptionModal.jsx # Paid plan: status + renewal date, cancel/resume, change plan
 │   ├── AllChatsPanel.jsx        # Slide-up "All Chats" sheet (requests + channel activity + room list) — used by OrbitalHub
 │   ├── AuthScreen.jsx           # Login / Register form
@@ -43,7 +43,7 @@ src/
 │       ├── badge.jsx                 # shadcn-pattern Badge (cva + cn)
 │       ├── button.jsx                # shadcn-pattern Button (cva + cn + Radix Slot)
 │       ├── card.jsx                  # shadcn-pattern Card family
-│       ├── special-field.jsx         # SVG+CSS dynamic background — responsive time-of-day landscape (morning / afternoon / evening / night), macOS Dynamic-Desktop style
+│       ├── special-field.jsx         # Dynamic background — responsive time-of-day illustration photos (/public/special) w/ vector fallback + optional Business AI colour-grade
 │       ├── ContactStatusButton.jsx   # Add / remove contact button (status-aware)
 │       ├── shader-background.jsx     # Three.js GLSL shader canvas background
 │       ├── star-field.jsx            # Canvas starfield + comets (dark) / sunrise + birds (light)
@@ -130,22 +130,21 @@ Message deletion is also optimistic: message removed from state immediately, the
   palette** (`isDark = theme !== "light"`) so all `isDark` styling keeps
   working, but swaps backgrounds for `specialBg0/1` (deep navy, see
   `constants.js`) and renders `SpecialField` instead of `StarField` in the hub.
-  `SpecialField` is a **macOS-style dynamic background (SVG + CSS)**: ONE stylised
-  valley — layered mountains with a snow-capped peak, rolling hills, a winding
-  river, scattered cypress/round trees and a sun or moon — recoloured by the real
-  clock (`getScene` in `lib/special-scenes.js`) into **morning** (5–10, peach
-  sunrise), **afternoon** (10–17, bright blue sky), **evening** (17–20, fiery
-  sunset) and **night** (20–5, deep navy, stars, moon). It re-checks the clock
-  each minute and re-renders when the scene flips. **Responsive by construction:**
-  the sky is a full-bleed CSS gradient and the sun/moon/stars float in an
-  absolutely-positioned sky layer (never cropped), while the scenery is a
-  full-WIDTH SVG band anchored to the bottom (`h-44%` on phones → tall sky + land
-  strip like the portrait art; `h-70%` on desktop). No canvas, no rAF loop, no CSS
-  blur — just gradients and paths. Each scene keeps a **dark/medium upper sky** so
-  the hub's white top-bar text stays legible (`isSpecialSkyLight` decides from the
-  top sky stop). Special mode is a **Pro** feature — the Sparkles button is hidden
-  for free users; **Business** users can additionally generate a custom palette
-  (`AiBackgroundModal`) that overrides the time-of-day scene.
+  `SpecialField` is a **macOS-style dynamic background**: a stylised valley
+  illustration (mountains, hills, a winding river, trees, a sun/moon) shown as a
+  **time-of-day photo** from `/public/special` and chosen by the real clock
+  (`getScene` in `lib/special-scenes.js`) — **morning** (5–10, peach sunrise),
+  **afternoon** (10–17, bright blue), **evening** (17–20, fiery sunset) and
+  **night** (20–5, moon + stars) — plus a portrait file on phones vs landscape on
+  desktop (`useOrientation`, swaps live on rotate). It re-checks the clock each
+  minute. If an image is missing/fails it falls back to an equivalent **vector
+  scene** (`VectorScene`, full-bleed CSS sky + a bottom-anchored SVG band), so the
+  UI never breaks. Each scene keeps a **dark/medium upper sky** so the hub's white
+  top-bar text stays legible (`isSpecialSkyLight`). Special mode is a **Pro**
+  feature — the Sparkles button is hidden for free users; **Business** users can
+  additionally apply an **AI colour-grade** (`AiBackgroundModal` → `treatment`:
+  CSS `filter` + a tint overlay) that recolours the live photo in place rather
+  than replacing it.
 - **Tailwind v4 syntax** — this project uses `@import "tailwindcss"` + `@theme {}` blocks in `globals.css`. There is no `tailwind.config.js`. Do not add one.
 - **`@` path alias** — configured in `vite.config.js` via `resolve.alias`. Import as `@/lib/utils`, `@/components/ui/button`, etc.
 
