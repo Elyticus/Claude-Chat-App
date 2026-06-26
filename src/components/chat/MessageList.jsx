@@ -1,5 +1,6 @@
-import { Fragment, useState } from "react";
-import { Sparkles, X, Languages, FileText, Download, ImageIcon, ExternalLink } from "lucide-react";
+import { Fragment, useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
+import { Sparkles, X, Languages, FileText, Download, ImageIcon, ExternalLink, Play, Pause, Mic } from "lucide-react";
 import { api } from "@/lib/api.js";
 import {
   userBg,
@@ -23,10 +24,149 @@ function fmtDuration(s) {
   return `${m}:${(s % 60).toString().padStart(2, "0")}`;
 }
 
+// Custom voice-note player. Instead of pointing a native <audio> at the
+// streaming URL (which leaves some browsers stuck — Range/preload quirks, no
+// visible controls on iOS), it lazily fetches the file as a Blob on first play
+// and plays that object URL. This sidesteps streaming issues entirely; on any
+// fetch/decode failure it degrades to a download link.
+function VoicePlayer({ att, isMine, isDark }) {
+  const audioRef = useRef(null);
+  const [blobUrl, setBlobUrl] = useState(att.localUrl || null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [cur, setCur] = useState(0);
+  const [dur, setDur] = useState(att.duration || 0);
+
+  // Revoke any object URL we created (not the upload-time localUrl, which the
+  // composer owns) when this player unmounts.
+  const createdUrlRef = useRef(null);
+  useEffect(() => () => {
+    if (createdUrlRef.current) URL.revokeObjectURL(createdUrlRef.current);
+  }, []);
+
+  const fg = isMine ? "#ffffff" : isDark ? "#c7d2fe" : "#4f46e5";
+  const track = isMine ? "rgba(255,255,255,0.28)" : isDark ? "rgba(99,102,241,0.22)" : "rgba(99,102,241,0.18)";
+  const btnBg = isMine ? "rgba(255,255,255,0.22)" : isDark ? "rgba(99,102,241,0.2)" : "rgba(99,102,241,0.12)";
+
+  async function ensureSrc() {
+    if (blobUrl) return blobUrl;
+    setLoading(true);
+    try {
+      const res = await fetch(att.localUrl || api.attachmentUrl(att.id));
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const u = URL.createObjectURL(blob);
+      createdUrlRef.current = u;
+      setBlobUrl(u);
+      return u;
+    } catch {
+      setError(true);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function toggle() {
+    const a = audioRef.current;
+    if (!a) return;
+    if (playing) {
+      a.pause();
+      return;
+    }
+    if (!a.getAttribute("src")) {
+      const u = await ensureSrc();
+      if (!u) return;
+      a.src = u;
+    }
+    try {
+      await a.play();
+    } catch {
+      setError(true);
+    }
+  }
+
+  function seek(e) {
+    const a = audioRef.current;
+    if (!a || !dur) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    a.currentTime = ratio * dur;
+    setCur(a.currentTime);
+  }
+
+  // Hard failure: offer the raw file as a download instead.
+  if (error) {
+    return (
+      <a
+        href={att.localUrl || api.attachmentUrl(att.id)}
+        download={att.name}
+        className="flex items-center gap-2.5 rounded-lg px-3 py-2 max-w-full"
+        style={{ background: isMine ? "rgba(255,255,255,0.16)" : isDark ? "rgba(99,102,241,0.1)" : "rgba(99,102,241,0.06)" }}
+      >
+        <Mic size={18} className="shrink-0" style={{ opacity: 0.8 }} />
+        <div className="min-w-0 flex-1">
+          <div className="text-xs font-medium truncate">Voice message</div>
+          <div className="text-[10px]" style={{ opacity: 0.6 }}>Tap to download</div>
+        </div>
+        <Download size={15} className="shrink-0" style={{ opacity: 0.7 }} />
+      </a>
+    );
+  }
+
+  const pct = dur ? Math.min(100, (cur / dur) * 100) : 0;
+
+  return (
+    <div className="flex items-center gap-2.5 py-0.5" style={{ minWidth: 180, maxWidth: 240 }}>
+      <button
+        onClick={toggle}
+        aria-label={playing ? "Pause" : "Play"}
+        className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-transform active:scale-95"
+        style={{ background: btnBg, color: fg }}
+      >
+        {loading ? (
+          <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin" style={{ opacity: 0.8 }} />
+        ) : playing ? (
+          <Pause size={16} fill="currentColor" />
+        ) : (
+          <Play size={16} fill="currentColor" style={{ marginLeft: 1 }} />
+        )}
+      </button>
+      <div className="flex-1 min-w-0">
+        <div
+          onClick={seek}
+          className="relative h-1.5 rounded-full cursor-pointer"
+          style={{ background: track }}
+        >
+          <div className="absolute left-0 top-0 h-full rounded-full" style={{ width: `${pct}%`, background: fg }} />
+        </div>
+        <div className="text-[10px] mt-1 tabular-nums" style={{ color: fg, opacity: 0.7 }}>
+          {fmtDuration(Math.round(playing || cur > 0 ? cur : dur))}
+        </div>
+      </div>
+      <audio
+        ref={audioRef}
+        preload="none"
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => { setPlaying(false); setCur(0); }}
+        onTimeUpdate={(e) => setCur(e.currentTarget.currentTime)}
+        onLoadedMetadata={(e) => {
+          const d = e.currentTarget.duration;
+          if (Number.isFinite(d) && d > 0) setDur(d);
+        }}
+        onError={() => setError(true)}
+        className="hidden"
+      />
+    </div>
+  );
+}
+
 // Renders an image / voice / file attachment inside a message bubble. Uses the
 // local object URL while a temp message is still uploading, otherwise the
-// auth-gated stream URL.
-function AttachmentBlock({ att, isMine, isDark }) {
+// auth-gated stream URL. Image taps open the in-app lightbox via onImageOpen.
+function AttachmentBlock({ att, isMine, isDark, onImageOpen }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
   const url = att.localUrl || api.attachmentUrl(att.id);
@@ -63,7 +203,11 @@ function AttachmentBlock({ att, isMine, isDark }) {
     const placeholderH = Math.min(Math.max(phH, 60), 320);
 
     return (
-      <a href={url} target="_blank" rel="noreferrer" className="block">
+      <button
+        type="button"
+        onClick={() => imgLoaded && onImageOpen?.({ url, name: att.name })}
+        className="block w-full cursor-zoom-in"
+      >
         {/* Skeleton placeholder shown while the real image is loading from the server */}
         {!imgLoaded && (
           <div
@@ -87,19 +231,12 @@ function AttachmentBlock({ att, isMine, isDark }) {
           onLoad={() => setImgLoaded(true)}
           onError={() => setImgError(true)}
         />
-      </a>
+      </button>
     );
   }
 
   if (att.kind === "voice") {
-    return (
-      <div className="flex items-center gap-2">
-        <audio controls src={url} preload="metadata" style={{ maxWidth: 220, height: 36 }} />
-        {att.duration ? (
-          <span className="text-[11px] shrink-0" style={{ opacity: 0.6 }}>{fmtDuration(att.duration)}</span>
-        ) : null}
-      </div>
-    );
+    return <VoicePlayer att={att} isMine={isMine} isDark={isDark} />;
   }
 
   return (
@@ -118,6 +255,54 @@ function AttachmentBlock({ att, isMine, isDark }) {
       </div>
       <Download size={15} className="shrink-0" style={{ opacity: 0.7 }} />
     </a>
+  );
+}
+
+// Full-screen in-app image preview. Portalled to <body> so ancestor transforms
+// (the sliding chat panel) don't break its fixed positioning. Closes on
+// backdrop click, the X, or Escape.
+function ImageLightbox({ image, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  if (!image) return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[700] flex items-center justify-center p-4 animate-scale-in"
+      style={{ background: "rgba(0,0,0,0.88)", backdropFilter: "blur(4px)" }}
+      onClick={onClose}
+    >
+      <button
+        onClick={onClose}
+        aria-label="Close"
+        className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center"
+        style={{ background: "rgba(255,255,255,0.12)", color: "#fff" }}
+      >
+        <X size={20} />
+      </button>
+      <a
+        href={image.url}
+        download={image.name}
+        onClick={(e) => e.stopPropagation()}
+        aria-label="Download"
+        className="absolute top-4 right-16 w-10 h-10 rounded-full flex items-center justify-center"
+        style={{ background: "rgba(255,255,255,0.12)", color: "#fff" }}
+      >
+        <Download size={18} />
+      </a>
+      <img
+        src={image.url}
+        alt={image.name || "image"}
+        onClick={(e) => e.stopPropagation()}
+        className="max-w-full max-h-full rounded-lg object-contain"
+        style={{ boxShadow: "0 12px 48px rgba(0,0,0,0.6)" }}
+      />
+    </div>,
+    document.body,
   );
 }
 
@@ -148,8 +333,13 @@ export function MessageList({
   translations = {},
   onClearTranslation,
 }) {
+  const [lightbox, setLightbox] = useState(null);
+  const openImage = useCallback((img) => setLightbox(img), []);
+  const closeImage = useCallback(() => setLightbox(null), []);
+
   return (
     <div className="flex-1 relative overflow-hidden" style={{ background: "transparent" }}>
+      <ImageLightbox image={lightbox} onClose={closeImage} />
       {/* Dot grid texture */}
       <div
         className="absolute inset-0 pointer-events-none"
@@ -399,7 +589,7 @@ export function MessageList({
                       >
                         {msg.attachment ? (
                           <div className="flex flex-col gap-1.5">
-                            <AttachmentBlock att={msg.attachment} isMine={isMine} isDark={isDark} />
+                            <AttachmentBlock att={msg.attachment} isMine={isMine} isDark={isDark} onImageOpen={openImage} />
                             {msg.text ? <span className="text-sm">{msg.text}</span> : null}
                             <span className="self-end text-[10px]" style={{ opacity: 0.4 }}>
                               {formatFullTime(msg.created_at)}
