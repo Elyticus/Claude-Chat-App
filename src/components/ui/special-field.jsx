@@ -80,7 +80,7 @@ function RoundTree({ x, y, s, fill }) {
 const IMAGES = {
   morning: {
     landscape: "/special/morning-landscape.svg",
-    portrait: "/special//morning-portrait.svg",
+    portrait: "/special/morning-portrait.svg",
   },
   afternoon: {
     landscape: "/special/afternoon-landscape.svg",

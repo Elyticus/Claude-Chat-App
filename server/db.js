@@ -318,6 +318,22 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_room_members_user ON room_members(user_id);
     CREATE INDEX IF NOT EXISTS idx_contacts_contact ON contacts(contact_id);
     CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id);
+    -- Enable RLS on every table so Supabase's public REST API (anon/authenticated
+    -- roles) cannot read or write rows directly. The Node backend connects as the
+    -- postgres superuser which has BYPASSRLS, so this change is invisible to the
+    -- application and does not require any policies to be created.
+    ALTER TABLE users                 ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE pending_verifications ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE rooms                 ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE room_members          ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE messages              ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE pinned_messages       ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE contacts              ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE password_reset_tokens ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE push_subscriptions    ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE usage_counters        ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE subscriptions         ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE attachments           ENABLE ROW LEVEL SECURITY;
   `);
 }
 
