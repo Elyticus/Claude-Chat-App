@@ -1,5 +1,5 @@
-import { Fragment } from "react";
-import { Sparkles, X, Languages, FileText, Download } from "lucide-react";
+import { Fragment, useState } from "react";
+import { Sparkles, X, Languages, FileText, Download, ImageIcon, ExternalLink } from "lucide-react";
 import { api } from "@/lib/api.js";
 import {
   userBg,
@@ -27,16 +27,65 @@ function fmtDuration(s) {
 // local object URL while a temp message is still uploading, otherwise the
 // auth-gated stream URL.
 function AttachmentBlock({ att, isMine, isDark }) {
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const url = att.localUrl || api.attachmentUrl(att.id);
 
   if (att.kind === "image") {
+    // Fallback card when the image URL is inaccessible (e.g. file missing from
+    // server, auth failure, network timeout). Shows a "View image" link instead
+    // of an invisible broken-image element.
+    if (imgError) {
+      return (
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center gap-2.5 rounded-lg px-3 py-2 max-w-full"
+          style={{
+            background: isMine ? "rgba(255,255,255,0.16)" : isDark ? "rgba(99,102,241,0.1)" : "rgba(99,102,241,0.06)",
+          }}
+        >
+          <ImageIcon size={20} className="shrink-0" style={{ opacity: 0.8 }} />
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-medium truncate">{att.name || "Image"}</div>
+            <div className="text-[10px]" style={{ opacity: 0.6 }}>Tap to view</div>
+          </div>
+          <ExternalLink size={15} className="shrink-0" style={{ opacity: 0.7 }} />
+        </a>
+      );
+    }
+
+    // Compute a natural placeholder size from stored dimensions so the bubble
+    // doesn't collapse to 0 height while the image is in flight.
+    const phW = att.width ? Math.min(att.width, 280) : 200;
+    const phH = att.height ? Math.round(phW * (att.height / att.width)) : 140;
+    const placeholderH = Math.min(Math.max(phH, 60), 320);
+
     return (
       <a href={url} target="_blank" rel="noreferrer" className="block">
+        {/* Skeleton placeholder shown while the real image is loading from the server */}
+        {!imgLoaded && (
+          <div
+            className="rounded-lg"
+            style={{
+              width: "100%",
+              height: att.localUrl ? 0 : placeholderH,
+              background: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)",
+            }}
+          />
+        )}
         <img
           src={url}
           alt={att.name || "image"}
           className="rounded-lg max-w-full block"
-          style={{ maxHeight: 320, maxWidth: "100%", objectFit: "cover", minHeight: 48 }}
+          style={{
+            maxHeight: 320,
+            maxWidth: "100%",
+            display: imgLoaded ? "block" : "none",
+          }}
+          onLoad={() => setImgLoaded(true)}
+          onError={() => setImgError(true)}
         />
       </a>
     );
