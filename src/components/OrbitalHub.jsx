@@ -663,13 +663,23 @@ export function OrbitalHub({
           onClick={onOpenAiBg}
           title="AI background"
           aria-label="Generate an AI background"
-          className="sm:hidden absolute bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 z-30"
           style={{
+            display: "flex",
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            width: 56,
+            height: 56,
+            borderRadius: "50%",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 30,
             background: isDark ? "rgba(20,184,166,0.22)" : "rgba(13,148,136,0.16)",
             border: `1px solid ${isDark ? "rgba(45,212,191,0.5)" : "rgba(13,148,136,0.4)"}`,
             color: isDark ? "#5eead4" : "#0d9488",
             boxShadow: isDark ? "0 0 18px rgba(45,212,191,0.28)" : "0 4px 16px rgba(13,148,136,0.2)",
           }}
+          className="sm:hidden"
         >
           <Wand2 size={22} />
         </button>
