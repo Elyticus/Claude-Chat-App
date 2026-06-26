@@ -86,23 +86,39 @@ function RoundTree({ x, y, s, fill }) {
   );
 }
 
-export default function SpecialField({ palette = null }) {
-  const [scene, setScene] = useState(() => getScene(new Date().getHours()));
-  const custom = palette && isValidPalette(palette) ? palette : null;
+// ─── Time-of-day illustration backgrounds (Pro) ──────────────────────────────
+// The provided illustration art, one per period × orientation, served from
+// /public/special. If a file is missing (e.g. assets not added yet) we fall back
+// to the vector scene below, so Special mode never breaks.
+const IMAGES = {
+  morning: { landscape: "/special/Morning.jpg", portrait: "/special/Morning-Mobile.jpg" },
+  afternoon: { landscape: "/special/Afternoon.jpg", portrait: "/special/Afternoon-Mobile.jpg" },
+  evening: { landscape: "/special/Sunset.jpg", portrait: "/special/Sunset-Mobile.jpg" },
+  night: { landscape: "/special/Night.jpg", portrait: "/special/Night-Mobile.jpg" },
+};
 
+// Track portrait vs landscape so phones get the tall art and desktops the wide.
+function useOrientation() {
+  const [portrait, setPortrait] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(orientation: portrait)").matches,
+  );
   useEffect(() => {
-    if (custom) return; // custom palette: no clock ticking
-    const id = setInterval(() => setScene(getScene(new Date().getHours())), 60000);
-    return () => clearInterval(id);
-  }, [custom]);
+    const m = window.matchMedia("(orientation: portrait)");
+    const on = (e) => setPortrait(e.matches);
+    m.addEventListener("change", on);
+    return () => m.removeEventListener("change", on);
+  }, []);
+  return portrait;
+}
 
-  const p = custom || SCENES[scene];
+// The vector landscape — a graceful fallback for the time-of-day illustrations
+// and the renderer for a Business AI-generated custom palette.
+function VectorScene({ p, name }) {
   const [mFar, mMid, mNear] = p.mountains;
   const [hBack, hMid, hFront] = p.hills;
   const [water, sheen] = p.river;
   const isMoon = !!p.stars;
-  const orbName = custom ? (isMoon ? "night" : "afternoon") : scene;
-  const pos = ORB_POS[orbName] || ORB_POS.afternoon;
+  const pos = ORB_POS[name] || ORB_POS.afternoon;
 
   const skyGradient = `linear-gradient(to bottom, ${p.sky
     .map(([o, c]) => `${c} ${Math.round(o * 100)}%`)
@@ -247,6 +263,43 @@ export default function SpecialField({ palette = null }) {
         <RoundTree x={360} y={300} s={0.5} fill={shade(p.trees, 8)} />
         <RoundTree x={1240} y={300} s={0.5} fill={shade(p.trees, 8)} />
       </svg>
+    </div>
+  );
+}
+
+export default function SpecialField({ palette = null }) {
+  const [scene, setScene] = useState(() => getScene(new Date().getHours()));
+  const [failedSrc, setFailedSrc] = useState(null);
+  const portrait = useOrientation();
+  const custom = palette && isValidPalette(palette) ? palette : null;
+
+  useEffect(() => {
+    if (custom) return; // custom palette: no clock ticking
+    const id = setInterval(() => setScene(getScene(new Date().getHours())), 60000);
+    return () => clearInterval(id);
+  }, [custom]);
+
+  // Business AI palette → render the recoloured vector scene.
+  if (custom) return <VectorScene p={custom} name={custom.stars ? "night" : "afternoon"} />;
+
+  // Pro → the provided time-of-day illustration (orientation-aware), with the
+  // vector scene as a fallback if the image is missing or fails to load.
+  const src = IMAGES[scene][portrait ? "portrait" : "landscape"];
+  if (failedSrc === src) return <VectorScene p={SCENES[scene]} name={scene} />;
+
+  return (
+    <div
+      className="absolute inset-0 overflow-hidden"
+      aria-hidden="true"
+      style={{ background: SCENES[scene].sky[0][1] }}
+    >
+      <img
+        src={src}
+        alt=""
+        onError={() => setFailedSrc(src)}
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ objectPosition: "center" }}
+      />
     </div>
   );
 }
