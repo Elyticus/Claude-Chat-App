@@ -68,20 +68,20 @@ function RoundTree({ x, y, s, fill }) {
 // ─── Time-of-day illustration backgrounds (Pro) ──────────────────────────────
 const IMAGES = {
   morning: {
-    landscape: "/special/morning-landscape.svg",
-    portrait:  "/special/morning-portrait.svg",
+    landscape: "/special/morning-landscape.jpg",
+    portrait:  "/special/morning-portrait.jpg",
   },
   afternoon: {
-    landscape: "/special/afternoon-landscape.svg",
-    portrait:  "/special/afternoon-portrait.svg",
+    landscape: "/special/afternoon-landscape.jpg",
+    portrait:  "/special/afternoon-portrait.jpg",
   },
   evening: {
-    landscape: "/special/evening-landscape.svg",
-    portrait:  "/special/evening-portrait.svg",
+    landscape: "/special/evening-landscape.jpg",
+    portrait:  "/special/evening-portrait.jpg",
   },
   night: {
-    landscape: "/special/night-landscape.svg",
-    portrait:  "/special/night-portrait.svg",
+    landscape: "/special/night-landscape.jpg",
+    portrait:  "/special/night-portrait.jpg",
   },
 };
 
