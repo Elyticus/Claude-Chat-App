@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 
 // ── Dark mode ──────────────────────────────────────────────────────────────────
 
@@ -115,7 +115,10 @@ function drawBird(ctx, x, y, size, phase) {
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-export default function StarField({ isDark = true }) {
+// Memoized: OrbitalHub re-renders ~20×/sec to spin its bubbles. Without memo
+// this canvas component would be re-invoked on every rotation tick. It only
+// depends on `isDark`, so skip those re-renders to free the main thread.
+function StarField({ isDark = true }) {
   const canvasRef    = useRef(null);
   const starsRef     = useRef([]);
   const cometsRef    = useRef([]);
@@ -355,3 +358,5 @@ export default function StarField({ isDark = true }) {
     />
   );
 }
+
+export default memo(StarField);

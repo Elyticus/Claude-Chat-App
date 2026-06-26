@@ -573,20 +573,27 @@ export function OrbitalHub({
             onMouseLeave={() => setHoveredId(null)}
             onClick={() => onSelectRoom(room.id)}
           >
-            <div
-              className="absolute rounded-full pointer-events-none transition-all duration-300"
-              style={{
-                width: 86,
-                height: 86,
-                left: "50%",
-                top: "50%",
-                transform: "translate(-50%, -50%)",
-                background:
-                  "radial-gradient(circle, rgba(99,102,241,0.4) 0%, transparent 68%)",
-                filter: "blur(10px)",
-                opacity: hoveredId === room.id ? 1 : 0,
-              }}
-            />
+            {/* Hover glow — mounted ONLY for the hovered node. A `filter: blur()`
+                element is promoted to its own GPU compositor layer; keeping one
+                per node permanently mounted (even at opacity 0) means N blurred
+                layers get re-composited every frame alongside the StarField rAF
+                loop, which makes iOS standalone (home-screen) blink under load.
+                Mobile has no hover, so this is zero blur layers there. */}
+            {hoveredId === room.id && (
+              <div
+                className="absolute rounded-full pointer-events-none"
+                style={{
+                  width: 86,
+                  height: 86,
+                  left: "50%",
+                  top: "50%",
+                  transform: "translate(-50%, -50%)",
+                  background:
+                    "radial-gradient(circle, rgba(99,102,241,0.4) 0%, transparent 68%)",
+                  filter: "blur(10px)",
+                }}
+              />
+            )}
             <div
               className={`relative w-12 h-12 transition-transform duration-200 ${hoveredId === room.id ? "scale-110" : ""}`}
             >

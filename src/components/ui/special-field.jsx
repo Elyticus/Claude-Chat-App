@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getScene, SCENES } from "@/lib/special-scenes.js";
 
 // ─── Special mode — dynamic landscape background ───────────────────────────────
@@ -279,7 +279,9 @@ function VectorScene({ p, name }) {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export default function SpecialField({ treatment = null }) {
+// Memoized: OrbitalHub re-renders ~20×/sec to spin its bubbles; the special
+// background only depends on `treatment`, so skip those rotation-tick renders.
+function SpecialField({ treatment = null }) {
   const [scene, setScene] = useState(() => getScene(new Date().getHours()));
   const portrait = useOrientation();
   const [failedSrc, setFailedSrc] = useState(null);
@@ -420,3 +422,5 @@ export default function SpecialField({ treatment = null }) {
     </div>
   );
 }
+
+export default memo(SpecialField);
