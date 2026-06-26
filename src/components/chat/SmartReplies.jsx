@@ -14,7 +14,7 @@ export function SmartReplies({ enabled, replies, isDark, onLoad, onClear, onPick
   // Idle — show the opt-in trigger.
   if (!replies) {
     return (
-      <div className="px-4 pt-2 shrink-0">
+      <div className="px-4 pt-2 shrink-0 w-fit">
         <button
           onClick={onLoad}
           className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full transition-all"
@@ -27,7 +27,7 @@ export function SmartReplies({ enabled, replies, isDark, onLoad, onClear, onPick
   }
 
   return (
-    <div className="px-4 pt-2 shrink-0 flex items-center gap-2 flex-wrap">
+    <div className="px-4 pt-2 shrink-0 flex items-center gap-2 flex-wrap w-fit max-w-full">
       {replies.loading ? (
         <span className="inline-flex items-center gap-2 text-xs px-3 py-1.5" style={{ color: chipColor }}>
           <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" /> Thinking of replies…
