@@ -8,15 +8,18 @@ Filenames are **case-sensitive** (Netlify serves on Linux). Current set:
 
 | Time of day      | Landscape (desktop)  | Portrait (mobile)        |
 | ---------------- | -------------------- | ------------------------ |
-| Morning / dawn   | `Morning.jpg`        | `Morning-Mobile.jpg`     |
-| Afternoon / day  | `Afternoon.jpg`      | `Afternoon-Mobile.jpg`   |
-| Evening / sunset | `Sunset.jpg`         | `Sunset-Mobile.jpg`      |
-| Night            | `Night.jpg`          | `Night-Mobile.jpg`       |
+| Morning / dawn   | `Morning.svg`        | `Morning-Mobile.svg`     |
+| Afternoon / day  | `Afternoon.svg`      | `Afternoon-Mobile.svg`   |
+| Evening / sunset | `Sunset.svg`         | `Sunset-Mobile.svg`      |
+| Night            | `Night.svg`          | `Night-Mobile.svg`       |
 
 Notes:
 - Names must match the `IMAGES` map in `src/components/ui/special-field.jsx`
   exactly (including capitalisation).
-- Landscape ≈ 1280×720 (16:9), Portrait ≈ 720×1280 — but any size works; they're
-  rendered with `object-fit: cover`.
-- Until a file is present, that period falls back to the built-in vector scene,
-  so the app never shows a broken image.
+- SVG files are served as `<img>` elements with `object-fit: cover` — any
+  viewBox will be scaled to fill the hub background.
+- If a file is missing or fails to load, that period falls back to the
+  built-in vector scene, so the app never shows a broken image.
+- The Business AI colour-grade (CSS filters + tint overlay) is applied on
+  top of these images via inline `filter` style — it works with SVG just as
+  well as with raster images.

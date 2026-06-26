@@ -78,10 +78,10 @@ function RoundTree({ x, y, s, fill }) {
 // /public/special. If a file is missing (e.g. assets not added yet) we fall back
 // to the vector scene below, so Special mode never breaks.
 const IMAGES = {
-  morning: { landscape: "/special/Morning.jpg", portrait: "/special/Morning-Mobile.jpg" },
-  afternoon: { landscape: "/special/Afternoon.jpg", portrait: "/special/Afternoon-Mobile.jpg" },
-  evening: { landscape: "/special/Sunset.jpg", portrait: "/special/Sunset-Mobile.jpg" },
-  night: { landscape: "/special/Night.jpg", portrait: "/special/Night-Mobile.jpg" },
+  morning: { landscape: "/special/Morning.svg", portrait: "/special/Morning-Mobile.svg" },
+  afternoon: { landscape: "/special/Afternoon.svg", portrait: "/special/Afternoon-Mobile.svg" },
+  evening: { landscape: "/special/Sunset.svg", portrait: "/special/Sunset-Mobile.svg" },
+  night: { landscape: "/special/Night.svg", portrait: "/special/Night-Mobile.svg" },
 };
 
 // Track portrait vs landscape so phones get the tall art and desktops the wide.
