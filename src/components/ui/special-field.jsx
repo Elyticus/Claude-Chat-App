@@ -1,14 +1,9 @@
-import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useState } from "react";
 import { getScene, SCENES } from "@/lib/special-scenes.js";
 
 // ─── Special mode — dynamic landscape background ───────────────────────────────
 // Normal path: sky-colour background → photo from /public/special fades in.
 // VectorScene is ONLY shown when a photo genuinely fails to load (404 / error).
-//
-// Parallax: spring physics (not linear lerp) drives --plx / --ply CSS custom
-// properties on the container via a rAF loop — zero React re-renders.
-//   Photo — 0.80 × X, 0.50 × Y, scale(1.06) covers the displaced edges
-//   VectorScene sky — static  /  orb+clouds — 0.20×  /  scenery — 0.75× X
 //
 // "Already loaded" images are tracked in loadedSrcs (module-level Set), so
 // switching scenes / orientation never flashes on a cache hit.
@@ -113,7 +108,6 @@ function useOrientation() {
 }
 
 // ─── Vector fallback — only shown when a photo fails to load ─────────────────
-// Still has the parallax layers so it looks good as a real fallback, not a flash.
 function VectorScene({ p, name }) {
   const [mFar, mMid, mNear] = p.mountains;
   const [hBack, hMid, hFront] = p.hills;
@@ -130,14 +124,8 @@ function VectorScene({ p, name }) {
       {/* Sky — static, always covers any gap */}
       <div className="absolute inset-0" style={{ background: skyGradient }} />
 
-      {/* Distant: stars, clouds, orb — 20 % */}
-      <div
-        className="absolute inset-0"
-        style={{
-          transform:
-            "translate(calc(var(--plx, 0px) * -0.2), calc(var(--ply, 0px) * -0.12))",
-        }}
-      >
+      {/* Distant: stars, clouds, orb */}
+      <div className="absolute inset-0">
         {p.stars &&
           STARS.map((s, i) => (
             <span
@@ -192,11 +180,8 @@ function VectorScene({ p, name }) {
         />
       </div>
 
-      {/* Scenery — 75 % horizontal only (no vertical = no bottom gap) */}
-      <div
-        className="absolute inset-0"
-        style={{ transform: "translateX(calc(var(--plx, 0px) * -0.75))" }}
-      >
+      {/* Scenery */}
+      <div className="absolute inset-0">
         <svg
           className="absolute inset-x-0 bottom-0 w-full h-[44%] sm:h-[70%]"
           viewBox="0 0 1600 600"
@@ -292,7 +277,6 @@ function SpecialField({ treatment = null }) {
 
   // Start ready if the image was already fetched (cache hit = no fade flash).
   const [photoReady, setPhotoReady] = useState(() => loadedSrcs.has(src));
-  const containerRef = useRef(null);
 
   // Scene clock — re-check every minute.
   useEffect(() => {
@@ -311,71 +295,12 @@ function SpecialField({ treatment = null }) {
     setPhotoReady(loadedSrcs.has(src));
   }, [src]);
 
-  // Spring physics parallax — rAF loop updates --plx / --ply directly on the
-  // DOM so no React re-renders occur. Spring gives a natural overshoot feeling
-  // unlike a flat linear lerp.
-  useEffect(() => {
-    let rafId;
-    let cx = 0,
-      cy = 0; // current position (normalised -0.5…0.5)
-    let vx = 0,
-      vy = 0; // velocity
-    let tx = 0,
-      ty = 0; // target
-
-    function onMouse(e) {
-      tx = e.clientX / window.innerWidth - 0.5;
-      ty = e.clientY / window.innerHeight - 0.5;
-    }
-
-    function onTouch(e) {
-      if (e.touches.length > 0) {
-        tx = e.touches[0].clientX / window.innerWidth - 0.5;
-        ty = e.touches[0].clientY / window.innerHeight - 0.5;
-      }
-    }
-
-    function onGyro(e) {
-      tx = Math.max(-0.5, Math.min(0.5, (e.gamma || 0) / 45));
-      ty = Math.max(-0.5, Math.min(0.5, ((e.beta || 0) - 45) / 45));
-    }
-
-    function frame() {
-      // stiffness 0.05 — pull toward target; damping 0.82 — velocity decay
-      vx = (vx + (tx - cx) * 0.05) * 0.82;
-      vy = (vy + (ty - cy) * 0.05) * 0.82;
-      cx += vx;
-      cy += vy;
-
-      const el = containerRef.current;
-      if (el) {
-        // 50 px horizontal range, 30 px vertical — enough to feel spatial
-        el.style.setProperty("--plx", `${(cx * 50).toFixed(2)}px`);
-        el.style.setProperty("--ply", `${(cy * 30).toFixed(2)}px`);
-      }
-      rafId = requestAnimationFrame(frame);
-    }
-
-    window.addEventListener("mousemove", onMouse, { passive: true });
-    window.addEventListener("touchmove", onTouch, { passive: true });
-    window.addEventListener("deviceorientation", onGyro, { passive: true });
-    rafId = requestAnimationFrame(frame);
-
-    return () => {
-      window.removeEventListener("mousemove", onMouse);
-      window.removeEventListener("touchmove", onTouch);
-      window.removeEventListener("deviceorientation", onGyro);
-      cancelAnimationFrame(rafId);
-    };
-  }, []);
-
   const filter = treatment
     ? `hue-rotate(${treatment.hueRotate}deg) saturate(${treatment.saturate}) brightness(${treatment.brightness}) contrast(${treatment.contrast})`
     : undefined;
 
   return (
     <div
-      ref={containerRef}
       className="absolute inset-0 overflow-hidden"
       aria-hidden="true"
       style={{ background: SCENES[scene].sky[0][1] }}
@@ -387,7 +312,6 @@ function SpecialField({ treatment = null }) {
         </div>
       ) : (
         // Normal path: sky colour shows while the photo loads, then fades in.
-        // scale(1.06) gives 3% edge room so the displaced edges never show.
         <img
           src={src}
           alt=""
@@ -403,8 +327,6 @@ function SpecialField({ treatment = null }) {
             filter,
             opacity: photoReady ? 1 : 0,
             transition: photoReady ? "opacity 0.4s ease" : "none",
-            transform:
-              "translate(calc(var(--plx, 0px) * -0.8), calc(var(--ply, 0px) * -0.5)) scale(1.06)",
           }}
         />
       )}
