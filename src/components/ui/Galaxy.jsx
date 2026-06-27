@@ -200,6 +200,7 @@ export default function Galaxy({
   ...rest
 }) {
   const ctnDom = useRef(null);
+  const programRef = useRef(null);
   const targetMousePos = useRef({ x: 0.5, y: 0.5 });
   const smoothMousePos = useRef({ x: 0.5, y: 0.5 });
   const targetMouseActive = useRef(0.0);
@@ -210,6 +211,17 @@ export default function Galaxy({
   useEffect(() => {
     pausedRef.current = paused;
   }, [paused]);
+  // Values the render loop reads every frame — kept in refs so changing them
+  // (e.g. from the Customize panel) updates the animation without rebuilding the
+  // GL context.
+  const starSpeedRef = useRef(starSpeed);
+  const disableAnimationRef = useRef(disableAnimation);
+  useEffect(() => {
+    starSpeedRef.current = starSpeed;
+  }, [starSpeed]);
+  useEffect(() => {
+    disableAnimationRef.current = disableAnimation;
+  }, [disableAnimation]);
 
   useEffect(() => {
     if (!ctnDom.current) return;
@@ -274,6 +286,8 @@ export default function Galaxy({
       }
     });
 
+    programRef.current = program;
+
     const mesh = new Mesh(gl, { geometry, program });
     // Paint one frame immediately so the canvas isn't blank if it mounts paused
     // (e.g. while another mode is showing) before the first loop draw.
@@ -285,9 +299,10 @@ export default function Galaxy({
       // While paused, keep the loop alive but skip the draw — the last frame
       // stays on the canvas (frozen), and work resumes cleanly when unpaused.
       if (pausedRef.current) return;
-      if (!disableAnimation) {
+      if (!disableAnimationRef.current) {
         program.uniforms.uTime.value = t * 0.001;
-        program.uniforms.uStarSpeed.value = (t * 0.001 * starSpeed) / 10.0;
+        program.uniforms.uStarSpeed.value =
+          (t * 0.001 * starSpeedRef.current) / 10.0;
       }
 
       const lerpFactor = 0.05;
@@ -330,25 +345,46 @@ export default function Galaxy({
         ctn.removeEventListener("mouseleave", handleMouseLeave);
       }
       ctn.removeChild(gl.canvas);
+      programRef.current = null;
       gl.getExtension("WEBGL_lose_context")?.loseContext();
     };
+    // Only structural props rebuild the context; the tunables below are synced
+    // in place via the next effect, and starSpeed/disableAnimation are read from
+    // refs in the loop — so dragging a Customize slider never rebuilds the GL
+    // context (which would be laggy and could exhaust WebGL contexts).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transparent, mouseInteraction]);
+
+  // Live-update tunable uniforms in place (no GL rebuild) so Customize changes
+  // apply smoothly — mirrors Lightfall.
+  useEffect(() => {
+    const p = programRef.current;
+    if (!p) return;
+    p.uniforms.uFocal.value = new Float32Array(focal);
+    p.uniforms.uRotation.value = new Float32Array(rotation);
+    p.uniforms.uDensity.value = density;
+    p.uniforms.uHueShift.value = hueShift;
+    p.uniforms.uSpeed.value = speed;
+    p.uniforms.uGlowIntensity.value = glowIntensity;
+    p.uniforms.uSaturation.value = saturation;
+    p.uniforms.uTwinkleIntensity.value = twinkleIntensity;
+    p.uniforms.uRotationSpeed.value = rotationSpeed;
+    p.uniforms.uRepulsionStrength.value = repulsionStrength;
+    p.uniforms.uMouseRepulsion.value = mouseRepulsion;
+    p.uniforms.uAutoCenterRepulsion.value = autoCenterRepulsion;
   }, [
     focal,
     rotation,
-    starSpeed,
     density,
     hueShift,
-    disableAnimation,
     speed,
-    mouseInteraction,
     glowIntensity,
     saturation,
-    mouseRepulsion,
     twinkleIntensity,
     rotationSpeed,
     repulsionStrength,
-    autoCenterRepulsion,
-    transparent
+    mouseRepulsion,
+    autoCenterRepulsion
   ]);
 
   return <div ref={ctnDom} className="galaxy-container" {...rest} />;

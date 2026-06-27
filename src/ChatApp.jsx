@@ -21,6 +21,7 @@ import { UpgradeModal } from "./components/UpgradeModal.jsx";
 import { CheckoutModal } from "./components/CheckoutModal.jsx";
 import { ManageSubscriptionModal } from "./components/ManageSubscriptionModal.jsx";
 import { CustomizePanel } from "./components/CustomizePanel.jsx";
+import { GalaxyCustomizePanel } from "./components/GalaxyCustomizePanel.jsx";
 import { AiSummaryModal } from "./components/AiSummaryModal.jsx";
 import { SearchModal } from "./components/SearchModal.jsx";
 import {
@@ -31,6 +32,7 @@ import {
   specialBg1,
 } from "./lib/constants.js";
 import { loadLightfall, saveLightfall, LIGHTFALL_DEFAULTS } from "./lib/lightfall.js";
+import { loadGalaxy, saveGalaxy, GALAXY_DEFAULTS } from "./lib/galaxy.js";
 
 export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) {
   const billing = useBilling({ currentUser, onUserUpdate });
@@ -62,6 +64,7 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
   // background. Settings persist to localStorage and apply live.
   const [showCustomize, setShowCustomize] = useState(false);
   const [lightfall, setLightfall] = useState(() => loadLightfall());
+  const [galaxy, setGalaxy] = useState(() => loadGalaxy());
   const [contextMenu, setContextMenu] = useState(null);
   const [inputText, setInputText] = useState("");
   const [showMsgSearch, setShowMsgSearch] = useState(false);
@@ -214,6 +217,18 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
   // Only Pro users get their customised background; everyone else (Lite) sees
   // the default Lightfall look.
   const activeLightfall = billing.canCustomize ? lightfall : LIGHTFALL_DEFAULTS;
+
+  // Update the Galaxy (Dark-mode) background settings (Customize panel, Pro).
+  function changeGalaxy(next) {
+    setGalaxy(next);
+    saveGalaxy(next);
+  }
+  function resetGalaxy() {
+    setGalaxy({ ...GALAXY_DEFAULTS });
+    saveGalaxy({ ...GALAXY_DEFAULTS });
+  }
+  // Pro users get their customised galaxy; everyone else sees the default.
+  const activeGalaxy = billing.canCustomize ? galaxy : GALAXY_DEFAULTS;
 
   const socketRef = useRef(null);
   const typingTimerRef = useRef(null);
@@ -983,6 +998,7 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
         canSpecial={billing.isPro}
         canSearch={billing.isPro}
         lightfallSettings={activeLightfall}
+        galaxySettings={activeGalaxy}
         canCustomize={billing.canCustomize}
         onOpenCustomize={() => setShowCustomize(true)}
         onOpenPlans={() => billing.openUpgrade()}
@@ -1172,12 +1188,22 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
           onClose={() => setShowManageSub(false)}
         />
       )}
-      {showCustomize && (
+      {/* Customize panel — Lightfall in special mode, Galaxy in dark mode. */}
+      {showCustomize && isSpecial && (
         <CustomizePanel
           isDark={isDark}
           settings={lightfall}
           onChange={changeLightfall}
           onReset={resetLightfall}
+          onClose={() => setShowCustomize(false)}
+        />
+      )}
+      {showCustomize && isDark && !isSpecial && (
+        <GalaxyCustomizePanel
+          isDark={isDark}
+          settings={galaxy}
+          onChange={changeGalaxy}
+          onReset={resetGalaxy}
           onClose={() => setShowCustomize(false)}
         />
       )}

@@ -31,6 +31,7 @@ export function OrbitalHub({
   canSpecial = false,
   canSearch = false,
   lightfallSettings,
+  galaxySettings,
   canCustomize = false,
   onOpenCustomize,
   onOpenPlans,
@@ -231,17 +232,10 @@ export function OrbitalHub({
           style={{ opacity: isDark && !isSpecial ? 1 : 0 }}
         >
           <Galaxy
+            {...galaxySettings}
             paused={bgPaused || !isDark || isSpecial}
             mouseInteraction={false}
             mouseRepulsion={false}
-            density={1.1}
-            starSpeed={0.4}
-            speed={0.8}
-            hueShift={225}
-            saturation={0.55}
-            glowIntensity={0.4}
-            twinkleIntensity={0.4}
-            rotationSpeed={0.04}
           />
         </div>
         {/* Special mode — Lightfall (entitled users) */}
@@ -799,12 +793,18 @@ export function OrbitalHub({
         );
       })}
 
-      {/* Mobile-only Customize button — fixed bottom-right */}
-      {canCustomize && isSpecial && (
+      {/* Mobile-only Customize button — fixed bottom-right. Shown in special
+          mode (Lightfall) and dark mode (Galaxy); light mode has no tunable
+          background. Opens the matching panel (ChatApp picks by mode). */}
+      {canCustomize && isDark && (
         <button
           onClick={onOpenCustomize}
           title="Customize background"
-          aria-label="Customize the Special-mode background"
+          aria-label={
+            isSpecial
+              ? "Customize the Special-mode background"
+              : "Customize the dark-mode background"
+          }
           className="sm:hidden"
           style={{
             display: "flex",
@@ -817,7 +817,14 @@ export function OrbitalHub({
             alignItems: "center",
             justifyContent: "center",
             zIndex: 30,
-            ...specialChip("#0d9488"),
+            ...(isSpecial
+              ? specialChip("#0d9488")
+              : {
+                  background: "rgba(129,140,248,0.14)",
+                  border: "1px solid rgba(129,140,248,0.35)",
+                  color: "#a5b4fc",
+                  boxShadow: "0 0 12px rgba(129,140,248,0.2)",
+                }),
           }}
         >
           <Wand2 size={22} />

@@ -37,7 +37,10 @@ rendering lives in `src/lib/plans.js`.
 - **Special mode + Customize** — Special mode renders the `Lightfall` WebGL
   background (React Bits, `ogl`); it is a **Lite** perk (`canSpecial = isPro`).
   **Pro** users (`billing.canCustomize`) get the `CustomizePanel` to tune the
-  Lightfall props live (persisted in `linkloop_lightfall`, see `lib/lightfall.js`).
+  Lightfall props live (persisted in `linkloop_lightfall`, see `lib/lightfall.js`),
+  and likewise the `GalaxyCustomizePanel` to tune the **dark-mode `Galaxy`**
+  background (persisted in `linkloop_galaxy`, see `lib/galaxy.js`). The mobile
+  Customize button opens the panel for whichever mode is active.
   This replaced the former Business-only AI colour-grade background — there is no
   longer an `/api/ai/background` route.
 - **Global search** — Postgres FTS (generated `messages.tsv` + GIN). `GET /api/search`

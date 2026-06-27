@@ -20,6 +20,7 @@ src/
 ├── components/
 │   ├── AccountModal.jsx         # Current user's own profile — tap avatar to enlarge, change-picture button, sign out (opens from hub avatar)
 │   ├── CustomizePanel.jsx       # Pro: live controls for the Lightfall Special-mode background (colors/speed/glow/…), persisted to localStorage
+│   ├── GalaxyCustomizePanel.jsx # Pro: live controls for the Galaxy Dark-mode background (hue/saturation/density/glow/twinkle/speed/rotation), persisted to localStorage (lib/galaxy.js)
 │   ├── ManageSubscriptionModal.jsx # Paid plan: status + renewal date, cancel/resume, change plan
 │   ├── AllChatsPanel.jsx        # Slide-up "All Chats" sheet (requests + channel activity + room list) — used by OrbitalHub. Room list uses AnimatedList (scroll-reveal) via renderRoom
 │   ├── AuthScreen.jsx           # Login / Register form
@@ -56,6 +57,7 @@ src/
 └── lib/
     ├── api.js        # fetch() wrappers for every REST endpoint
     ├── lightfall.js   # Lightfall background defaults + localStorage load/save
+    ├── galaxy.js      # Galaxy (dark-mode) background defaults + localStorage load/save
     ├── constants.js  # Shared style tokens (COLORS, REACTIONS, ROLE_LEVEL, theme vars)
     ├── helpers.js    # userBg, initials, formatTime, formatDateSeparator, toSlug
     ├── room-helpers.js # isChannel(room) + unreadBadgeStyle(room) — shared by OrbitalHub + AllChatsPanel
@@ -138,7 +140,12 @@ Message deletion is also optimistic: message removed from state immediately, the
   `ogl`) instead in the hub — a field of falling light streaks, no overlay text.
   The hub background is one canvas per mode, cross-faded by opacity: **`Galaxy`**
   (dark), **`StarField`** sunrise (light), **`Lightfall`** (special). Each is
-  paused while it isn't the active mode so only the visible one renders. Because the background is dark, the hub keeps white top-bar
+  paused while it isn't the active mode so only the visible one renders. **Pro**
+  users can customise BOTH the special Lightfall (`CustomizePanel`) and the dark
+  Galaxy (`GalaxyCustomizePanel`) backgrounds live; each updates its WebGL
+  uniforms in place (no GL rebuild per change) and persists to localStorage
+  (`linkloop_lightfall` / `linkloop_galaxy`). The mobile Customize (Wand2) button
+  shows in dark + special modes and opens the panel for the active mode. Because the background is dark, the hub keeps white top-bar
   text. Special mode is a **Lite** feature (the Sparkles button is hidden below
   Lite). **Pro** users can additionally **customise** the Lightfall look via the
   `CustomizePanel` (colors / speed / streaks / glow / density / twinkle / zoom /
