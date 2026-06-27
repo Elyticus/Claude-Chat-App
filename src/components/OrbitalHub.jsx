@@ -157,10 +157,20 @@ export function OrbitalHub({
       className="relative w-full h-dvh flex items-center justify-center overflow-hidden"
       style={{ background: bg0 }}
     >
-      {/* Background — StarField (dark/light) or the Lightfall WebGL canvas in
-          Special mode. No overlay text — just the background. */}
+      {/* Background — StarField (dark/light) and, for entitled users, the
+          Lightfall WebGL canvas. BOTH stay mounted and are cross-faded by
+          opacity so switching modes never tears down / re-inits a canvas
+          mid-transition (the source of the switch lag). Lightfall is paused
+          while hidden so it costs nothing off-screen. No overlay text. */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {isSpecial ? <Lightfall {...lightfallSettings} /> : <StarField isDark={isDark} />}
+        <div className="absolute inset-0" style={{ opacity: isSpecial ? 0 : 1 }}>
+          <StarField isDark={isDark} />
+        </div>
+        {(canSpecial || isSpecial) && (
+          <div className="absolute inset-0" style={{ opacity: isSpecial ? 1 : 0 }}>
+            <Lightfall {...lightfallSettings} paused={!isSpecial} />
+          </div>
+        )}
       </div>
 
       {/* Top bar */}

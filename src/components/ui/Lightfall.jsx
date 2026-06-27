@@ -201,6 +201,13 @@ const Lightfall = ({
   const uniformsRef = useRef(null);
   const mouseTargetRef = useRef([0, 0]);
   const lastTimeRef = useRef(0);
+  // Read `paused` from a ref in the loop so pausing/resuming (e.g. when the hub
+  // switches in/out of Special mode) never tears down and rebuilds the GL
+  // context — that rebuild was a source of the mode-switch lag.
+  const pausedRef = useRef(paused);
+  useEffect(() => {
+    pausedRef.current = paused;
+  }, [paused]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -302,7 +309,7 @@ const Lightfall = ({
       } else {
         lastTimeRef.current = t;
       }
-      if (!paused && programRef.current && meshRef.current) {
+      if (!pausedRef.current && programRef.current && meshRef.current) {
         try {
           renderer.render({ scene: meshRef.current });
         } catch (e) {
@@ -334,9 +341,10 @@ const Lightfall = ({
       rendererRef.current = null;
     };
     // Re-init only on structural changes; the tunable props are synced live in
-    // the effect below without tearing down (and re-creating) the GL context.
+    // the effect below, and `paused` is read via a ref — neither rebuilds the
+    // GL context.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dpr, mouseInteraction, mouseDampening, paused]);
+  }, [dpr, mouseInteraction, mouseDampening]);
 
   // Live-update tunable uniforms in place so the Customize panel can tweak the
   // look smoothly — recreating the WebGL context on every slider tick would
