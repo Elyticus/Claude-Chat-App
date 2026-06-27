@@ -86,7 +86,14 @@ export function UpgradeModal({ currentPlan, reason, isDark, onSelect, onClose })
                     MOST POPULAR
                   </div>
                 )}
-                <div className="flex items-baseline gap-1" style={{ color: headerColor }}>
+                {/* Paid plans show the name above the price; the Free plan's
+                    big title already reads "Free", so it needs no name label. */}
+                {p.price !== 0 && (
+                  <div className="text-sm font-semibold" style={{ color: p.accent }}>
+                    {p.name}
+                  </div>
+                )}
+                <div className="mt-1 flex items-baseline gap-1" style={{ color: headerColor }}>
                   <span className="text-3xl font-bold">{p.price === 0 ? "Free" : `${p.price}€`}</span>
                   {p.price !== 0 && (
                     <span className="text-xs" style={{ color: subColor }}>/mo</span>
