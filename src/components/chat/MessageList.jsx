@@ -281,7 +281,6 @@ function ImageLightbox({ image, onClose }) {
 // the whole chat surface; this area is transparent so it shows through.
 // Extracted from ChatApp verbatim; all state and handlers are passed in.
 export function MessageList({
-  bg0,
   isDark,
   displayedMessages,
   roomLoaded,
@@ -314,13 +313,6 @@ export function MessageList({
         style={{
           backgroundImage: `radial-gradient(circle, ${isDark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.055)"} 1px, transparent 1px)`,
           backgroundSize: "28px 28px",
-        }}
-      />
-      {/* Top fade */}
-      <div
-        className="absolute top-0 left-0 right-0 h-10 z-10 pointer-events-none"
-        style={{
-          background: `linear-gradient(to bottom, ${bg0}, transparent)`,
         }}
       />
       {/* Scroll container */}
@@ -632,13 +624,6 @@ export function MessageList({
           <div ref={messagesEndRef} />
         </div>
       </div>
-      {/* Bottom fade */}
-      <div
-        className="absolute bottom-0 left-0 right-0 h-10 z-10 pointer-events-none"
-        style={{
-          background: `linear-gradient(to top, ${bg0}, transparent)`,
-        }}
-      />
     </div>
   );
 }
