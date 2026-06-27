@@ -8,6 +8,10 @@ import { userBg } from "@/lib/helpers.js";
 import { isChannel, unreadBadgeStyle } from "@/lib/room-helpers.js";
 import { darkBg0, lightBg0, specialBg0 } from "@/lib/constants.js";
 
+// Max number of conversations shown as spinning orbit bubbles at once. Extra
+// rooms live in the all-chats list rather than crowding the orbit.
+const MAX_ORBIT_BUBBLES = 8;
+
 export function OrbitalHub({
   rooms,
   hasGroupNewNotif,
@@ -115,9 +119,16 @@ export function OrbitalHub({
     boxShadow: "0 2px 10px rgba(0,0,0,0.35)",
   });
 
+  // Spinning bubbles are capped at the 8 most recently active conversations
+  // (within the last 24h). When a newer message lands on a 9th room it takes a
+  // spinning slot and the now-oldest drops off the orbit — it stays reachable in
+  // the all-chats list, which lists every room.
   const orbitRooms = useMemo(() => {
     const cutoff = nowMs / 1000 - 86400;
-    return rooms.filter((r) => r.last_message_at && r.last_message_at > cutoff);
+    return rooms
+      .filter((r) => r.last_message_at && r.last_message_at > cutoff)
+      .sort((a, b) => (b.last_message_at || 0) - (a.last_message_at || 0))
+      .slice(0, MAX_ORBIT_BUBBLES);
   }, [rooms, nowMs]);
 
   // All-chats list: most recently active conversations first (rooms with no
