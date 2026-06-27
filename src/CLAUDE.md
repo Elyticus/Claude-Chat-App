@@ -45,6 +45,8 @@ src/
 │       ├── badge.jsx                 # shadcn-pattern Badge (cva + cn)
 │       ├── button.jsx                # shadcn-pattern Button (cva + cn + Radix Slot)
 │       ├── card.jsx                  # shadcn-pattern Card family
+│       ├── Galaxy.jsx                # WebGL animated galaxy/starfield (React Bits, ogl) — the Dark-mode hub background. `paused` prop freezes (skips draw) for play/stop + while hidden
+│       ├── Galaxy.css                # Galaxy container styles
 │       ├── Lightfall.jsx             # WebGL falling-light-streaks background (React Bits, ogl) — the Special-mode background
 │       ├── Lightfall.css             # Lightfall container styles
 │       ├── ContactStatusButton.jsx   # Add / remove contact button (status-aware)
@@ -133,8 +135,10 @@ Message deletion is also optimistic: message removed from state immediately, the
   palette** (`isDark = theme !== "light"`) so all `isDark` styling keeps
   working, but swaps backgrounds for `specialBg0/1` (deep navy, see
   `constants.js`) and renders the **`Lightfall`** WebGL background (React Bits,
-  `ogl`) instead of `StarField` in the hub — a field of falling light streaks,
-  no overlay text. Because the background is dark, the hub keeps white top-bar
+  `ogl`) instead in the hub — a field of falling light streaks, no overlay text.
+  The hub background is one canvas per mode, cross-faded by opacity: **`Galaxy`**
+  (dark), **`StarField`** sunrise (light), **`Lightfall`** (special). Each is
+  paused while it isn't the active mode so only the visible one renders. Because the background is dark, the hub keeps white top-bar
   text. Special mode is a **Lite** feature (the Sparkles button is hidden below
   Lite). **Pro** users can additionally **customise** the Lightfall look via the
   `CustomizePanel` (colors / speed / streaks / glow / density / twinkle / zoom /
