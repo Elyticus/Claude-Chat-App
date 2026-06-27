@@ -226,17 +226,25 @@ export function OrbitalHub({
             paused={bgPaused || isDark || isSpecial}
           />
         </div>
-        {/* Dark mode — Galaxy */}
+        {/* Dark mode — Galaxy. pointer-events are enabled only when the (Pro)
+            user has turned on mouse interaction, so the canvas can receive
+            mousemove for the repulsion effect; the orbit bubbles sit above it
+            and stay clickable. Disabled in other modes / when paused so the
+            hidden layer never swallows clicks. */}
         <div
           className="absolute inset-0"
-          style={{ opacity: isDark && !isSpecial ? 1 : 0 }}
+          style={{
+            opacity: isDark && !isSpecial ? 1 : 0,
+            pointerEvents:
+              isDark &&
+              !isSpecial &&
+              !bgPaused &&
+              galaxySettings?.mouseInteraction
+                ? "auto"
+                : "none",
+          }}
         >
-          <Galaxy
-            {...galaxySettings}
-            paused={bgPaused || !isDark || isSpecial}
-            mouseInteraction={false}
-            mouseRepulsion={false}
-          />
+          <Galaxy {...galaxySettings} paused={bgPaused || !isDark || isSpecial} />
         </div>
         {/* Special mode — Lightfall (entitled users) */}
         {(canSpecial || isSpecial) && (

@@ -30,6 +30,37 @@ function Slider({ label, value, min, max, step, onChange, isDark, format }) {
   );
 }
 
+function Toggle({ label, checked, onChange, isDark, disabled }) {
+  return (
+    <div className="flex items-center justify-between" style={{ opacity: disabled ? 0.4 : 1 }}>
+      <span className="text-xs font-medium" style={{ color: isDark ? "rgba(238,242,255,0.75)" : "#475569" }}>
+        {label}
+      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className="relative w-9 h-5 rounded-full transition-colors shrink-0 disabled:cursor-default"
+        style={{
+          background: checked
+            ? "#6366f1"
+            : isDark
+              ? "rgba(255,255,255,0.15)"
+              : "rgba(0,0,0,0.15)",
+        }}
+      >
+        <span
+          className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform"
+          style={{ transform: checked ? "translateX(16px)" : "none" }}
+        />
+      </button>
+    </div>
+  );
+}
+
 export function GalaxyCustomizePanel({ settings, onChange, onReset, onClose, isDark }) {
   const set = (patch) => onChange({ ...settings, ...patch });
 
@@ -100,6 +131,25 @@ export function GalaxyCustomizePanel({ settings, onChange, onReset, onClose, isD
         <Slider label="Star speed" value={settings.starSpeed} min={0} max={2} step={0.1} onChange={(v) => set({ starSpeed: v })} isDark={isDark} format={(v) => `${v.toFixed(1)}×`} />
         <Slider label="Drift speed" value={settings.speed} min={0} max={3} step={0.1} onChange={(v) => set({ speed: v })} isDark={isDark} format={(v) => `${v.toFixed(1)}×`} />
         <Slider label="Rotation" value={settings.rotationSpeed} min={0} max={0.3} step={0.01} onChange={(v) => set({ rotationSpeed: v })} isDark={isDark} format={(v) => v.toFixed(2)} />
+
+        <div
+          className="mt-1 pt-3 flex flex-col gap-3 border-t"
+          style={{ borderColor: isDark ? "rgba(99,102,241,0.18)" : "rgba(99,102,241,0.14)" }}
+        >
+          <Toggle
+            label="Mouse interaction"
+            checked={!!settings.mouseInteraction}
+            onChange={(v) => set({ mouseInteraction: v })}
+            isDark={isDark}
+          />
+          <Toggle
+            label="Mouse repulsion"
+            checked={!!settings.mouseRepulsion}
+            onChange={(v) => set({ mouseRepulsion: v })}
+            isDark={isDark}
+            disabled={!settings.mouseInteraction}
+          />
+        </div>
       </div>
 
       <p className="text-[10px] mt-3" style={{ color: isDark ? "rgba(238,242,255,0.4)" : "#94a3b8" }}>
