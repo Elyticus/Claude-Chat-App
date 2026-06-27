@@ -18,6 +18,7 @@ export function OrbitalHub({
   onlineIds,
   unreadCounts,
   isDark,
+  baseIsDark = isDark,
   theme,
   freezeRotation = false,
   onToggleTheme,
@@ -362,8 +363,8 @@ export function OrbitalHub({
           )}
           <button
             onClick={onToggleTheme}
-            title={isDark ? "Light mode" : "Dark mode"}
-            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            title={baseIsDark ? "Light mode" : "Dark mode"}
+            aria-label={baseIsDark ? "Switch to light mode" : "Switch to dark mode"}
             className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
             style={
               isSpecial
@@ -380,7 +381,7 @@ export function OrbitalHub({
                   }
             }
           >
-            {isDark ? <Sun size={16} /> : <Moon size={16} />}
+            {baseIsDark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
         </div>
       </div>

@@ -75,6 +75,13 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
   });
   const isDark = theme !== "light";
   const isSpecial = theme === "special";
+  // The light/dark preference that special mode is layered on top of. Special
+  // mode forces the dark palette (isDark stays true), so the Sun/Moon toggle
+  // must read baseIsDark — otherwise its icon flips to Sun the moment you enter
+  // special even if you were in light mode. Tracks the mode entered before
+  // special; defaults to dark when the app loads straight into special.
+  const [prevTheme, setPrevTheme] = useState("dark");
+  const baseIsDark = isSpecial ? prevTheme !== "light" : isDark;
   // True while a mode-switch view transition is mid-cross-fade. The orbit hub
   // freezes its rotation during this window so the live (clickable) bubble nodes
   // don't drift away from the frozen snapshot the user sees and taps — otherwise
@@ -164,23 +171,24 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
     return () => window.removeEventListener("keydown", onKey);
   }, [billing.isPro]);
 
-  // Light/dark toggle. From special mode (isDark, shows Sun) it lands on light.
+  // Light/dark toggle. Flips the underlying light↔dark preference (baseIsDark),
+  // independent of special mode — so the icon reflects that preference and a tap
+  // lands on the opposite of it (exiting special if it was active).
   function toggleTheme() {
-    applyTheme(theme === "light" ? "dark" : "light");
+    applyTheme(baseIsDark ? "light" : "dark");
   }
 
   // Special mode (the time-of-day scenes) has its own button; toggling it off
   // returns to the mode the user was in before entering. It is a Pro perk —
   // free users get the upgrade prompt instead of switching into it. (Cosmetic,
   // so this gate is client-side only; there is no server resource to protect.)
-  const prevThemeRef = useRef("dark");
   function toggleSpecial() {
     if (!billing.isPro && theme !== "special") {
       billing.openUpgrade("Special mode — an immersive Lightfall background");
       return;
     }
-    const next = theme === "special" ? prevThemeRef.current : "special";
-    if (theme !== "special") prevThemeRef.current = theme;
+    const next = theme === "special" ? prevTheme : "special";
+    if (theme !== "special") setPrevTheme(theme);
     applyTheme(next);
   }
 
@@ -967,6 +975,7 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
         onlineIds={onlineIds}
         unreadCounts={unreadCounts}
         isDark={isDark}
+        baseIsDark={baseIsDark}
         theme={theme}
         freezeRotation={themeTransitioning}
         onToggleTheme={toggleTheme}
