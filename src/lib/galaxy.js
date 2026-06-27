@@ -11,6 +11,8 @@ export const GALAXY_DEFAULTS = {
   starSpeed: 0.4,
   speed: 0.8,
   rotationSpeed: 0.04,
+  mouseInteraction: false,
+  mouseRepulsion: false,
 };
 
 const STORAGE_KEY = "linkloop_galaxy";
