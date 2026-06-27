@@ -522,6 +522,23 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
     syncPresence();
   }, [syncRooms, syncPresence]);
 
+  // ── Pause CSS animations while the app is backgrounded ───────────────────────
+  // On iOS Safari/PWA, CSS animations (ping, hub-breathe, rotate-slow…) can
+  // briefly flash to their initial keyframe when the page is resumed after
+  // being backgrounded. Pausing them while hidden and resuming on show
+  // prevents this one-frame blink entirely.
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.hidden) {
+        document.documentElement.dataset.animPaused = "1";
+      } else {
+        delete document.documentElement.dataset.animPaused;
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
   // ── Re-sync when the app returns to the foreground ────────────────────────────
   // Mobile browsers suspend the socket when the app is backgrounded or the
   // screen locks, so messages can arrive while we're not listening. On return,
