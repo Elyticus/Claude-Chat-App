@@ -21,7 +21,7 @@ src/
 │   ├── AccountModal.jsx         # Current user's own profile — tap avatar to enlarge, change-picture button, sign out (opens from hub avatar)
 │   ├── CustomizePanel.jsx       # Pro: live controls for the Lightfall Special-mode background (colors/speed/glow/…), persisted to localStorage
 │   ├── ManageSubscriptionModal.jsx # Paid plan: status + renewal date, cancel/resume, change plan
-│   ├── AllChatsPanel.jsx        # Slide-up "All Chats" sheet (requests + channel activity + room list) — used by OrbitalHub
+│   ├── AllChatsPanel.jsx        # Slide-up "All Chats" sheet (requests + channel activity + room list) — used by OrbitalHub. Room list uses AnimatedList (scroll-reveal) via renderRoom
 │   ├── AuthScreen.jsx           # Login / Register form
 │   ├── ContextMenu.jsx          # Right-click menu (react, copy, delete messages)
 │   ├── ConfirmModal.jsx         # Generic confirmation dialog
@@ -40,6 +40,8 @@ src/
 │   │   └── ChatModals.jsx           # All top-level overlays (friends, account, new chat, members, profile, context menu, edit channel, confirm, toast)
 │   └── ui/
 │       ├── Avatar.jsx                # User avatar with gradient bg + initials
+│       ├── AnimatedList.jsx          # React Bits scroll-reveal list (motion useInView): rows scale/fade in as they enter view + top/bottom fade overlays + arrow-key nav. Generalised with renderItem(item,index,selected) for rich rows. Used by AllChatsPanel
+│       ├── AnimatedList.css          # AnimatedList styles (al- prefixed; --al-gradient drives the fade colour)
 │       ├── badge.jsx                 # shadcn-pattern Badge (cva + cn)
 │       ├── button.jsx                # shadcn-pattern Button (cva + cn + Radix Slot)
 │       ├── card.jsx                  # shadcn-pattern Card family

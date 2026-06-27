@@ -1,0 +1,73 @@
+/* AnimatedList (React Bits, adapted) — scroll-reveal list used by the All Chats
+   sheet. Classes are `al-` prefixed to avoid colliding with app-wide utilities
+   (e.g. globals.css .no-scrollbar). The fade colour is theme-driven via the
+   --al-gradient custom property set inline by the component. */
+
+.al-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.al-list {
+  height: 100%;
+  overflow-y: auto;
+  padding: 8px 8px 24px;
+}
+
+.al-list::-webkit-scrollbar {
+  width: 6px;
+}
+.al-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.al-list::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.3);
+  border-radius: 3px;
+}
+.al-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.5);
+}
+
+.al-no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.al-no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.al-top-gradient {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(to bottom, var(--al-gradient, #0b1426), transparent);
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 1;
+}
+
+.al-bottom-gradient {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: linear-gradient(to top, var(--al-gradient, #0b1426), transparent);
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 1;
+}
+
+/* Fallback styling for plain string items (rich rows supply their own markup
+   via renderItem). */
+.al-item {
+  padding: 16px;
+  background-color: rgba(99, 102, 241, 0.08);
+  border-radius: 8px;
+}
+.al-item-text {
+  margin: 0;
+}
