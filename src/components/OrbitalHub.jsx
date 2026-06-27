@@ -398,9 +398,9 @@ export function OrbitalHub({
         </div>
       </div>
 
-      {/* Background animation play/stop — sits just below the theme toggle on the
-          top-right. Freezes only the current mode's animated background
-          (StarField / Lightfall); the orbit bubbles keep spinning. */}
+      {/* Background animation play/stop — fixed bottom-left. Freezes only the
+          current mode's animated background (StarField / Lightfall); the orbit
+          bubbles keep spinning. */}
       <button
         onClick={toggleBgPaused}
         title={bgPaused ? "Play background animation" : "Stop background animation"}
@@ -408,7 +408,7 @@ export function OrbitalHub({
           bgPaused ? "Play background animation" : "Stop background animation"
         }
         aria-pressed={bgPaused}
-        className="absolute right-3 sm:right-6 top-16 sm:top-20 z-30 w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+        className="absolute left-3 sm:left-6 bottom-6 z-30 w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
         style={
           isSpecial
             ? specialChip("#4f46e5")
