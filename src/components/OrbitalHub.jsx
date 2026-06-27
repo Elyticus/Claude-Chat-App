@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { MessageCircle, Sun, Moon, Sparkles, Users, Search, Crown, Wand2, Play, Pause } from "lucide-react";
 import StarField from "./ui/star-field.jsx";
+import Galaxy from "./ui/Galaxy.jsx";
 import Lightfall from "./ui/Lightfall.jsx";
 import { AllChatsPanel } from "./AllChatsPanel.jsx";
 import { Avatar } from "./ui/Avatar.jsx";
@@ -207,15 +208,43 @@ export function OrbitalHub({
       className="relative w-full h-dvh flex items-center justify-center overflow-hidden"
       style={{ background: bg0 }}
     >
-      {/* Background — StarField (dark/light) and, for entitled users, the
-          Lightfall WebGL canvas. BOTH stay mounted and are cross-faded by
+      {/* Background — one canvas per mode: Galaxy (dark), StarField sunrise
+          (light), Lightfall (special). All stay mounted and are cross-faded by
           opacity so switching modes never tears down / re-inits a canvas
-          mid-transition (the source of the switch lag). Lightfall is paused
-          while hidden so it costs nothing off-screen. No overlay text. */}
+          mid-transition. Each is paused while it isn't the active mode (and via
+          the bgPaused play/stop control) so only the visible one does work. No
+          overlay text. */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute inset-0" style={{ opacity: isSpecial ? 0 : 1 }}>
-          <StarField isDark={isDark} paused={bgPaused} />
+        {/* Light mode — StarField sunrise/clouds/birds */}
+        <div
+          className="absolute inset-0"
+          style={{ opacity: !isDark && !isSpecial ? 1 : 0 }}
+        >
+          <StarField
+            isDark={isDark}
+            paused={bgPaused || isDark || isSpecial}
+          />
         </div>
+        {/* Dark mode — Galaxy */}
+        <div
+          className="absolute inset-0"
+          style={{ opacity: isDark && !isSpecial ? 1 : 0 }}
+        >
+          <Galaxy
+            paused={bgPaused || !isDark || isSpecial}
+            mouseInteraction={false}
+            mouseRepulsion={false}
+            density={1.1}
+            starSpeed={0.4}
+            speed={0.8}
+            hueShift={225}
+            saturation={0.55}
+            glowIntensity={0.4}
+            twinkleIntensity={0.4}
+            rotationSpeed={0.04}
+          />
+        </div>
+        {/* Special mode — Lightfall (entitled users) */}
         {(canSpecial || isSpecial) && (
           <div className="absolute inset-0" style={{ opacity: isSpecial ? 1 : 0 }}>
             <Lightfall {...lightfallSettings} paused={!isSpecial || bgPaused} />
