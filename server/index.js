@@ -1412,6 +1412,12 @@ app.get("/api/attachments/:id", requireAuthAllowQuery, attachmentLimiter, async 
   res.setHeader("Content-Type", att.mime);
   res.setHeader("Cache-Control", "private, max-age=86400");
   res.setHeader("Accept-Ranges", "bytes");
+  // The frontend is served from a different site (Netlify) than this API
+  // (Render). The global "same-site" CORP blocks cross-site embedding, so an
+  // <img>/<audio> pointing here fails to load inline (top-level navigation
+  // still works — which is why the file only opened in a new tab). These
+  // streams are auth-gated per request, so allow cross-origin embedding.
+  res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
   res.setHeader(
     "Content-Disposition",
     `${att.kind === "file" ? "attachment" : "inline"}; filename="${encodeURIComponent(att.filename)}"`,
