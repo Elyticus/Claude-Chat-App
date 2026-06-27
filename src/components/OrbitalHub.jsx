@@ -91,6 +91,16 @@ export function OrbitalHub({
       ? "0 1px 8px rgba(0,0,0,0.7)"
       : "0 1px 8px rgba(255,255,255,0.7)";
 
+  // In Special mode the Lightfall background is dark navy with bright colour
+  // streaks, so the translucent dark-theme control chips blend in. Swap in a
+  // frosted light chip carrying each button's accent so the controls pop.
+  const specialChip = (accent) => ({
+    background: "rgba(255,255,255,0.66)",
+    border: "1px solid rgba(15,23,42,0.18)",
+    color: accent,
+    boxShadow: "0 2px 10px rgba(0,0,0,0.35)",
+  });
+
   const orbitRooms = useMemo(() => {
     const cutoff = nowMs / 1000 - 86400;
     return rooms.filter((r) => r.last_message_at && r.last_message_at > cutoff);
@@ -235,16 +245,20 @@ export function OrbitalHub({
             title="Friends"
             aria-label="Friends"
             className="relative w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-            style={{
-              background: isDark
-                ? "rgba(99,102,241,0.12)"
-                : "rgba(99,102,241,0.08)",
-              border: `1px solid ${isDark ? "rgba(129,140,248,0.32)" : "rgba(99,102,241,0.24)"}`,
-              color: isDark ? "#a5b4fc" : "#4f46e5",
-              boxShadow: isDark
-                ? "0 0 10px rgba(99,102,241,0.14)"
-                : "0 2px 8px rgba(99,102,241,0.1)",
-            }}
+            style={
+              isSpecial
+                ? specialChip("#4f46e5")
+                : {
+                    background: isDark
+                      ? "rgba(99,102,241,0.12)"
+                      : "rgba(99,102,241,0.08)",
+                    border: `1px solid ${isDark ? "rgba(129,140,248,0.32)" : "rgba(99,102,241,0.24)"}`,
+                    color: isDark ? "#a5b4fc" : "#4f46e5",
+                    boxShadow: isDark
+                      ? "0 0 10px rgba(99,102,241,0.14)"
+                      : "0 2px 8px rgba(99,102,241,0.1)",
+                  }
+            }
           >
             <Users size={16} />
             {/* Friend activity — incoming requests + accepted/declined
@@ -268,14 +282,18 @@ export function OrbitalHub({
               title="Search messages"
               aria-label="Search messages"
               className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-              style={{
-                background: isDark ? "rgba(99,102,241,0.12)" : "rgba(99,102,241,0.08)",
-                border: `1px solid ${isDark ? "rgba(129,140,248,0.32)" : "rgba(99,102,241,0.24)"}`,
-                color: isDark ? "#a5b4fc" : "#4f46e5",
-                boxShadow: isDark
-                  ? "0 0 10px rgba(99,102,241,0.14)"
-                  : "0 2px 8px rgba(99,102,241,0.1)",
-              }}
+              style={
+                isSpecial
+                  ? specialChip("#4f46e5")
+                  : {
+                      background: isDark ? "rgba(99,102,241,0.12)" : "rgba(99,102,241,0.08)",
+                      border: `1px solid ${isDark ? "rgba(129,140,248,0.32)" : "rgba(99,102,241,0.24)"}`,
+                      color: isDark ? "#a5b4fc" : "#4f46e5",
+                      boxShadow: isDark
+                        ? "0 0 10px rgba(99,102,241,0.14)"
+                        : "0 2px 8px rgba(99,102,241,0.1)",
+                    }
+              }
             >
               <Search size={16} />
             </button>
@@ -286,14 +304,18 @@ export function OrbitalHub({
               title="Plans & pricing"
               aria-label="View plans and pricing"
               className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-              style={{
-                background: isDark ? "rgba(234,179,8,0.12)" : "rgba(234,179,8,0.1)",
-                border: `1px solid ${isDark ? "rgba(250,204,21,0.34)" : "rgba(202,138,4,0.26)"}`,
-                color: isDark ? "#facc15" : "#ca8a04",
-                boxShadow: isDark
-                  ? "0 0 10px rgba(234,179,8,0.14)"
-                  : "0 2px 8px rgba(234,179,8,0.12)",
-              }}
+              style={
+                isSpecial
+                  ? specialChip("#ca8a04")
+                  : {
+                      background: isDark ? "rgba(234,179,8,0.12)" : "rgba(234,179,8,0.1)",
+                      border: `1px solid ${isDark ? "rgba(250,204,21,0.34)" : "rgba(202,138,4,0.26)"}`,
+                      color: isDark ? "#facc15" : "#ca8a04",
+                      boxShadow: isDark
+                        ? "0 0 10px rgba(234,179,8,0.14)"
+                        : "0 2px 8px rgba(234,179,8,0.12)",
+                    }
+              }
             >
               <Crown size={16} />
             </button>
@@ -306,12 +328,7 @@ export function OrbitalHub({
               className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
               style={
                 isSpecial
-                  ? {
-                      background: "rgba(45,212,191,0.18)",
-                      border: "1px solid rgba(45,212,191,0.45)",
-                      color: "#5eead4",
-                      boxShadow: "0 0 14px rgba(45,212,191,0.3)",
-                    }
+                  ? specialChip("#0d9488")
                   : {
                       background: isDark
                         ? "rgba(45,212,191,0.10)"
@@ -332,16 +349,20 @@ export function OrbitalHub({
             title={isDark ? "Light mode" : "Dark mode"}
             aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
             className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-            style={{
-              background: isDark
-                ? "rgba(129,140,248,0.14)"
-                : "rgba(99,102,241,0.10)",
-              border: `1px solid ${isDark ? "rgba(129,140,248,0.35)" : "rgba(99,102,241,0.28)"}`,
-              color: isDark ? "#a5b4fc" : "#4f46e5",
-              boxShadow: isDark
-                ? "0 0 12px rgba(129,140,248,0.2)"
-                : "0 2px 8px rgba(99,102,241,0.12)",
-            }}
+            style={
+              isSpecial
+                ? specialChip("#4f46e5")
+                : {
+                    background: isDark
+                      ? "rgba(129,140,248,0.14)"
+                      : "rgba(99,102,241,0.10)",
+                    border: `1px solid ${isDark ? "rgba(129,140,248,0.35)" : "rgba(99,102,241,0.28)"}`,
+                    color: isDark ? "#a5b4fc" : "#4f46e5",
+                    boxShadow: isDark
+                      ? "0 0 12px rgba(129,140,248,0.2)"
+                      : "0 2px 8px rgba(99,102,241,0.12)",
+                  }
+            }
           >
             {isDark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
@@ -354,15 +375,23 @@ export function OrbitalHub({
         style={{
           width: "min(64vmin, 500px)",
           height: "min(64vmin, 500px)",
-          boxShadow: isDark
+          boxShadow: isSpecial
             ? [
-                "0 0 0 1px rgba(99,102,241,0.30)",
-                "0 0 0 3px rgba(99,102,241,0.08)",
-                "0 0 0 10px rgba(99,102,241,0.03)",
-                "0 0 80px rgba(99,102,241,0.12)",
-                "inset 0 0 80px rgba(99,102,241,0.07)",
+                "0 0 0 1.5px rgba(199,210,254,0.6)",
+                "0 0 0 4px rgba(129,140,248,0.2)",
+                "0 0 0 11px rgba(99,102,241,0.08)",
+                "0 0 90px rgba(129,140,248,0.32)",
+                "inset 0 0 80px rgba(129,140,248,0.14)",
               ].join(", ")
-            : "0 0 0 1px rgba(99,102,241,0.18), 0 0 28px rgba(99,102,241,0.07)",
+            : isDark
+              ? [
+                  "0 0 0 1px rgba(99,102,241,0.30)",
+                  "0 0 0 3px rgba(99,102,241,0.08)",
+                  "0 0 0 10px rgba(99,102,241,0.03)",
+                  "0 0 80px rgba(99,102,241,0.12)",
+                  "inset 0 0 80px rgba(99,102,241,0.07)",
+                ].join(", ")
+              : "0 0 0 1px rgba(99,102,241,0.18), 0 0 28px rgba(99,102,241,0.07)",
         }}
       >
         <div className="absolute inset-0 rounded-full rotate-slow">
@@ -390,15 +419,23 @@ export function OrbitalHub({
         style={{
           width: "min(44vmin, 340px)",
           height: "min(44vmin, 340px)",
-          boxShadow: isDark
+          boxShadow: isSpecial
             ? [
-                "0 0 0 1px rgba(139,92,246,0.22)",
-                "0 0 0 3px rgba(139,92,246,0.06)",
-                "0 0 0 8px rgba(139,92,246,0.02)",
-                "0 0 50px rgba(139,92,246,0.09)",
-                "inset 0 0 50px rgba(139,92,246,0.05)",
+                "0 0 0 1.5px rgba(196,181,253,0.55)",
+                "0 0 0 4px rgba(167,139,250,0.18)",
+                "0 0 0 9px rgba(139,92,246,0.06)",
+                "0 0 60px rgba(167,139,250,0.3)",
+                "inset 0 0 50px rgba(167,139,250,0.12)",
               ].join(", ")
-            : "0 0 0 1px rgba(99,102,241,0.12), 0 0 16px rgba(99,102,241,0.05)",
+            : isDark
+              ? [
+                  "0 0 0 1px rgba(139,92,246,0.22)",
+                  "0 0 0 3px rgba(139,92,246,0.06)",
+                  "0 0 0 8px rgba(139,92,246,0.02)",
+                  "0 0 50px rgba(139,92,246,0.09)",
+                  "inset 0 0 50px rgba(139,92,246,0.05)",
+                ].join(", ")
+              : "0 0 0 1px rgba(99,102,241,0.12), 0 0 16px rgba(99,102,241,0.05)",
         }}
       >
         <div className="absolute inset-0 rounded-full rotate-slow-rev">
@@ -445,9 +482,11 @@ export function OrbitalHub({
             width: 94,
             height: 94,
             animation: "ping 2s cubic-bezier(0,0,0.2,1) infinite",
-            border: isDark
-              ? "1.5px solid rgba(99,102,241,0.6)"
-              : "1.5px solid rgba(99,102,241,0.65)",
+            border: isSpecial
+              ? "2px solid rgba(199,210,254,0.9)"
+              : isDark
+                ? "1.5px solid rgba(99,102,241,0.6)"
+                : "1.5px solid rgba(99,102,241,0.65)",
           }}
         />
         <div
@@ -457,9 +496,11 @@ export function OrbitalHub({
             height: 116,
             animation: "ping 2s cubic-bezier(0,0,0.2,1) infinite",
             animationDelay: "0.75s",
-            border: isDark
-              ? "1px solid rgba(99,102,241,0.32)"
-              : "1px solid rgba(99,102,241,0.38)",
+            border: isSpecial
+              ? "1.5px solid rgba(196,181,253,0.6)"
+              : isDark
+                ? "1px solid rgba(99,102,241,0.32)"
+                : "1px solid rgba(99,102,241,0.38)",
           }}
         />
         <MessageCircle
@@ -519,16 +560,20 @@ export function OrbitalHub({
           ? "rgba(74,222,128,0.55)"
           : room.is_group
             ? "rgba(250,204,21,0.55)"
-            : isDark
-              ? "rgba(99,102,241,0.22)"
-              : "rgba(99,102,241,0.18)";
+            : isSpecial
+              ? "rgba(199,210,254,0.7)"
+              : isDark
+                ? "rgba(99,102,241,0.22)"
+                : "rgba(99,102,241,0.18)";
         const ringHover = isRoomChannel
           ? "rgba(74,222,128,0.9)"
           : room.is_group
             ? "rgba(250,204,21,0.9)"
-            : isDark
-              ? "rgba(99,102,241,0.5)"
-              : "rgba(99,102,241,0.45)";
+            : isSpecial
+              ? "rgba(224,231,255,0.95)"
+              : isDark
+                ? "rgba(99,102,241,0.5)"
+                : "rgba(99,102,241,0.45)";
         const glowHover = isRoomChannel
           ? "rgba(74,222,128,0.4)"
           : room.is_group
@@ -579,10 +624,14 @@ export function OrbitalHub({
                 className="w-full h-full rounded-full"
                 style={{
                   background: userBg(avatarId),
-                  opacity: pos.opacity,
-                  boxShadow: isDark
-                    ? "0 4px 16px rgba(0,0,0,0.5)"
-                    : "0 4px 16px rgba(0,0,0,0.08)",
+                  // Keep more of the fill in Special mode so bubbles don't wash
+                  // out against the bright Lightfall streaks.
+                  opacity: isSpecial ? Math.max(0.9, pos.opacity) : pos.opacity,
+                  boxShadow: isSpecial
+                    ? "0 2px 14px rgba(0,0,0,0.55), 0 0 0 1.5px rgba(255,255,255,0.4)"
+                    : isDark
+                      ? "0 4px 16px rgba(0,0,0,0.5)"
+                      : "0 4px 16px rgba(0,0,0,0.08)",
                 }}
               />
               {/* Ring — rendered after fill so it sits on top; always full opacity */}
@@ -658,10 +707,7 @@ export function OrbitalHub({
             alignItems: "center",
             justifyContent: "center",
             zIndex: 30,
-            background: isDark ? "rgba(20,184,166,0.22)" : "rgba(13,148,136,0.16)",
-            border: `1px solid ${isDark ? "rgba(45,212,191,0.5)" : "rgba(13,148,136,0.4)"}`,
-            color: isDark ? "#5eead4" : "#0d9488",
-            boxShadow: isDark ? "0 0 18px rgba(45,212,191,0.28)" : "0 4px 16px rgba(13,148,136,0.2)",
+            ...specialChip("#0d9488"),
           }}
         >
           <Wand2 size={22} />
