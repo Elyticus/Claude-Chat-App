@@ -130,11 +130,22 @@ export function OrbitalHub({
 
   useEffect(() => {
     if (hoveredId !== null) return;
-    const timer = setInterval(() => {
-      angleRef.current = (angleRef.current + 0.3) % 360;
-      setRotationAngle(Number(angleRef.current.toFixed(3)));
-    }, 50);
-    return () => clearInterval(timer);
+    let rafId;
+    let lastTime = null;
+    const step = (now) => {
+      if (lastTime !== null) {
+        // Cap delta at 50 ms so that an iOS background/resume cycle (which can
+        // deliver a single rAF call spanning seconds of elapsed time) never
+        // causes a visible position jump in the orbit nodes.
+        const delta = Math.min(now - lastTime, 50);
+        angleRef.current = (angleRef.current + delta * 0.006) % 360;
+        setRotationAngle(Number(angleRef.current.toFixed(3)));
+      }
+      lastTime = now;
+      rafId = requestAnimationFrame(step);
+    };
+    rafId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(rafId);
   }, [hoveredId]);
 
   const getNodePosition = useCallback(
@@ -391,7 +402,13 @@ export function OrbitalHub({
                   "0 0 80px rgba(99,102,241,0.12)",
                   "inset 0 0 80px rgba(99,102,241,0.07)",
                 ].join(", ")
-              : "0 0 0 1px rgba(99,102,241,0.18), 0 0 28px rgba(99,102,241,0.07)",
+              : [
+                  "0 0 0 1.5px rgba(99,102,241,0.55)",
+                  "0 0 0 4px rgba(99,102,241,0.14)",
+                  "0 0 0 10px rgba(99,102,241,0.05)",
+                  "0 0 50px rgba(99,102,241,0.2)",
+                  "inset 0 0 40px rgba(99,102,241,0.07)",
+                ].join(", "),
         }}
       >
         <div className="absolute inset-0 rounded-full rotate-slow">
@@ -435,7 +452,13 @@ export function OrbitalHub({
                   "0 0 50px rgba(139,92,246,0.09)",
                   "inset 0 0 50px rgba(139,92,246,0.05)",
                 ].join(", ")
-              : "0 0 0 1px rgba(99,102,241,0.12), 0 0 16px rgba(99,102,241,0.05)",
+              : [
+                  "0 0 0 1.5px rgba(139,92,246,0.48)",
+                  "0 0 0 3px rgba(139,92,246,0.12)",
+                  "0 0 0 8px rgba(139,92,246,0.04)",
+                  "0 0 35px rgba(139,92,246,0.18)",
+                  "inset 0 0 30px rgba(139,92,246,0.06)",
+                ].join(", "),
         }}
       >
         <div className="absolute inset-0 rounded-full rotate-slow-rev">
@@ -486,7 +509,7 @@ export function OrbitalHub({
               ? "2px solid rgba(199,210,254,0.9)"
               : isDark
                 ? "1.5px solid rgba(99,102,241,0.6)"
-                : "1.5px solid rgba(99,102,241,0.65)",
+                : "2px solid rgba(99,102,241,0.9)",
           }}
         />
         <div
@@ -500,7 +523,7 @@ export function OrbitalHub({
               ? "1.5px solid rgba(196,181,253,0.6)"
               : isDark
                 ? "1px solid rgba(99,102,241,0.32)"
-                : "1px solid rgba(99,102,241,0.38)",
+                : "1.5px solid rgba(99,102,241,0.6)",
           }}
         />
         <MessageCircle
@@ -564,7 +587,7 @@ export function OrbitalHub({
               ? "rgba(199,210,254,0.7)"
               : isDark
                 ? "rgba(99,102,241,0.22)"
-                : "rgba(99,102,241,0.18)";
+                : "rgba(99,102,241,0.5)";
         const ringHover = isRoomChannel
           ? "rgba(74,222,128,0.9)"
           : room.is_group
@@ -573,7 +596,7 @@ export function OrbitalHub({
               ? "rgba(224,231,255,0.95)"
               : isDark
                 ? "rgba(99,102,241,0.5)"
-                : "rgba(99,102,241,0.45)";
+                : "rgba(99,102,241,0.82)";
         const glowHover = isRoomChannel
           ? "rgba(74,222,128,0.4)"
           : room.is_group
@@ -631,7 +654,7 @@ export function OrbitalHub({
                     ? "0 2px 14px rgba(0,0,0,0.55), 0 0 0 1.5px rgba(255,255,255,0.4)"
                     : isDark
                       ? "0 4px 16px rgba(0,0,0,0.5)"
-                      : "0 4px 16px rgba(0,0,0,0.08)",
+                      : "0 4px 20px rgba(0,0,0,0.2), 0 0 0 2px rgba(255,255,255,0.9)",
                 }}
               />
               {/* Ring — rendered after fill so it sits on top; always full opacity */}
