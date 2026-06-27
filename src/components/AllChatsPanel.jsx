@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import { Avatar } from "./ui/Avatar.jsx";
+import { AnimatedList } from "./ui/AnimatedList.jsx";
 import { formatTime, userBg, initials } from "@/lib/helpers.js";
 import { isChannel, unreadBadgeStyle } from "@/lib/room-helpers.js";
 import {
@@ -31,6 +32,129 @@ export function AllChatsPanel({
   nowMs,
   onSelectRoom,
 }) {
+  // One chat row, rendered inside AnimatedList's scroll-reveal wrapper. `selected`
+  // is the hover/keyboard highlight the list tracks; the row's click + close is
+  // handled by AnimatedList via onItemSelect.
+  const renderRoom = (room, index, selected) => {
+    const isRoomChannel = isChannel(room);
+    const displayName = isRoomChannel
+      ? room.name || `#${room.slug}`
+      : room.is_group
+        ? room.name || "Group"
+        : room.other_username || "User";
+    const avatarId = room.is_group ? room.id : room.other_user_id;
+    const isOnline = !room.is_group && onlineIds.has(room.other_user_id);
+    const unread = unreadCounts[room.id] || 0;
+    const isRecent =
+      room.last_message_at && nowMs / 1000 - room.last_message_at < 86400;
+    const isNewChannel = isRoomChannel && !!room.is_new;
+    const isNewGroup = !isRoomChannel && !!room.is_group && !!room.is_new;
+
+    return (
+      <div
+        role="button"
+        tabIndex={-1}
+        aria-label={`Open chat ${displayName}`}
+        className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-colors"
+        style={{
+          background: selected
+            ? isDark
+              ? "rgba(99,102,241,0.07)"
+              : "rgba(99,102,241,0.05)"
+            : "transparent",
+        }}
+      >
+        <div className="relative shrink-0">
+          <div
+            className="w-11 h-11 rounded-full flex items-center justify-center text-white font-semibold text-sm"
+            style={{
+              background: userBg(avatarId),
+              boxShadow: isRecent
+                ? "0 0 0 2px rgba(99,102,241,0.6)"
+                : isDark
+                  ? "0 0 0 1px rgba(99,102,241,0.15)"
+                  : "0 0 0 1px rgba(99,102,241,0.12)",
+            }}
+          >
+            {initials(displayName)}
+          </div>
+          {isOnline && (
+            <span
+              className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-emerald-400 rounded-full"
+              style={{ border: `2px solid ${isDark ? darkBg1 : lightBg1}` }}
+            />
+          )}
+          {unread > 0 && (
+            <span
+              className="absolute -top-1 -right-1 min-w-4 h-4 text-[9px] font-bold rounded-full flex items-center justify-center px-1"
+              style={unreadBadgeStyle(room)}
+            >
+              {unread > 99 ? "99+" : unread}
+            </span>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span
+              className="text-sm font-medium truncate"
+              style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
+            >
+              {displayName}
+            </span>
+            {!!room.is_group && (
+              <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-400">
+                {isRoomChannel ? "Channel" : "Group"}
+              </span>
+            )}
+          </div>
+          {room.role_notification ? (
+            <div className="text-xs truncate mt-0.5" style={{ color: "#4ade80" }}>
+              {room.role_notification}
+            </div>
+          ) : isNewChannel ? (
+            <div className="text-xs truncate mt-0.5 text-green-400/90">
+              You were added by {room.added_by}
+            </div>
+          ) : isNewGroup ? (
+            <div className="text-xs truncate mt-0.5 text-yellow-400/90">
+              You were added by {room.added_by}
+            </div>
+          ) : room.last_message ? (
+            <div
+              className="text-xs truncate mt-0.5"
+              style={{ color: isDark ? "rgba(165,180,252,0.45)" : "#94a3b8" }}
+            >
+              {room.last_message}
+            </div>
+          ) : null}
+        </div>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          {room.last_message_at && (
+            <span
+              className="text-[10px]"
+              style={{ color: isDark ? "rgba(165,180,252,0.35)" : "#94a3b8" }}
+            >
+              {formatTime(room.last_message_at)}
+            </span>
+          )}
+          {room.role_notification ? (
+            <span
+              className="w-2 h-2 rounded-full bg-green-400"
+              style={{ boxShadow: "0 0 6px rgba(74,222,128,0.9)" }}
+            />
+          ) : isNewChannel ? (
+            <span
+              className="w-2 h-2 rounded-full bg-green-400"
+              style={{ boxShadow: "0 0 6px rgba(74,222,128,0.9)" }}
+            />
+          ) : isNewGroup ? (
+            <span className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.9)]" />
+          ) : null}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="absolute inset-0 z-160" onClick={onClose}>
       <div
@@ -243,8 +367,9 @@ export function AllChatsPanel({
           </div>
         )}
 
-        {/* Room list */}
-        <div className="flex-1 min-h-0 overflow-y-auto py-2">
+        {/* Room list — AnimatedList scroll-reveal (rows scale/fade in as they
+            enter the viewport while scrolling). */}
+        <div className="flex-1 min-h-0">
           {rooms.length === 0 ? (
             <p
               className="text-center text-sm py-8"
@@ -253,148 +378,18 @@ export function AllChatsPanel({
               No chats yet — start a new one!
             </p>
           ) : (
-            <div className="space-y-0.5 px-2">
-              {sortedRooms.map((room) => {
-                const isRoomChannel = isChannel(room);
-                const displayName = isRoomChannel
-                  ? room.name || `#${room.slug}`
-                  : room.is_group
-                    ? room.name || "Group"
-                    : room.other_username || "User";
-                const avatarId = room.is_group ? room.id : room.other_user_id;
-                const isOnline =
-                  !room.is_group && onlineIds.has(room.other_user_id);
-                const unread = unreadCounts[room.id] || 0;
-                const isRecent =
-                  room.last_message_at &&
-                  nowMs / 1000 - room.last_message_at < 86400;
-                // is_new on a channel → green; on a plain group → yellow
-                const isNewChannel = isRoomChannel && !!room.is_new;
-                const isNewGroup =
-                  !isRoomChannel && !!room.is_group && !!room.is_new;
-
-                return (
-                  <button
-                    key={room.id}
-                    onClick={() => {
-                      onSelectRoom(room.id);
-                      setTimeout(() => onClose(), 200);
-                    }}
-                    className="w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all text-left"
-                    style={{ background: "transparent" }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = isDark
-                        ? "rgba(99,102,241,0.07)"
-                        : "rgba(99,102,241,0.05)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent";
-                    }}
-                  >
-                    <div className="relative shrink-0">
-                      <div
-                        className="w-11 h-11 rounded-full flex items-center justify-center text-white font-semibold text-sm"
-                        style={{
-                          background: userBg(avatarId),
-                          boxShadow: isRecent
-                            ? "0 0 0 2px rgba(99,102,241,0.6)"
-                            : isDark
-                              ? "0 0 0 1px rgba(99,102,241,0.15)"
-                              : "0 0 0 1px rgba(99,102,241,0.12)",
-                        }}
-                      >
-                        {initials(displayName)}
-                      </div>
-                      {isOnline && (
-                        <span
-                          className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-emerald-400 rounded-full"
-                          style={{
-                            border: `2px solid ${isDark ? darkBg1 : lightBg1}`,
-                          }}
-                        />
-                      )}
-                      {unread > 0 && (
-                        <span
-                          className="absolute -top-1 -right-1 min-w-4 h-4 text-[9px] font-bold rounded-full flex items-center justify-center px-1"
-                          style={unreadBadgeStyle(room)}
-                        >
-                          {unread > 99 ? "99+" : unread}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span
-                          className="text-sm font-medium truncate"
-                          style={{ color: isDark ? "#eef2ff" : "#0f172a" }}
-                        >
-                          {displayName}
-                        </span>
-                        {!!room.is_group && (
-                          <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-400">
-                            {isRoomChannel ? "Channel" : "Group"}
-                          </span>
-                        )}
-                      </div>
-                      {room.role_notification ? (
-                        <div
-                          className="text-xs truncate mt-0.5"
-                          style={{ color: "#4ade80" }}
-                        >
-                          {room.role_notification}
-                        </div>
-                      ) : isNewChannel ? (
-                        <div className="text-xs truncate mt-0.5 text-green-400/90">
-                          You were added by {room.added_by}
-                        </div>
-                      ) : isNewGroup ? (
-                        <div className="text-xs truncate mt-0.5 text-yellow-400/90">
-                          You were added by {room.added_by}
-                        </div>
-                      ) : room.last_message ? (
-                        <div
-                          className="text-xs truncate mt-0.5"
-                          style={{
-                            color: isDark
-                              ? "rgba(165,180,252,0.45)"
-                              : "#94a3b8",
-                          }}
-                        >
-                          {room.last_message}
-                        </div>
-                      ) : null}
-                    </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      {room.last_message_at && (
-                        <span
-                          className="text-[10px]"
-                          style={{
-                            color: isDark
-                              ? "rgba(165,180,252,0.35)"
-                              : "#94a3b8",
-                          }}
-                        >
-                          {formatTime(room.last_message_at)}
-                        </span>
-                      )}
-                      {room.role_notification ? (
-                        <span
-                          className="w-2 h-2 rounded-full bg-green-400"
-                          style={{ boxShadow: "0 0 6px rgba(74,222,128,0.9)" }}
-                        />
-                      ) : isNewChannel ? (
-                        <span
-                          className="w-2 h-2 rounded-full bg-green-400"
-                          style={{ boxShadow: "0 0 6px rgba(74,222,128,0.9)" }}
-                        />
-                      ) : isNewGroup ? (
-                        <span className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.9)]" />
-                      ) : null}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+            <AnimatedList
+              items={sortedRooms}
+              getKey={(room) => room.id}
+              renderItem={renderRoom}
+              gradientColor={isDark ? darkBg1 : lightBg1}
+              itemSpacing={2}
+              displayScrollbar={false}
+              onItemSelect={(room) => {
+                onSelectRoom(room.id);
+                setTimeout(() => onClose(), 200);
+              }}
+            />
           )}
         </div>
       </div>
