@@ -19,6 +19,7 @@ export function OrbitalHub({
   unreadCounts,
   isDark,
   theme,
+  freezeRotation = false,
   onToggleTheme,
   onToggleSpecial,
   canSpecial = false,
@@ -129,7 +130,11 @@ export function OrbitalHub({
   }, []);
 
   useEffect(() => {
-    if (hoveredId !== null) return;
+    // Pause while a node is hovered (desktop) or while a mode-switch view
+    // transition is cross-fading: during the cross-fade the user sees a frozen
+    // snapshot, so the live nodes must stay put or taps land where the bubble
+    // has rotated to (empty space / the centre hub) instead of where it's seen.
+    if (hoveredId !== null || freezeRotation) return;
     let rafId;
     let lastTime = null;
     const step = (now) => {
@@ -146,7 +151,7 @@ export function OrbitalHub({
     };
     rafId = requestAnimationFrame(step);
     return () => cancelAnimationFrame(rafId);
-  }, [hoveredId]);
+  }, [hoveredId, freezeRotation]);
 
   const getNodePosition = useCallback(
     (index, total) => {
