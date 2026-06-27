@@ -334,6 +334,27 @@ export async function initDb() {
     ALTER TABLE usage_counters        ENABLE ROW LEVEL SECURITY;
     ALTER TABLE subscriptions         ENABLE ROW LEVEL SECURITY;
     ALTER TABLE attachments           ENABLE ROW LEVEL SECURITY;
+
+    -- One-time, idempotent data migrations, tracked by name so they never re-run.
+    CREATE TABLE IF NOT EXISTS app_migrations (
+      name       TEXT PRIMARY KEY,
+      applied_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
+    );
+    ALTER TABLE app_migrations ENABLE ROW LEVEL SECURITY;
+    -- Rename plan tiers free/pro/business → free/lite/pro. Guarded by a marker
+    -- because it is NOT self-idempotent: re-running would wrongly demote the new
+    -- top 'pro' tier back to 'lite'. Order matters (pro→lite before business→pro)
+    -- so the two renames don't collide.
+    DO $do$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM app_migrations WHERE name = 'rename_plans_lite_pro_v1') THEN
+        UPDATE users         SET plan = 'lite' WHERE plan = 'pro';
+        UPDATE users         SET plan = 'pro'  WHERE plan = 'business';
+        UPDATE subscriptions SET plan = 'lite' WHERE plan = 'pro';
+        UPDATE subscriptions SET plan = 'pro'  WHERE plan = 'business';
+        INSERT INTO app_migrations (name) VALUES ('rename_plans_lite_pro_v1');
+      END IF;
+    END $do$;
   `);
 }
 

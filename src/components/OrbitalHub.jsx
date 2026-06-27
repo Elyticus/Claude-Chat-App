@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { MessageCircle, Sun, Moon, Sparkles, Users, Search, Crown, Wand2 } from "lucide-react";
 import StarField from "./ui/star-field.jsx";
-import SpecialField from "./ui/special-field.jsx";
+import Lightfall from "./ui/Lightfall.jsx";
 import { AllChatsPanel } from "./AllChatsPanel.jsx";
-import { isSpecialSkyLight, getScene } from "@/lib/special-scenes.js";
 import { Avatar } from "./ui/Avatar.jsx";
 import { userBg } from "@/lib/helpers.js";
 import { isChannel, unreadBadgeStyle } from "@/lib/room-helpers.js";
@@ -24,9 +23,9 @@ export function OrbitalHub({
   onToggleSpecial,
   canSpecial = false,
   canSearch = false,
-  specialTreatment = null,
-  canGenerateBg = false,
-  onOpenAiBg,
+  lightfallSettings,
+  canCustomize = false,
+  onOpenCustomize,
   onOpenPlans,
   pendingCount,
   pendingUsers,
@@ -83,46 +82,14 @@ export function OrbitalHub({
   const isSpecial = theme === "special";
   const bg0 = isSpecial ? specialBg0 : isDark ? darkBg0 : lightBg0;
 
-  // In special mode the text color follows the active scene's sky brightness,
-  // which shifts with the time of day: light sky → black text, dark sky →
-  // white. Track the hour with a minute tick so the derived value stays current.
-  const [hour, setHour] = useState(() => new Date().getHours());
-  useEffect(() => {
-    const id = setInterval(() => setHour(new Date().getHours()), 60000);
-    return () => clearInterval(id);
-  }, []);
-  // Text contrast follows the time-of-day scene's sky-top luminance. An AI grade
-  // recolours the same photo, so the base scene still governs legibility.
-  const specialSkyLight = isSpecialSkyLight(hour);
-
-  // Strong text color for names over the background canvas: white on dark,
-  // black on light, brightness-dependent in special mode.
-  const textStrong = isSpecial
-    ? specialSkyLight
-      ? "#000000"
-      : "#ffffff"
-    : isDark
-      ? "#ffffff"
-      : "#000000";
+  // Special mode now renders the dark Lightfall background, so it follows the
+  // dark palette (isDark is true in special mode): white text on dark, black on
+  // light theme.
+  const textStrong = isDark ? "#ffffff" : "#000000";
   const textStrongShadow =
     textStrong === "#ffffff"
       ? "0 1px 8px rgba(0,0,0,0.7)"
       : "0 1px 8px rgba(255,255,255,0.7)";
-
-  // On the bright daytime scenes (morning / afternoon) the photo background is
-  // light, so the dark-theme translucent control chips blend in and become
-  // nearly invisible. Trigger off the scene itself — NOT isSpecialSkyLight,
-  // which reads the deliberately dark vector sky-top and is false here — and
-  // swap in a frosted light chip carrying each button's darker accent colour.
-  const specialScene = isSpecial ? getScene(hour) : null;
-  const specialLightUI =
-    specialScene === "morning" || specialScene === "afternoon";
-  const specialChip = (accent) => ({
-    background: "rgba(255,255,255,0.62)",
-    border: "1px solid rgba(15,23,42,0.18)",
-    color: accent,
-    boxShadow: "0 2px 10px rgba(15,23,42,0.22)",
-  });
 
   const orbitRooms = useMemo(() => {
     const cutoff = nowMs / 1000 - 86400;
@@ -190,10 +157,10 @@ export function OrbitalHub({
       className="relative w-full h-dvh flex items-center justify-center overflow-hidden"
       style={{ background: bg0 }}
     >
-      {/* Background canvas — all glow drawn on canvas, zero CSS blur layers.
-          Special mode swaps the starfield for the time-of-day aurora scene. */}
+      {/* Background — StarField (dark/light) or the Lightfall WebGL canvas in
+          Special mode. No overlay text — just the background. */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {isSpecial ? <SpecialField treatment={specialTreatment} /> : <StarField isDark={isDark} />}
+        {isSpecial ? <Lightfall {...lightfallSettings} /> : <StarField isDark={isDark} />}
       </div>
 
       {/* Top bar */}
@@ -258,20 +225,16 @@ export function OrbitalHub({
             title="Friends"
             aria-label="Friends"
             className="relative w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-            style={
-              specialLightUI
-                ? specialChip("#4f46e5")
-                : {
-                    background: isDark
-                      ? "rgba(99,102,241,0.12)"
-                      : "rgba(99,102,241,0.08)",
-                    border: `1px solid ${isDark ? "rgba(129,140,248,0.32)" : "rgba(99,102,241,0.24)"}`,
-                    color: isDark ? "#a5b4fc" : "#4f46e5",
-                    boxShadow: isDark
-                      ? "0 0 10px rgba(99,102,241,0.14)"
-                      : "0 2px 8px rgba(99,102,241,0.1)",
-                  }
-            }
+            style={{
+              background: isDark
+                ? "rgba(99,102,241,0.12)"
+                : "rgba(99,102,241,0.08)",
+              border: `1px solid ${isDark ? "rgba(129,140,248,0.32)" : "rgba(99,102,241,0.24)"}`,
+              color: isDark ? "#a5b4fc" : "#4f46e5",
+              boxShadow: isDark
+                ? "0 0 10px rgba(99,102,241,0.14)"
+                : "0 2px 8px rgba(99,102,241,0.1)",
+            }}
           >
             <Users size={16} />
             {/* Friend activity — incoming requests + accepted/declined
@@ -295,18 +258,14 @@ export function OrbitalHub({
               title="Search messages"
               aria-label="Search messages"
               className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-              style={
-                specialLightUI
-                  ? specialChip("#4f46e5")
-                  : {
-                      background: isDark ? "rgba(99,102,241,0.12)" : "rgba(99,102,241,0.08)",
-                      border: `1px solid ${isDark ? "rgba(129,140,248,0.32)" : "rgba(99,102,241,0.24)"}`,
-                      color: isDark ? "#a5b4fc" : "#4f46e5",
-                      boxShadow: isDark
-                        ? "0 0 10px rgba(99,102,241,0.14)"
-                        : "0 2px 8px rgba(99,102,241,0.1)",
-                    }
-              }
+              style={{
+                background: isDark ? "rgba(99,102,241,0.12)" : "rgba(99,102,241,0.08)",
+                border: `1px solid ${isDark ? "rgba(129,140,248,0.32)" : "rgba(99,102,241,0.24)"}`,
+                color: isDark ? "#a5b4fc" : "#4f46e5",
+                boxShadow: isDark
+                  ? "0 0 10px rgba(99,102,241,0.14)"
+                  : "0 2px 8px rgba(99,102,241,0.1)",
+              }}
             >
               <Search size={16} />
             </button>
@@ -317,18 +276,14 @@ export function OrbitalHub({
               title="Plans & pricing"
               aria-label="View plans and pricing"
               className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-              style={
-                specialLightUI
-                  ? specialChip("#ca8a04")
-                  : {
-                      background: isDark ? "rgba(234,179,8,0.12)" : "rgba(234,179,8,0.1)",
-                      border: `1px solid ${isDark ? "rgba(250,204,21,0.34)" : "rgba(202,138,4,0.26)"}`,
-                      color: isDark ? "#facc15" : "#ca8a04",
-                      boxShadow: isDark
-                        ? "0 0 10px rgba(234,179,8,0.14)"
-                        : "0 2px 8px rgba(234,179,8,0.12)",
-                    }
-              }
+              style={{
+                background: isDark ? "rgba(234,179,8,0.12)" : "rgba(234,179,8,0.1)",
+                border: `1px solid ${isDark ? "rgba(250,204,21,0.34)" : "rgba(202,138,4,0.26)"}`,
+                color: isDark ? "#facc15" : "#ca8a04",
+                boxShadow: isDark
+                  ? "0 0 10px rgba(234,179,8,0.14)"
+                  : "0 2px 8px rgba(234,179,8,0.12)",
+              }}
             >
               <Crown size={16} />
             </button>
@@ -340,46 +295,40 @@ export function OrbitalHub({
               aria-label={isSpecial ? "Exit special mode" : "Switch to special mode"}
               className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
               style={
-                specialLightUI
-                  ? specialChip("#0d9488")
-                  : isSpecial
-                    ? {
-                        background: "rgba(45,212,191,0.18)",
-                        border: "1px solid rgba(45,212,191,0.45)",
-                        color: "#5eead4",
-                        boxShadow: "0 0 14px rgba(45,212,191,0.3)",
-                      }
-                    : {
-                        background: isDark
-                          ? "rgba(45,212,191,0.10)"
-                          : "rgba(13,148,136,0.08)",
-                        border: `1px solid ${isDark ? "rgba(45,212,191,0.28)" : "rgba(13,148,136,0.22)"}`,
-                        color: isDark ? "#2dd4bf" : "#0d9488",
-                        boxShadow: isDark
-                          ? "0 0 10px rgba(45,212,191,0.12)"
-                          : "0 2px 8px rgba(13,148,136,0.10)",
-                      }
+                isSpecial
+                  ? {
+                      background: "rgba(45,212,191,0.18)",
+                      border: "1px solid rgba(45,212,191,0.45)",
+                      color: "#5eead4",
+                      boxShadow: "0 0 14px rgba(45,212,191,0.3)",
+                    }
+                  : {
+                      background: isDark
+                        ? "rgba(45,212,191,0.10)"
+                        : "rgba(13,148,136,0.08)",
+                      border: `1px solid ${isDark ? "rgba(45,212,191,0.28)" : "rgba(13,148,136,0.22)"}`,
+                      color: isDark ? "#2dd4bf" : "#0d9488",
+                      boxShadow: isDark
+                        ? "0 0 10px rgba(45,212,191,0.12)"
+                        : "0 2px 8px rgba(13,148,136,0.10)",
+                    }
               }
             >
               <Sparkles size={16} />
             </button>
           )}
-          {canGenerateBg && isSpecial && (
+          {canCustomize && isSpecial && (
             <button
-              onClick={onOpenAiBg}
-              title="AI background"
-              aria-label="Generate an AI background"
+              onClick={onOpenCustomize}
+              title="Customize background"
+              aria-label="Customize the Special-mode background"
               className="hidden sm:flex w-11 h-11 rounded-full items-center justify-center transition-all hover:scale-105 active:scale-95"
-              style={
-                specialLightUI
-                  ? specialChip("#0d9488")
-                  : {
-                      background: isDark ? "rgba(20,184,166,0.14)" : "rgba(13,148,136,0.1)",
-                      border: `1px solid ${isDark ? "rgba(45,212,191,0.4)" : "rgba(13,148,136,0.3)"}`,
-                      color: isDark ? "#5eead4" : "#0d9488",
-                      boxShadow: isDark ? "0 0 12px rgba(45,212,191,0.18)" : "0 2px 8px rgba(13,148,136,0.12)",
-                    }
-              }
+              style={{
+                background: isDark ? "rgba(20,184,166,0.14)" : "rgba(13,148,136,0.1)",
+                border: `1px solid ${isDark ? "rgba(45,212,191,0.4)" : "rgba(13,148,136,0.3)"}`,
+                color: isDark ? "#5eead4" : "#0d9488",
+                boxShadow: isDark ? "0 0 12px rgba(45,212,191,0.18)" : "0 2px 8px rgba(13,148,136,0.12)",
+              }}
             >
               <Wand2 size={16} />
             </button>
@@ -389,20 +338,16 @@ export function OrbitalHub({
             title={isDark ? "Light mode" : "Dark mode"}
             aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
             className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-            style={
-              specialLightUI
-                ? specialChip("#4f46e5")
-                : {
-                    background: isDark
-                      ? "rgba(129,140,248,0.14)"
-                      : "rgba(99,102,241,0.10)",
-                    border: `1px solid ${isDark ? "rgba(129,140,248,0.35)" : "rgba(99,102,241,0.28)"}`,
-                    color: isDark ? "#a5b4fc" : "#4f46e5",
-                    boxShadow: isDark
-                      ? "0 0 12px rgba(129,140,248,0.2)"
-                      : "0 2px 8px rgba(99,102,241,0.12)",
-                  }
-            }
+            style={{
+              background: isDark
+                ? "rgba(129,140,248,0.14)"
+                : "rgba(99,102,241,0.10)",
+              border: `1px solid ${isDark ? "rgba(129,140,248,0.35)" : "rgba(99,102,241,0.28)"}`,
+              color: isDark ? "#a5b4fc" : "#4f46e5",
+              boxShadow: isDark
+                ? "0 0 12px rgba(129,140,248,0.2)"
+                : "0 2px 8px rgba(99,102,241,0.12)",
+            }}
           >
             {isDark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
@@ -701,12 +646,12 @@ export function OrbitalHub({
         );
       })}
 
-      {/* Mobile-only AI background button — fixed bottom-right */}
-      {canGenerateBg && isSpecial && (
+      {/* Mobile-only Customize button — fixed bottom-right */}
+      {canCustomize && isSpecial && (
         <button
-          onClick={onOpenAiBg}
-          title="AI background"
-          aria-label="Generate an AI background"
+          onClick={onOpenCustomize}
+          title="Customize background"
+          aria-label="Customize the Special-mode background"
           className="sm:hidden"
           style={{
             display: "flex",
@@ -719,14 +664,10 @@ export function OrbitalHub({
             alignItems: "center",
             justifyContent: "center",
             zIndex: 30,
-            ...(specialLightUI
-              ? specialChip("#0d9488")
-              : {
-                  background: isDark ? "rgba(20,184,166,0.22)" : "rgba(13,148,136,0.16)",
-                  border: `1px solid ${isDark ? "rgba(45,212,191,0.5)" : "rgba(13,148,136,0.4)"}`,
-                  color: isDark ? "#5eead4" : "#0d9488",
-                  boxShadow: isDark ? "0 0 18px rgba(45,212,191,0.28)" : "0 4px 16px rgba(13,148,136,0.2)",
-                }),
+            background: isDark ? "rgba(20,184,166,0.22)" : "rgba(13,148,136,0.16)",
+            border: `1px solid ${isDark ? "rgba(45,212,191,0.5)" : "rgba(13,148,136,0.4)"}`,
+            color: isDark ? "#5eead4" : "#0d9488",
+            boxShadow: isDark ? "0 0 18px rgba(45,212,191,0.28)" : "0 4px 16px rgba(13,148,136,0.2)",
           }}
         >
           <Wand2 size={22} />

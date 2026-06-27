@@ -19,7 +19,7 @@ src/
 │   └── useChatDerivedState.js # Pure derived values (contacts, avatarMap, activeRoom + metadata, divider index, profile context); exports MAX_MESSAGE_LENGTH
 ├── components/
 │   ├── AccountModal.jsx         # Current user's own profile — tap avatar to enlarge, change-picture button, sign out (opens from hub avatar)
-│   ├── AiBackgroundModal.jsx    # Business: describe a vibe → Claude returns a colour-grade (CSS filters + tint) applied to the live Special-mode photo
+│   ├── CustomizePanel.jsx       # Pro: live controls for the Lightfall Special-mode background (colors/speed/glow/…), persisted to localStorage
 │   ├── ManageSubscriptionModal.jsx # Paid plan: status + renewal date, cancel/resume, change plan
 │   ├── AllChatsPanel.jsx        # Slide-up "All Chats" sheet (requests + channel activity + room list) — used by OrbitalHub
 │   ├── AuthScreen.jsx           # Login / Register form
@@ -43,14 +43,15 @@ src/
 │       ├── badge.jsx                 # shadcn-pattern Badge (cva + cn)
 │       ├── button.jsx                # shadcn-pattern Button (cva + cn + Radix Slot)
 │       ├── card.jsx                  # shadcn-pattern Card family
-│       ├── special-field.jsx         # Dynamic background — responsive time-of-day illustration photos (/public/special) w/ vector fallback + optional Business AI colour-grade
+│       ├── Lightfall.jsx             # WebGL falling-light-streaks background (React Bits, ogl) — the Special-mode background
+│       ├── Lightfall.css             # Lightfall container styles
 │       ├── ContactStatusButton.jsx   # Add / remove contact button (status-aware)
 │       ├── shader-background.jsx     # Three.js GLSL shader canvas background
 │       ├── star-field.jsx            # Canvas starfield + comets (dark) / sunrise + birds (light)
 │       └── TypingIndicator.jsx       # "X is typing…" label
 └── lib/
     ├── api.js        # fetch() wrappers for every REST endpoint
-    ├── special-scenes.js # Special-mode scene selector (getScene → morning/afternoon/evening/night) + per-scene landscape palettes + isSpecialSkyLight() contrast helper
+    ├── lightfall.js   # Lightfall background defaults + localStorage load/save
     ├── constants.js  # Shared style tokens (COLORS, REACTIONS, ROLE_LEVEL, theme vars)
     ├── helpers.js    # userBg, initials, formatTime, formatDateSeparator, toSlug
     ├── room-helpers.js # isChannel(room) + unreadBadgeStyle(room) — shared by OrbitalHub + AllChatsPanel
@@ -129,22 +130,16 @@ Message deletion is also optimistic: message removed from state immediately, the
   (exiting returns to the previous mode). `special` mode **inherits the dark UI
   palette** (`isDark = theme !== "light"`) so all `isDark` styling keeps
   working, but swaps backgrounds for `specialBg0/1` (deep navy, see
-  `constants.js`) and renders `SpecialField` instead of `StarField` in the hub.
-  `SpecialField` is a **macOS-style dynamic background**: a stylised valley
-  illustration (mountains, hills, a winding river, trees, a sun/moon) shown as a
-  **time-of-day photo** from `/public/special` and chosen by the real clock
-  (`getScene` in `lib/special-scenes.js`) — **morning** (5–10, peach sunrise),
-  **afternoon** (10–17, bright blue), **evening** (17–20, fiery sunset) and
-  **night** (20–5, moon + stars) — plus a portrait file on phones vs landscape on
-  desktop (`useOrientation`, swaps live on rotate). It re-checks the clock each
-  minute. If an image is missing/fails it falls back to an equivalent **vector
-  scene** (`VectorScene`, full-bleed CSS sky + a bottom-anchored SVG band), so the
-  UI never breaks. Each scene keeps a **dark/medium upper sky** so the hub's white
-  top-bar text stays legible (`isSpecialSkyLight`). Special mode is a **Pro**
-  feature — the Sparkles button is hidden for free users; **Business** users can
-  additionally apply an **AI colour-grade** (`AiBackgroundModal` → `treatment`:
-  CSS `filter` + a tint overlay) that recolours the live photo in place rather
-  than replacing it.
+  `constants.js`) and renders the **`Lightfall`** WebGL background (React Bits,
+  `ogl`) instead of `StarField` in the hub — a field of falling light streaks,
+  no overlay text. Because the background is dark, the hub keeps white top-bar
+  text. Special mode is a **Lite** feature (the Sparkles button is hidden below
+  Lite). **Pro** users can additionally **customise** the Lightfall look via the
+  `CustomizePanel` (colors / speed / streaks / glow / density / twinkle / zoom /
+  ambient glow); settings persist in localStorage `linkloop_lightfall` (defaults
+  + load/save in `lib/lightfall.js`) and apply live. Lightfall updates its WebGL
+  uniforms in place on prop changes — it does NOT rebuild the GL context per
+  change, so dragging a slider stays smooth and never exhausts WebGL contexts.
 - **Tailwind v4 syntax** — this project uses `@import "tailwindcss"` + `@theme {}` blocks in `globals.css`. There is no `tailwind.config.js`. Do not add one.
 - **`@` path alias** — configured in `vite.config.js` via `resolve.alias`. Import as `@/lib/utils`, `@/components/ui/button`, etc.
 

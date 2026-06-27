@@ -2,23 +2,28 @@
 // Feature gating is enforced against these limits server-side. The client keeps
 // a presentational mirror in src/lib/plans.js (labels/prices for rendering) but
 // is NEVER trusted for enforcement — every gated route re-checks here.
+//
+// Tiers: free → lite → pro. (Renamed from the original free/pro/business; the
+// DB is migrated in db.js.) Special mode is a Lite perk; customising the Special
+// background is a Pro perk.
 
-export const PLAN_RANK = { free: 0, pro: 1, business: 2 };
+export const PLAN_RANK = { free: 0, lite: 1, pro: 2 };
 
 // `Infinity` means "no cap". maxUploadBytes is in bytes; aiActionsPerDay is the
-// free-tier-style daily meter (Pro/Business effectively unlimited).
+// free-tier-style daily meter (Lite/Pro effectively unlimited).
 export const PLANS = {
   free: {
     id: "free",
     name: "Free",
     price: 0,
-    aiActionsPerDay: 0, // AI is a Pro feature — the free tier has none
+    aiActionsPerDay: 0, // AI is a paid feature — the free tier has none
     searchScope: "room", // in-current-room only
     searchLimit: 15,
     maxUploadBytes: 5 * 1024 * 1024, // 5 MB
     allowedUploadKinds: ["image"], // images only
     voiceMessages: false,
-    specialTheme: false, // Special mode (time-of-day themes) is a Pro perk
+    specialTheme: false, // Special mode is a Lite perk
+    customizeBackground: false,
     maxGroupSize: 10,
     maxChannels: 1, // channels the user can own/create
     features: [
@@ -28,9 +33,9 @@ export const PLANS = {
       "1 channel",
     ],
   },
-  pro: {
-    id: "pro",
-    name: "Pro",
+  lite: {
+    id: "lite",
+    name: "Lite",
     price: 9.99,
     aiActionsPerDay: Infinity,
     searchScope: "global",
@@ -39,6 +44,7 @@ export const PLANS = {
     allowedUploadKinds: ["image", "file", "voice"],
     voiceMessages: true,
     specialTheme: true,
+    customizeBackground: false,
     maxGroupSize: 50,
     maxChannels: 10,
     features: [
@@ -46,14 +52,14 @@ export const PLANS = {
       "Unlimited AI: summaries, smart replies, /ask, translate",
       "Files & voice messages up to 100 MB",
       "Global search across all conversations",
-      "Special mode — immersive time-of-day themes",
+      "Special mode — an immersive Lightfall background",
       "Up to 10 channels",
       "Priority AI model",
     ],
   },
-  business: {
-    id: "business",
-    name: "Business",
+  pro: {
+    id: "pro",
+    name: "Pro",
     price: 24.99,
     aiActionsPerDay: Infinity,
     searchScope: "global",
@@ -62,10 +68,12 @@ export const PLANS = {
     allowedUploadKinds: ["image", "file", "voice"],
     voiceMessages: true,
     specialTheme: true,
+    customizeBackground: true, // tune the Lightfall background
     maxGroupSize: 50,
     maxChannels: Infinity,
     features: [
-      "Everything in Pro",
+      "Everything in Lite",
+      "Customise the Special-mode background",
       "Unlimited channels",
       "Highest AI rate limits",
       "Deeper search history",
