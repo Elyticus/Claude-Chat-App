@@ -264,7 +264,6 @@ export function ChatPanel({
                 })()}
 
               <MessageList
-                bg0={bg0}
                 isDark={isDark}
                 displayedMessages={displayedMessages}
                 roomLoaded={messages[activeRoomId] !== undefined}
