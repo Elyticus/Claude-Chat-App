@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { MessageCircle, Sun, Moon, Sparkles, Users, Search, Crown, Wand2 } from "lucide-react";
+import { MessageCircle, Sun, Moon, Sparkles, Users, Search, Crown, Wand2, Play, Pause } from "lucide-react";
 import StarField from "./ui/star-field.jsx";
 import Lightfall from "./ui/Lightfall.jsx";
 import { AllChatsPanel } from "./AllChatsPanel.jsx";
@@ -81,6 +81,18 @@ export function OrbitalHub({
   const angleRef = useRef(0);
   const [showContactsList, setShowContactsList] = useState(false);
   const [nowMs] = useState(Date.now);
+  // Background animation play/stop. Freezes only the animated background of the
+  // current mode (StarField for dark/light, Lightfall for special) — the orbit
+  // bubbles keep spinning. Persisted so the choice sticks across reloads.
+  const [bgPaused, setBgPaused] = useState(
+    () => localStorage.getItem("linkloop_bg_paused") === "1",
+  );
+  const toggleBgPaused = () =>
+    setBgPaused((v) => {
+      const next = !v;
+      localStorage.setItem("linkloop_bg_paused", next ? "1" : "0");
+      return next;
+    });
   const isSpecial = theme === "special";
   const bg0 = isSpecial ? specialBg0 : isDark ? darkBg0 : lightBg0;
 
@@ -191,11 +203,11 @@ export function OrbitalHub({
           while hidden so it costs nothing off-screen. No overlay text. */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute inset-0" style={{ opacity: isSpecial ? 0 : 1 }}>
-          <StarField isDark={isDark} />
+          <StarField isDark={isDark} paused={bgPaused} />
         </div>
         {(canSpecial || isSpecial) && (
           <div className="absolute inset-0" style={{ opacity: isSpecial ? 1 : 0 }}>
-            <Lightfall {...lightfallSettings} paused={!isSpecial} />
+            <Lightfall {...lightfallSettings} paused={!isSpecial || bgPaused} />
           </div>
         )}
       </div>
@@ -385,6 +397,35 @@ export function OrbitalHub({
           </button>
         </div>
       </div>
+
+      {/* Background animation play/stop — sits just below the theme toggle on the
+          top-right. Freezes only the current mode's animated background
+          (StarField / Lightfall); the orbit bubbles keep spinning. */}
+      <button
+        onClick={toggleBgPaused}
+        title={bgPaused ? "Play background animation" : "Stop background animation"}
+        aria-label={
+          bgPaused ? "Play background animation" : "Stop background animation"
+        }
+        aria-pressed={bgPaused}
+        className="absolute right-3 sm:right-6 top-16 sm:top-20 z-30 w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+        style={
+          isSpecial
+            ? specialChip("#4f46e5")
+            : {
+                background: isDark
+                  ? "rgba(129,140,248,0.14)"
+                  : "rgba(99,102,241,0.10)",
+                border: `1px solid ${isDark ? "rgba(129,140,248,0.35)" : "rgba(99,102,241,0.28)"}`,
+                color: isDark ? "#a5b4fc" : "#4f46e5",
+                boxShadow: isDark
+                  ? "0 0 12px rgba(129,140,248,0.2)"
+                  : "0 2px 8px rgba(99,102,241,0.12)",
+              }
+        }
+      >
+        {bgPaused ? <Play size={16} /> : <Pause size={16} />}
+      </button>
 
       {/* Outer orbit ring */}
       <div
