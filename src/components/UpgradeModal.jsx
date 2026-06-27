@@ -86,19 +86,19 @@ export function UpgradeModal({ currentPlan, reason, isDark, onSelect, onClose })
                     MOST POPULAR
                   </div>
                 )}
-                {/* Paid plans show the name above the price; the Free plan's
-                    big title already reads "Free", so it needs no name label. */}
+                {/* Plan name is the big title on every card (same size across
+                    plans). Paid plans add the price as a secondary line. */}
+                <div className="text-3xl font-bold" style={{ color: headerColor }}>
+                  {p.name}
+                </div>
                 {p.price !== 0 && (
-                  <div className="text-sm font-semibold" style={{ color: p.accent }}>
-                    {p.name}
+                  <div className="mt-0.5 flex items-baseline gap-1" style={{ color: subColor }}>
+                    <span className="text-base font-semibold" style={{ color: headerColor }}>
+                      {p.price}€
+                    </span>
+                    <span className="text-xs">/mo</span>
                   </div>
                 )}
-                <div className="mt-1 flex items-baseline gap-1" style={{ color: headerColor }}>
-                  <span className="text-3xl font-bold">{p.price === 0 ? "Free" : `${p.price}€`}</span>
-                  {p.price !== 0 && (
-                    <span className="text-xs" style={{ color: subColor }}>/mo</span>
-                  )}
-                </div>
                 <div className="text-xs mb-3" style={{ color: subColor }}>{p.tagline}</div>
 
                 <ul className="flex-1 space-y-2 mb-4">
