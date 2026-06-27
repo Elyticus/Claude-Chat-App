@@ -1,8 +1,9 @@
 // ─── Plan catalog (client presentational mirror) ────────────────────────────
 // Display-only copy of server/plans.js. NEVER trusted for enforcement — the
 // server re-checks every gated action. Used to render pricing and lock states.
+// Tiers: free → lite → pro.
 
-export const PLAN_RANK = { free: 0, pro: 1, business: 2 };
+export const PLAN_RANK = { free: 0, lite: 1, pro: 2 };
 
 export const PLANS = {
   free: {
@@ -18,9 +19,9 @@ export const PLANS = {
       "1 channel",
     ],
   },
-  pro: {
-    id: "pro",
-    name: "Pro",
+  lite: {
+    id: "lite",
+    name: "Lite",
     price: 9.99,
     tagline: "For power users",
     accent: "#818cf8",
@@ -30,19 +31,20 @@ export const PLANS = {
       "Unlimited AI: summaries, smart replies, /ask, translate",
       "Files & voice messages up to 100 MB",
       "Global search across all conversations",
-      "Special mode — immersive time-of-day themes",
+      "Special mode — an immersive Lightfall background",
       "Groups up to 50 members",
       "Up to 10 channels",
     ],
   },
-  business: {
-    id: "business",
-    name: "Business",
+  pro: {
+    id: "pro",
+    name: "Pro",
     price: 24.99,
     tagline: "For teams that ship",
     accent: "#2dd4bf",
     features: [
-      "Everything in Pro",
+      "Everything in Lite",
+      "Customise the Special-mode background",
       "Unlimited channels",
       "Highest AI rate limits",
       "Deeper search history",
@@ -51,7 +53,7 @@ export const PLANS = {
   },
 };
 
-export const PLAN_LIST = [PLANS.free, PLANS.pro, PLANS.business];
+export const PLAN_LIST = [PLANS.free, PLANS.lite, PLANS.pro];
 
 export function planAtLeast(plan, min) {
   return (PLAN_RANK[plan] ?? 0) >= (PLAN_RANK[min] ?? 0);

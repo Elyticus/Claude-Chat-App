@@ -163,7 +163,6 @@ export const api = {
   aiAsk: (roomId, question) => request("POST", "/ai/ask", { roomId, question }),
   aiTranslate: (messageId, targetLang) =>
     request("POST", "/ai/translate", { messageId, targetLang }),
-  aiBackground: (prompt) => request("POST", "/ai/background", { prompt }),
 
   // ── Global search ───────────────────────────────────────────────────────────
   searchMessages: (q) => request("GET", `/search?q=${encodeURIComponent(q)}`),

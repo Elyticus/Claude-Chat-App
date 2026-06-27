@@ -18,7 +18,9 @@ enforced server-side** (`server/billing.js` → `requirePlan` / `meterAi` / `get
 against limits in `server/plans.js`); client gates are UX only. Mirror catalog for
 rendering lives in `src/lib/plans.js`.
 
-- **Plans & paywall** — `users.plan` (free/pro/business), `usage_counters` (daily AI
+- **Plans & paywall** — `users.plan` (free/lite/pro — renamed from
+  free/pro/business via the guarded `rename_plans_lite_pro_v1` migration in
+  `db.js`), `usage_counters` (daily AI
   meter), `subscriptions`. Self-contained mock checkout that mirrors Stripe:
   `POST /api/billing/checkout` → `/confirm` emits an HMAC-signed event to
   `/webhook` (verified, then plan flips). `GET /api/me` returns live plan + AI
@@ -27,14 +29,17 @@ rendering lives in `src/lib/plans.js`.
   503 when `ANTHROPIC_API_KEY` unset). Two model tiers via env: `ANTHROPIC_MODEL`
   (quality: summaries + `/ask`) and `ANTHROPIC_MODEL_FAST` (replies + translate);
   adaptive thinking is auto-dropped for pre-4.6 models. `POST /api/ai/{summarize,
-  replies,ask,translate,background}`. **AI is Pro-gated** (free → 402
-  `UPGRADE_REQUIRED`; `useAi` is enabled only when `aiEnabled && isPro`).
-  `/api/ai/background` is **Business-only**: Claude returns a colour-grade
-  treatment (CSS filters + tint) applied on top of the live time-of-day photo in
-  Special mode — recolouring the actual scene, not replacing it (`AiBackgroundModal`
-  → `applyAiBackground`, persisted in `linkloop_special_bg`). UI: Catch-me-up (`AiSummaryModal`),
+  replies,ask,translate}`. **AI is paid-gated** (free → 402
+  `UPGRADE_REQUIRED`; `useAi` is enabled only when `aiEnabled && isPro`, where
+  `isPro` means the Lite or Pro tier). UI: Catch-me-up (`AiSummaryModal`),
   `SmartReplies`, Translate (context menu), `/ask` ephemeral bubble. `useAi` routes
   gate errors to the paywall.
+- **Special mode + Customize** — Special mode renders the `Lightfall` WebGL
+  background (React Bits, `ogl`); it is a **Lite** perk (`canSpecial = isPro`).
+  **Pro** users (`billing.canCustomize`) get the `CustomizePanel` to tune the
+  Lightfall props live (persisted in `linkloop_lightfall`, see `lib/lightfall.js`).
+  This replaced the former Business-only AI colour-grade background — there is no
+  longer an `/api/ai/background` route.
 - **Global search** — Postgres FTS (generated `messages.tsv` + GIN). `GET /api/search`
   (Pro-gated; membership enforced in SQL). UI: `SearchModal` command palette (Cmd/Ctrl-K).
 - **Media & voice** — `attachments` table; `POST /api/rooms/:roomId/attachments`
@@ -75,14 +80,14 @@ Gate-error contract: server returns `402/503` with `{ code: 'UPGRADE_REQUIRED' |
 │   │       ├── badge.jsx                 # shadcn-pattern Badge (cva + cn)
 │   │       ├── button.jsx                # shadcn-pattern Button (cva + cn + Radix Slot)
 │   │       ├── card.jsx                  # shadcn-pattern Card family
-│   │       ├── special-field.jsx         # Canvas special-mode background — 3 time-of-day scenes (blue hour / golden hour / aurora)
+│   │       ├── Lightfall.jsx             # WebGL falling-light-streaks background (React Bits, ogl) — the Special-mode background
 │   │       ├── ContactStatusButton.jsx   # Add / remove contact button (status-aware)
 │   │       ├── shader-background.jsx     # Three.js GLSL shader canvas background
 │   │       ├── star-field.jsx            # Canvas starfield + comets (dark) / sunrise + birds (light)
 │   │       └── TypingIndicator.jsx       # "X is typing…" label
 │   └── lib/
 │       ├── api.js        # fetch() wrappers for every REST endpoint
-│       ├── special-scenes.js # Special-mode scene selector (getScene) + per-scene palettes + text-contrast helper
+│       ├── lightfall.js   # Lightfall background defaults + localStorage load/save
 │       ├── constants.js  # Shared style tokens (COLORS, REACTIONS, ROLE_LEVEL, theme vars)
 │       ├── helpers.js    # userBg, initials, formatTime, formatDateSeparator, toSlug
 │       ├── socket.js     # socket.io-client singleton (connect / disconnect)

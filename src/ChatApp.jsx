@@ -20,7 +20,7 @@ import { ChatModals } from "./components/chat/ChatModals.jsx";
 import { UpgradeModal } from "./components/UpgradeModal.jsx";
 import { CheckoutModal } from "./components/CheckoutModal.jsx";
 import { ManageSubscriptionModal } from "./components/ManageSubscriptionModal.jsx";
-import { AiBackgroundModal } from "./components/AiBackgroundModal.jsx";
+import { CustomizePanel } from "./components/CustomizePanel.jsx";
 import { AiSummaryModal } from "./components/AiSummaryModal.jsx";
 import { SearchModal } from "./components/SearchModal.jsx";
 import {
@@ -30,6 +30,7 @@ import {
   specialBg0,
   specialBg1,
 } from "./lib/constants.js";
+import { loadLightfall, saveLightfall, LIGHTFALL_DEFAULTS } from "./lib/lightfall.js";
 
 export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) {
   const billing = useBilling({ currentUser, onUserUpdate });
@@ -57,16 +58,10 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
   // Global search command palette (Cmd/Ctrl-K).
   const [showSearch, setShowSearch] = useState(false);
   const [showManageSub, setShowManageSub] = useState(false);
-  const [showAiBg, setShowAiBg] = useState(false);
-  // Business: an AI colour-grade applied to the Special-mode photo (null = none).
-  const [specialTreatment, setSpecialTreatment] = useState(() => {
-    try {
-      const s = localStorage.getItem("linkloop_special_bg");
-      return s ? JSON.parse(s) : null;
-    } catch {
-      return null;
-    }
-  });
+  // Customize panel (Pro): live controls for the Lightfall Special-mode
+  // background. Settings persist to localStorage and apply live.
+  const [showCustomize, setShowCustomize] = useState(false);
+  const [lightfall, setLightfall] = useState(() => loadLightfall());
   const [contextMenu, setContextMenu] = useState(null);
   const [inputText, setInputText] = useState("");
   const [showMsgSearch, setShowMsgSearch] = useState(false);
@@ -126,7 +121,7 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
   const [newMsgMarkers, setNewMsgMarkers] = useState({});
 
   // Apply a theme with a soft crossfade. The View Transitions API snapshots
-  // the whole document (backgrounds, text, AND the StarField/SpecialField canvas
+  // the whole document (backgrounds, text, AND the StarField/Lightfall canvas
   // swap) and fades between them — one place handles every mode change without
   // touching the dozens of inline-styled backgrounds. flushSync makes React
   // commit synchronously inside the transition callback so the snapshot is
@@ -170,7 +165,7 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
   const prevThemeRef = useRef("dark");
   function toggleSpecial() {
     if (!billing.isPro && theme !== "special") {
-      billing.openUpgrade("Special mode — immersive time-of-day themes");
+      billing.openUpgrade("Special mode — an immersive Lightfall background");
       return;
     }
     const next = theme === "special" ? prevThemeRef.current : "special";
@@ -187,21 +182,19 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
     return () => clearTimeout(t);
   }, [billing.isPro, theme]);
 
-  // Apply an AI colour-grade to Special mode (and switch into it so it shows).
-  // Only Business users see/keep a custom grade (gated below).
-  function applyAiBackground(treatment) {
-    setSpecialTreatment(treatment);
-    try {
-      localStorage.setItem("linkloop_special_bg", JSON.stringify(treatment));
-    } catch { /* storage full / disabled — keep it in memory */ }
-    if (theme !== "special") applyTheme("special");
+  // Update the Lightfall background settings (Customize panel, Pro). Persisted
+  // so the look survives a reload; applied live via the lightfallSettings prop.
+  function changeLightfall(next) {
+    setLightfall(next);
+    saveLightfall(next);
   }
-  function resetAiBackground() {
-    setSpecialTreatment(null);
-    localStorage.removeItem("linkloop_special_bg");
+  function resetLightfall() {
+    setLightfall({ ...LIGHTFALL_DEFAULTS });
+    saveLightfall({ ...LIGHTFALL_DEFAULTS });
   }
-  // A custom grade is honored only for Business; everyone else gets time-of-day.
-  const activeSpecialTreatment = billing.plan === "business" ? specialTreatment : null;
+  // Only Pro users get their customised background; everyone else (Lite) sees
+  // the default Lightfall look.
+  const activeLightfall = billing.canCustomize ? lightfall : LIGHTFALL_DEFAULTS;
 
   const socketRef = useRef(null);
   const typingTimerRef = useRef(null);
@@ -951,9 +944,9 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
         onToggleSpecial={toggleSpecial}
         canSpecial={billing.isPro}
         canSearch={billing.isPro}
-        specialTreatment={activeSpecialTreatment}
-        canGenerateBg={billing.plan === "business"}
-        onOpenAiBg={() => setShowAiBg(true)}
+        lightfallSettings={activeLightfall}
+        canCustomize={billing.canCustomize}
+        onOpenCustomize={() => setShowCustomize(true)}
         onOpenPlans={() => billing.openUpgrade()}
         pendingCount={pendingRequestCount}
         pendingUsers={pendingUsers}
@@ -1033,7 +1026,7 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
           inputRef.current?.focus();
         }}
         onUploadAttachment={handleUploadAttachment}
-        voiceEnabled={billing.plan === "pro" || billing.plan === "business"}
+        voiceEnabled={billing.isPro}
         onRequireUpgrade={(reason) => billing.openUpgrade(reason)}
       />
 
@@ -1141,15 +1134,13 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
           onClose={() => setShowManageSub(false)}
         />
       )}
-      {showAiBg && (
-        <AiBackgroundModal
+      {showCustomize && (
+        <CustomizePanel
           isDark={isDark}
-          activeName={activeSpecialTreatment?.name || null}
-          onGenerate={(prompt) => api.aiBackground(prompt).then((r) => r.treatment)}
-          onApply={applyAiBackground}
-          onReset={resetAiBackground}
-          onClose={() => setShowAiBg(false)}
-          onGateError={billing.handleGateError}
+          settings={lightfall}
+          onChange={changeLightfall}
+          onReset={resetLightfall}
+          onClose={() => setShowCustomize(false)}
         />
       )}
 

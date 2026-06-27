@@ -91,7 +91,10 @@ export function useBilling({ currentUser, onUserUpdate }) {
     aiEnabled,
     aiUsedToday,
     aiLimit,
-    isPro: plan === "pro" || plan === "business",
+    // Paid tier (lite or pro) — unlocks AI, search, voice and Special mode.
+    isPro: plan === "lite" || plan === "pro",
+    // Top tier (pro) — unlocks customising the Special-mode background.
+    canCustomize: plan === "pro",
     upgrade,
     checkout,
     openUpgrade,
