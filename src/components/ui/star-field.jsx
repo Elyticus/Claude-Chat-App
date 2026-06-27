@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef } from "react";
+import { memo, useLayoutEffect, useRef } from "react";
 
 // ── Dark mode ──────────────────────────────────────────────────────────────────
 
@@ -127,16 +127,15 @@ function StarField({ isDark = true, paused = false }) {
   const rafRef       = useRef(null);
   const lastTimeRef  = useRef(null);
   const nextCometRef = useRef(2500);
-  const isDarkRef    = useRef(isDark);
   const darkGradsRef = useRef(null);
 
-  // Sync the ref without restarting the canvas loop
-  useEffect(() => {
-    isDarkRef.current = isDark;
-    lastTimeRef.current = null; // reset dt so first frame of new mode starts clean
-  }, [isDark]);
-
-  useEffect(() => {
+  // Layout effect (not useEffect) so the canvas is repainted synchronously
+  // before the browser paints — and, crucially, before document.startViewTransition
+  // captures its post-switch snapshot. Otherwise switching INTO light mode while
+  // paused would snapshot the near-white container background showing through the
+  // stale (transparent) dark frame. Re-runs on `isDark` so a mode change always
+  // repaints, and on `paused` to start/stop the loop.
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     const ctx    = canvas.getContext("2d");
 
@@ -175,7 +174,7 @@ function StarField({ isDark = true, paused = false }) {
       darkGradsRef.current = [g1, g2, g3, g4];
     }
 
-    function draw(timestamp) {
+    function renderFrame(timestamp) {
       if (!lastTimeRef.current) lastTimeRef.current = timestamp;
       const dt = Math.min(timestamp - lastTimeRef.current, 50);
       lastTimeRef.current = timestamp;
@@ -185,7 +184,7 @@ function StarField({ isDark = true, paused = false }) {
 
       ctx.clearRect(0, 0, w, h);
 
-      if (isDarkRef.current) {
+      if (isDark) {
         // ── Atmospheric glows (pre-baked gradients, zero per-frame allocation) ──
         if (darkGradsRef.current) {
           darkGradsRef.current.forEach((g) => {
@@ -342,8 +341,11 @@ function StarField({ isDark = true, paused = false }) {
           });
 
       }
+    }
 
-      rafRef.current = requestAnimationFrame(draw);
+    function loop(timestamp) {
+      renderFrame(timestamp);
+      rafRef.current = requestAnimationFrame(loop);
     }
 
     // When the PWA is backgrounded, rAF stops and iOS may discard the canvas
@@ -356,7 +358,7 @@ function StarField({ isDark = true, paused = false }) {
         rafRef.current = null;
       } else if (!rafRef.current && !paused) {
         lastTimeRef.current = null;
-        rafRef.current = requestAnimationFrame(draw);
+        rafRef.current = requestAnimationFrame(loop);
       }
     }
 
@@ -364,10 +366,14 @@ function StarField({ isDark = true, paused = false }) {
     ro.observe(canvas);
     resize();
     document.addEventListener("visibilitychange", handleVisibility);
-    // When paused, leave the last rendered frame on the canvas (don't clear it)
-    // and simply don't schedule the loop — the background freezes in place. The
-    // effect re-runs when `paused` flips, resuming from the next frame.
-    if (!paused) rafRef.current = requestAnimationFrame(draw);
+    // Always paint one frame of the CURRENT mode immediately. This keeps a
+    // paused background correct after a mode switch (otherwise the previous
+    // mode's frozen frame — transparent in dark mode — would stay on the canvas
+    // and let light mode's near-white background show through). Only schedule
+    // the ongoing loop when not paused.
+    lastTimeRef.current = null;
+    renderFrame(performance.now());
+    if (!paused) rafRef.current = requestAnimationFrame(loop);
 
     return () => {
       ro.disconnect();
@@ -376,7 +382,7 @@ function StarField({ isDark = true, paused = false }) {
       rafRef.current = null;
       lastTimeRef.current = null;
     };
-  }, [paused]);
+  }, [paused, isDark]);
 
   return (
     <canvas
