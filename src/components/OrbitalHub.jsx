@@ -3,7 +3,7 @@ import { MessageCircle, Sun, Moon, Sparkles, Users, Search, Crown, Wand2 } from 
 import StarField from "./ui/star-field.jsx";
 import SpecialField from "./ui/special-field.jsx";
 import { AllChatsPanel } from "./AllChatsPanel.jsx";
-import { isSpecialSkyLight } from "@/lib/special-scenes.js";
+import { isSpecialSkyLight, getScene } from "@/lib/special-scenes.js";
 import { Avatar } from "./ui/Avatar.jsx";
 import { userBg } from "@/lib/helpers.js";
 import { isChannel, unreadBadgeStyle } from "@/lib/room-helpers.js";
@@ -109,11 +109,14 @@ export function OrbitalHub({
       ? "0 1px 8px rgba(0,0,0,0.7)"
       : "0 1px 8px rgba(255,255,255,0.7)";
 
-  // On bright special-mode skies (morning / afternoon) the dark-theme
-  // translucent control chips blend into the photo and become nearly invisible.
-  // When the sky is light, swap in a frosted light chip carrying each button's
-  // darker accent colour so the top-bar controls stay clearly legible.
-  const specialLightUI = isSpecial && specialSkyLight;
+  // On the bright daytime scenes (morning / afternoon) the photo background is
+  // light, so the dark-theme translucent control chips blend in and become
+  // nearly invisible. Trigger off the scene itself — NOT isSpecialSkyLight,
+  // which reads the deliberately dark vector sky-top and is false here — and
+  // swap in a frosted light chip carrying each button's darker accent colour.
+  const specialScene = isSpecial ? getScene(hour) : null;
+  const specialLightUI =
+    specialScene === "morning" || specialScene === "afternoon";
   const specialChip = (accent) => ({
     background: "rgba(255,255,255,0.62)",
     border: "1px solid rgba(15,23,42,0.18)",
