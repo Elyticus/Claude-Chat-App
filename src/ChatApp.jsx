@@ -75,6 +75,11 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
   });
   const isDark = theme !== "light";
   const isSpecial = theme === "special";
+  // True while a mode-switch view transition is mid-cross-fade. The orbit hub
+  // freezes its rotation during this window so the live (clickable) bubble nodes
+  // don't drift away from the frozen snapshot the user sees and taps — otherwise
+  // a tap right after switching modes lands on empty space or the centre hub.
+  const [themeTransitioning, setThemeTransitioning] = useState(false);
   // App-level backgrounds: special mode swaps the deep indigo for teal-black
   // so the whole app (hub + chat panel) shifts with the time-of-day scene.
   const bg0 = isSpecial ? specialBg0 : isDark ? darkBg0 : lightBg0;
@@ -133,7 +138,13 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
       "(prefers-reduced-motion: reduce)",
     ).matches;
     if (document.startViewTransition && !prefersReduced) {
-      document.startViewTransition(() => flushSync(() => setTheme(next)));
+      // Freeze the orbit rotation for the duration of the cross-fade so the
+      // live nodes stay put beneath the snapshot (see themeTransitioning above).
+      setThemeTransitioning(true);
+      const transition = document.startViewTransition(() =>
+        flushSync(() => setTheme(next)),
+      );
+      transition.finished.finally(() => setThemeTransitioning(false));
     } else {
       setTheme(next);
     }
@@ -957,6 +968,7 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
         unreadCounts={unreadCounts}
         isDark={isDark}
         theme={theme}
+        freezeRotation={themeTransitioning}
         onToggleTheme={toggleTheme}
         onToggleSpecial={toggleSpecial}
         canSpecial={billing.isPro}
