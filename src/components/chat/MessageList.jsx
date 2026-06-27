@@ -24,67 +24,36 @@ function fmtDuration(s) {
   return `${m}:${(s % 60).toString().padStart(2, "0")}`;
 }
 
-// Custom voice-note player. Instead of pointing a native <audio> at the
-// streaming URL (which leaves some browsers stuck — Range/preload quirks, no
-// visible controls on iOS), it lazily fetches the file as a Blob on first play
-// and plays that object URL. This sidesteps streaming issues entirely; on any
-// fetch/decode failure it degrades to a download link.
+// Custom voice-note player. The <audio> element points straight at the
+// Range-capable stream URL (or the upload-time localUrl) so playback can start
+// inside the click gesture. This matters on iOS Safari: it revokes the user
+// activation the moment you `await` anything (a fetch, etc.) before calling
+// play(), so the previous "fetch a Blob first, then play" approach always got
+// NotAllowedError and fell back to a download. On a genuine decode/stream
+// failure it still degrades to a download link.
 function VoicePlayer({ att, isMine, isDark }) {
   const audioRef = useRef(null);
-  const [blobUrl, setBlobUrl] = useState(att.localUrl || null);
-  const [loading, setLoading] = useState(false);
+  const src = att.localUrl || api.attachmentUrl(att.id);
   const [error, setError] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [cur, setCur] = useState(0);
   const [dur, setDur] = useState(att.duration || 0);
 
-  // Revoke any object URL we created (not the upload-time localUrl, which the
-  // composer owns) when this player unmounts.
-  const createdUrlRef = useRef(null);
-  useEffect(() => () => {
-    if (createdUrlRef.current) URL.revokeObjectURL(createdUrlRef.current);
-  }, []);
-
   const fg = isMine ? "#ffffff" : isDark ? "#c7d2fe" : "#4f46e5";
   const track = isMine ? "rgba(255,255,255,0.28)" : isDark ? "rgba(99,102,241,0.22)" : "rgba(99,102,241,0.18)";
   const btnBg = isMine ? "rgba(255,255,255,0.22)" : isDark ? "rgba(99,102,241,0.2)" : "rgba(99,102,241,0.12)";
 
-  async function ensureSrc() {
-    if (blobUrl) return blobUrl;
-    setLoading(true);
-    try {
-      const res = await fetch(att.localUrl || api.attachmentUrl(att.id));
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
-      const u = URL.createObjectURL(blob);
-      createdUrlRef.current = u;
-      setBlobUrl(u);
-      return u;
-    } catch {
-      setError(true);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function toggle() {
+  function toggle() {
     const a = audioRef.current;
     if (!a) return;
     if (playing) {
       a.pause();
       return;
     }
-    if (!a.getAttribute("src")) {
-      const u = await ensureSrc();
-      if (!u) return;
-      a.src = u;
-    }
-    try {
-      await a.play();
-    } catch {
-      setError(true);
-    }
+    // Call play() synchronously within the gesture — do NOT await first, or iOS
+    // drops the user activation and rejects with NotAllowedError.
+    const p = a.play();
+    if (p && typeof p.catch === "function") p.catch(() => setError(true));
   }
 
   function seek(e) {
@@ -125,9 +94,7 @@ function VoicePlayer({ att, isMine, isDark }) {
         className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-transform active:scale-95"
         style={{ background: btnBg, color: fg }}
       >
-        {loading ? (
-          <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin" style={{ opacity: 0.8 }} />
-        ) : playing ? (
+        {playing ? (
           <Pause size={16} fill="currentColor" />
         ) : (
           <Play size={16} fill="currentColor" style={{ marginLeft: 1 }} />
@@ -147,7 +114,8 @@ function VoicePlayer({ att, isMine, isDark }) {
       </div>
       <audio
         ref={audioRef}
-        preload="none"
+        src={src}
+        preload="metadata"
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onEnded={() => { setPlaying(false); setCur(0); }}

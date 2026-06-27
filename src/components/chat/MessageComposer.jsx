@@ -84,7 +84,15 @@ export function MessageComposer({
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
+      // Prefer MP4/AAC so the clip is decodable on iOS Safari (which can't play
+      // webm/opus). Browsers that don't support MP4 recording (e.g. desktop
+      // Chrome) fall through to their default container.
+      const preferred = ["audio/mp4", "audio/aac", "audio/webm;codecs=opus", "audio/webm"];
+      const supported =
+        typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported
+          ? preferred.find((t) => MediaRecorder.isTypeSupported(t))
+          : null;
+      const mr = new MediaRecorder(stream, supported ? { mimeType: supported } : undefined);
       chunksRef.current = [];
       cancelRef.current = false;
       mr.ondataavailable = (ev) => { if (ev.data.size) chunksRef.current.push(ev.data); };
@@ -95,7 +103,13 @@ export function MessageComposer({
         if (cancelRef.current) { cancelRef.current = false; return; }
         const duration = Math.max(1, Math.round((Date.now() - startRef.current) / 1000));
         const mime = mr.mimeType || "audio/webm";
-        const ext = mime.includes("ogg") ? "ogg" : mime.includes("mp4") ? "mp4" : "webm";
+        const ext = mime.includes("mp4")
+          ? "mp4"
+          : mime.includes("aac")
+            ? "aac"
+            : mime.includes("ogg")
+              ? "ogg"
+              : "webm";
         const file = new File(chunksRef.current, `voice-${Date.now()}.${ext}`, { type: mime });
         onUploadAttachment(file, { kind: "voice", duration });
       };
