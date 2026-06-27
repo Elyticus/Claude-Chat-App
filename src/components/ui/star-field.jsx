@@ -141,8 +141,15 @@ function StarField({ isDark = true }) {
     const ctx    = canvas.getContext("2d");
 
     function resize() {
-      canvas.width  = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
+      const nextW = canvas.offsetWidth;
+      const nextH = canvas.offsetHeight;
+      // iOS fires the ResizeObserver when the PWA returns from the background
+      // even when nothing actually resized. Re-assigning canvas.width/height
+      // clears the canvas to transparent, which shows up as a one-frame flash
+      // (the "blink" on resume). Skip when the dimensions are unchanged.
+      if (nextW === canvas.width && nextH === canvas.height) return;
+      canvas.width  = nextW;
+      canvas.height = nextH;
       const w = canvas.width, h = canvas.height;
       starsRef.current  = makeStars(w, h);
       cloudsRef.current = makeClouds(w, h);
@@ -339,13 +346,29 @@ function StarField({ isDark = true }) {
       rafRef.current = requestAnimationFrame(draw);
     }
 
+    // When the PWA is backgrounded, rAF stops and iOS may discard the canvas
+    // backing store, leaving it blank on return. Cancel cleanly on hide and, on
+    // show, reset dt and repaint on the next frame so the starfield is restored
+    // immediately rather than flashing the empty background.
+    function handleVisibility() {
+      if (document.hidden) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      } else if (!rafRef.current) {
+        lastTimeRef.current = null;
+        rafRef.current = requestAnimationFrame(draw);
+      }
+    }
+
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
     resize();
+    document.addEventListener("visibilitychange", handleVisibility);
     rafRef.current = requestAnimationFrame(draw);
 
     return () => {
       ro.disconnect();
+      document.removeEventListener("visibilitychange", handleVisibility);
       cancelAnimationFrame(rafRef.current);
       lastTimeRef.current = null;
     };
