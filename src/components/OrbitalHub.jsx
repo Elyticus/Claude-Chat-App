@@ -613,7 +613,7 @@ export function OrbitalHub({
         return (
           <div
             key={room.id}
-            className={`absolute cursor-pointer flex flex-col items-center select-none active:scale-95 ${hoveredId === null ? "transition-transform duration-50" : "transition-none"}`}
+            className="absolute cursor-pointer flex flex-col items-center select-none active:scale-95 transition-none"
             style={{
               transform: `translate(${pos.x}px, ${pos.y}px)`,
               zIndex: pos.zIndex,
