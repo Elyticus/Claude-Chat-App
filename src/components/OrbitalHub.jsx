@@ -317,22 +317,6 @@ export function OrbitalHub({
               <Sparkles size={16} />
             </button>
           )}
-          {canCustomize && isSpecial && (
-            <button
-              onClick={onOpenCustomize}
-              title="Customize background"
-              aria-label="Customize the Special-mode background"
-              className="hidden sm:flex w-11 h-11 rounded-full items-center justify-center transition-all hover:scale-105 active:scale-95"
-              style={{
-                background: isDark ? "rgba(20,184,166,0.14)" : "rgba(13,148,136,0.1)",
-                border: `1px solid ${isDark ? "rgba(45,212,191,0.4)" : "rgba(13,148,136,0.3)"}`,
-                color: isDark ? "#5eead4" : "#0d9488",
-                boxShadow: isDark ? "0 0 12px rgba(45,212,191,0.18)" : "0 2px 8px rgba(13,148,136,0.12)",
-              }}
-            >
-              <Wand2 size={16} />
-            </button>
-          )}
           <button
             onClick={onToggleTheme}
             title={isDark ? "Light mode" : "Dark mode"}
