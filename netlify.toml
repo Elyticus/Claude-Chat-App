@@ -21,7 +21,7 @@
     # is governed by script-src. img-src allows data: for base64 avatars.
     # connect-src allows https:/wss: so the app can reach the Render API +
     # Socket.io. require-trusted-types-for locks down DOM-XSS sinks.
-    Content-Security-Policy = "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https: wss:; worker-src 'self'; manifest-src 'self'; require-trusted-types-for 'script'"
+    Content-Security-Policy = "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; font-src 'self' data:; connect-src 'self' https: wss:; worker-src 'self'; manifest-src 'self'; require-trusted-types-for 'script'"
     Cross-Origin-Opener-Policy = "same-origin"
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
