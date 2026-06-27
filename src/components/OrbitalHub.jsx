@@ -396,11 +396,11 @@ export function OrbitalHub({
               ].join(", ")
             : isDark
               ? [
-                  "0 0 0 1px rgba(99,102,241,0.30)",
-                  "0 0 0 3px rgba(99,102,241,0.08)",
-                  "0 0 0 10px rgba(99,102,241,0.03)",
-                  "0 0 80px rgba(99,102,241,0.12)",
-                  "inset 0 0 80px rgba(99,102,241,0.07)",
+                  "0 0 0 1.5px rgba(129,140,248,0.6)",
+                  "0 0 0 4px rgba(99,102,241,0.18)",
+                  "0 0 0 10px rgba(99,102,241,0.06)",
+                  "0 0 80px rgba(129,140,248,0.32)",
+                  "inset 0 0 80px rgba(99,102,241,0.16)",
                 ].join(", ")
               : [
                   "0 0 0 1.5px rgba(99,102,241,0.55)",
@@ -446,11 +446,11 @@ export function OrbitalHub({
               ].join(", ")
             : isDark
               ? [
-                  "0 0 0 1px rgba(139,92,246,0.22)",
-                  "0 0 0 3px rgba(139,92,246,0.06)",
-                  "0 0 0 8px rgba(139,92,246,0.02)",
-                  "0 0 50px rgba(139,92,246,0.09)",
-                  "inset 0 0 50px rgba(139,92,246,0.05)",
+                  "0 0 0 1.5px rgba(167,139,250,0.55)",
+                  "0 0 0 4px rgba(139,92,246,0.16)",
+                  "0 0 0 8px rgba(139,92,246,0.05)",
+                  "0 0 55px rgba(167,139,250,0.28)",
+                  "inset 0 0 50px rgba(139,92,246,0.13)",
                 ].join(", ")
               : [
                   "0 0 0 1.5px rgba(139,92,246,0.48)",
@@ -508,7 +508,7 @@ export function OrbitalHub({
             border: isSpecial
               ? "2px solid rgba(199,210,254,0.9)"
               : isDark
-                ? "1.5px solid rgba(99,102,241,0.6)"
+                ? "2px solid rgba(129,140,248,0.9)"
                 : "2px solid rgba(99,102,241,0.9)",
           }}
         />
@@ -522,7 +522,7 @@ export function OrbitalHub({
             border: isSpecial
               ? "1.5px solid rgba(196,181,253,0.6)"
               : isDark
-                ? "1px solid rgba(99,102,241,0.32)"
+                ? "1.5px solid rgba(129,140,248,0.6)"
                 : "1.5px solid rgba(99,102,241,0.6)",
           }}
         />
@@ -586,7 +586,7 @@ export function OrbitalHub({
             : isSpecial
               ? "rgba(199,210,254,0.7)"
               : isDark
-                ? "rgba(99,102,241,0.22)"
+                ? "rgba(129,140,248,0.55)"
                 : "rgba(99,102,241,0.5)";
         const ringHover = isRoomChannel
           ? "rgba(74,222,128,0.9)"
@@ -595,7 +595,7 @@ export function OrbitalHub({
             : isSpecial
               ? "rgba(224,231,255,0.95)"
               : isDark
-                ? "rgba(99,102,241,0.5)"
+                ? "rgba(129,140,248,0.85)"
                 : "rgba(99,102,241,0.82)";
         const glowHover = isRoomChannel
           ? "rgba(74,222,128,0.4)"
@@ -653,7 +653,7 @@ export function OrbitalHub({
                   boxShadow: isSpecial
                     ? "0 2px 14px rgba(0,0,0,0.55), 0 0 0 1.5px rgba(255,255,255,0.4)"
                     : isDark
-                      ? "0 4px 16px rgba(0,0,0,0.5)"
+                      ? "0 4px 18px rgba(0,0,0,0.55), 0 0 14px rgba(129,140,248,0.35), 0 0 0 1.5px rgba(199,210,254,0.45)"
                       : "0 4px 20px rgba(0,0,0,0.2), 0 0 0 2px rgba(255,255,255,0.9)",
                 }}
               />
