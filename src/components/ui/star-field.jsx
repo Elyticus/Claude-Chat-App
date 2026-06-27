@@ -118,7 +118,7 @@ function drawBird(ctx, x, y, size, phase) {
 // Memoized: OrbitalHub re-renders ~20×/sec to spin its bubbles. Without memo
 // this canvas component would be re-invoked on every rotation tick. It only
 // depends on `isDark`, so skip those re-renders to free the main thread.
-function StarField({ isDark = true }) {
+function StarField({ isDark = true, paused = false }) {
   const canvasRef    = useRef(null);
   const starsRef     = useRef([]);
   const cometsRef    = useRef([]);
@@ -354,7 +354,7 @@ function StarField({ isDark = true }) {
       if (document.hidden) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
-      } else if (!rafRef.current) {
+      } else if (!rafRef.current && !paused) {
         lastTimeRef.current = null;
         rafRef.current = requestAnimationFrame(draw);
       }
@@ -364,15 +364,19 @@ function StarField({ isDark = true }) {
     ro.observe(canvas);
     resize();
     document.addEventListener("visibilitychange", handleVisibility);
-    rafRef.current = requestAnimationFrame(draw);
+    // When paused, leave the last rendered frame on the canvas (don't clear it)
+    // and simply don't schedule the loop — the background freezes in place. The
+    // effect re-runs when `paused` flips, resuming from the next frame.
+    if (!paused) rafRef.current = requestAnimationFrame(draw);
 
     return () => {
       ro.disconnect();
       document.removeEventListener("visibilitychange", handleVisibility);
       cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
       lastTimeRef.current = null;
     };
-  }, []);
+  }, [paused]);
 
   return (
     <canvas

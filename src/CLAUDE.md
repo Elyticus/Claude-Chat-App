@@ -140,6 +140,14 @@ Message deletion is also optimistic: message removed from state immediately, the
   + load/save in `lib/lightfall.js`) and apply live. Lightfall updates its WebGL
   uniforms in place on prop changes — it does NOT rebuild the GL context per
   change, so dragging a slider stays smooth and never exhausts WebGL contexts.
+- **Background animation play/stop** — a play/pause button on the hub top-right
+  (below the Sun/Moon toggle) freezes only the **current mode's animated
+  background** — `StarField` (dark/light) or `Lightfall` (special) — while the
+  orbit bubbles keep spinning. State lives in `OrbitalHub` (`bgPaused`), persists
+  in localStorage `linkloop_bg_paused`, and is passed as `paused` to both canvases
+  (Lightfall gets `!isSpecial || bgPaused`). `StarField` honours `paused` by not
+  scheduling its rAF and leaving the last frame on the canvas (no clear), so the
+  background freezes in place; the effect re-runs when `paused` flips.
 - **Tailwind v4 syntax** — this project uses `@import "tailwindcss"` + `@theme {}` blocks in `globals.css`. There is no `tailwind.config.js`. Do not add one.
 - **`@` path alias** — configured in `vite.config.js` via `resolve.alias`. Import as `@/lib/utils`, `@/components/ui/button`, etc.
 
