@@ -272,14 +272,6 @@ export function OrbitalHub({
       render: () => <Crown size={16} />,
     },
     {
-      key: "bg",
-      accent: "indigo",
-      onClick: toggleBgPaused,
-      title: bgPaused ? "Play background animation" : "Stop background animation",
-      show: true,
-      render: () => (bgPaused ? <Play size={16} /> : <Pause size={16} />),
-    },
-    {
       key: "customize",
       accent: "indigo",
       onClick: onOpenCustomize,
@@ -443,6 +435,18 @@ export function OrbitalHub({
             style={chipStyle("indigo")}
           >
             {baseIsDark ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
+          <button
+            onClick={toggleBgPaused}
+            title={bgPaused ? "Play background animation" : "Stop background animation"}
+            aria-label={
+              bgPaused ? "Play background animation" : "Stop background animation"
+            }
+            aria-pressed={bgPaused}
+            className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+            style={chipStyle("indigo")}
+          >
+            {bgPaused ? <Play size={16} /> : <Pause size={16} />}
           </button>
         </div>
       </div>
