@@ -327,10 +327,34 @@ const Lightfall = ({
         }
       }
     };
+    // Paint one frame up front so the canvas isn't blank if it mounts paused.
+    try {
+      renderer.render({ scene: meshRef.current });
+    } catch {
+      /* not ready yet — the loop will paint */
+    }
+
+    // Repaint one frame when the app returns to the foreground. While paused the
+    // loop skips rendering, and the browser can discard the GL drawing buffer
+    // while backgrounded — so without this the canvas is blank on resume until
+    // the user presses play.
+    const handleVisibility = () => {
+      if (document.hidden || !programRef.current || !meshRef.current) return;
+      requestAnimationFrame(() => {
+        try {
+          renderer.render({ scene: meshRef.current });
+        } catch {
+          /* context lost — will recover on next live frame */
+        }
+      });
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     rafRef.current = requestAnimationFrame(loop);
 
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      document.removeEventListener('visibilitychange', handleVisibility);
       if (mouseInteraction) canvas.removeEventListener('pointermove', onPointerMove);
       ro.disconnect();
       if (canvas.parentElement === container) {
