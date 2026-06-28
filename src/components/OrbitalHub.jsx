@@ -417,10 +417,11 @@ export function OrbitalHub({
             </span>
           </button>
           {/* Desktop: the bottom-bubble controls shown inline (the bubble is
-              mobile-only). */}
+              mobile-only). Customize is excluded here — on desktop it gets its
+              own bottom-right button next to where its panel opens. */}
           <div className="hidden sm:flex items-center gap-2">
             {menuItems
-              .filter((i) => i.show)
+              .filter((i) => i.show && i.key !== "customize")
               .map((item) => renderMenuButton(item, "", 0))}
           </div>
           {canSpecial && (
@@ -832,6 +833,20 @@ export function OrbitalHub({
           );
         })()}
       </div>
+
+      {/* Desktop-only Customize button — bottom-right, next to where its panel
+          opens. On mobile, Customize lives inside the bubble menu instead. */}
+      {canCustomize && isDark && (
+        <button
+          onClick={onOpenCustomize}
+          title="Customize background"
+          aria-label="Customize background"
+          className="hidden sm:flex absolute bottom-6 right-6 z-30 w-12 h-12 rounded-full items-center justify-center transition-transform hover:scale-105 active:scale-95"
+          style={chipStyle("indigo")}
+        >
+          <Wand2 size={18} />
+        </button>
+      )}
 
       {/* All-chats bottom panel */}
       {showContactsList && (
