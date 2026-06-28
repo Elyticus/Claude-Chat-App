@@ -247,21 +247,6 @@ export function OrbitalHub({
   // ones into a left and a right half. `bare` items (the avatar) skip the chip.
   const menuItems = [
     {
-      key: "account",
-      onClick: onOpenAccount,
-      title: "Your profile",
-      show: true,
-      bare: true,
-      render: () => (
-        <Avatar
-          userId={currentUser.id}
-          username={currentUser.username}
-          size={44}
-          avatar={myAvatar}
-        />
-      ),
-    },
-    {
       key: "friends",
       accent: "indigo",
       onClick: onOpenFriends,
@@ -285,22 +270,6 @@ export function OrbitalHub({
       title: "Plans & pricing",
       show: !!onOpenPlans,
       render: () => <Crown size={16} />,
-    },
-    {
-      key: "special",
-      accent: "teal",
-      onClick: onToggleSpecial,
-      title: isSpecial ? "Exit special mode" : "Special mode",
-      show: canSpecial,
-      render: () => <Sparkles size={16} />,
-    },
-    {
-      key: "theme",
-      accent: "indigo",
-      onClick: onToggleTheme,
-      title: baseIsDark ? "Light mode" : "Dark mode",
-      show: true,
-      render: () => (baseIsDark ? <Sun size={16} /> : <Moon size={16} />),
     },
     {
       key: "bg",
@@ -419,6 +388,62 @@ export function OrbitalHub({
               {totalUnread > 99 ? "99+" : totalUnread}
             </span>
           )}
+        </div>
+
+        {/* Top-right: profile, special mode and the light/dark toggle stay here;
+            the rest of the controls live in the bottom bubble. */}
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          <button
+            onClick={onOpenAccount}
+            title="Your profile"
+            aria-label="Your profile"
+            className="flex items-center gap-2 rounded-full focus:outline-none group cursor-pointer"
+          >
+            <div className="relative">
+              <Avatar
+                userId={currentUser.id}
+                username={currentUser.username}
+                size={42}
+                avatar={myAvatar}
+              />
+              <span
+                className="absolute inset-0 rounded-full flex items-center justify-center transition-all"
+                style={{ background: "rgba(0,0,0,0)" }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "rgba(0,0,0,0.35)")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = "rgba(0,0,0,0)")
+                }
+              />
+            </div>
+            <span
+              className="text-sm font-semibold hidden sm:block"
+              style={{ color: textStrong, textShadow: textStrongShadow }}
+            >
+              {currentUser.username}
+            </span>
+          </button>
+          {canSpecial && (
+            <button
+              onClick={onToggleSpecial}
+              title={isSpecial ? "Exit special mode" : "Special mode"}
+              aria-label={isSpecial ? "Exit special mode" : "Switch to special mode"}
+              className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+              style={chipStyle("teal")}
+            >
+              <Sparkles size={16} />
+            </button>
+          )}
+          <button
+            onClick={onToggleTheme}
+            title={baseIsDark ? "Light mode" : "Dark mode"}
+            aria-label={baseIsDark ? "Switch to light mode" : "Switch to dark mode"}
+            className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+            style={chipStyle("indigo")}
+          >
+            {baseIsDark ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
         </div>
       </div>
 
