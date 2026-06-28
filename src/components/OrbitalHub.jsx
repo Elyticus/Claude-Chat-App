@@ -416,6 +416,13 @@ export function OrbitalHub({
               {currentUser.username}
             </span>
           </button>
+          {/* Desktop: the bottom-bubble controls shown inline (the bubble is
+              mobile-only). */}
+          <div className="hidden sm:flex items-center gap-2">
+            {menuItems
+              .filter((i) => i.show)
+              .map((item) => renderMenuButton(item, "", 0))}
+          </div>
           {canSpecial && (
             <button
               onClick={onToggleSpecial}
@@ -783,9 +790,10 @@ export function OrbitalHub({
         );
       })}
 
-      {/* Bottom hub menu — every control collapsed into one centre bubble; tap
-          to fan the buttons out left/right from the centre. */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center gap-1.5 sm:gap-2 px-2 max-w-full">
+      {/* Bottom hub menu — mobile only. Every secondary control collapses into
+          one centre bubble; tap to fan the buttons out left/right. On desktop
+          these same controls are shown inline in the top-right bar instead. */}
+      <div className="sm:hidden absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center gap-1.5 px-2 max-w-full">
         {(() => {
           const shown = menuItems.filter((i) => i.show);
           const mid = Math.ceil(shown.length / 2);
