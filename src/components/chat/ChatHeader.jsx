@@ -11,6 +11,7 @@ import {
   Sparkles,
   MoreHorizontal,
   X,
+  LogOut,
 } from "lucide-react";
 import { Avatar } from "../ui/Avatar.jsx";
 import { TypingIndicator } from "../ui/TypingIndicator.jsx";
@@ -83,7 +84,14 @@ export function ChatHeader({
       show: !!activeRoom.is_group,
     },
     {
-      icon: <Trash2 size={16} />,
+      // Channel members who aren't the owner can only leave, so they get a
+      // leave icon; the owner (and DM/group delete) keeps the bin.
+      icon:
+        isActiveChannel && myActiveRole !== "owner" ? (
+          <LogOut size={16} />
+        ) : (
+          <Trash2 size={16} />
+        ),
       active: false,
       onClick: onDeleteRoom,
       title: isActiveChannel
@@ -91,7 +99,9 @@ export function ChatHeader({
           ? "Delete channel"
           : "Leave channel"
         : "Delete chat",
-      danger: true,
+      // Leaving isn't destructive to others, so don't flag it red — only the
+      // actual delete (owner / DM / group) gets the danger styling.
+      danger: !(isActiveChannel && myActiveRole !== "owner"),
       show: true,
     },
   ];
