@@ -22,6 +22,7 @@ import { CheckoutModal } from "./components/CheckoutModal.jsx";
 import { ManageSubscriptionModal } from "./components/ManageSubscriptionModal.jsx";
 import { CustomizePanel } from "./components/CustomizePanel.jsx";
 import { GalaxyCustomizePanel } from "./components/GalaxyCustomizePanel.jsx";
+import { OrbCustomizePanel } from "./components/OrbCustomizePanel.jsx";
 import { AiSummaryModal } from "./components/AiSummaryModal.jsx";
 import { SearchModal } from "./components/SearchModal.jsx";
 import {
@@ -33,6 +34,7 @@ import {
 } from "./lib/constants.js";
 import { loadLightfall, saveLightfall, LIGHTFALL_DEFAULTS } from "./lib/lightfall.js";
 import { loadGalaxy, saveGalaxy, GALAXY_DEFAULTS } from "./lib/galaxy.js";
+import { loadOrb, saveOrb, ORB_DEFAULTS } from "./lib/orb.js";
 import { isChannel } from "./lib/room-helpers.js";
 
 // Detect friend requests WE sent that have since been accepted, by diffing the
@@ -138,6 +140,7 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
   const [showCustomize, setShowCustomize] = useState(false);
   const [lightfall, setLightfall] = useState(() => loadLightfall());
   const [galaxy, setGalaxy] = useState(() => loadGalaxy());
+  const [orb, setOrb] = useState(() => loadOrb());
   const [contextMenu, setContextMenu] = useState(null);
   const [inputText, setInputText] = useState("");
   const [showMsgSearch, setShowMsgSearch] = useState(false);
@@ -302,6 +305,18 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
   }
   // Pro users get their customised galaxy; everyone else sees the default.
   const activeGalaxy = billing.canCustomize ? galaxy : GALAXY_DEFAULTS;
+
+  // Update the Orb (Light-mode) background settings (Customize panel, Pro).
+  function changeOrb(next) {
+    setOrb(next);
+    saveOrb(next);
+  }
+  function resetOrb() {
+    setOrb({ ...ORB_DEFAULTS });
+    saveOrb({ ...ORB_DEFAULTS });
+  }
+  // Pro users get their customised orb; everyone else sees the default.
+  const activeOrb = billing.canCustomize ? orb : ORB_DEFAULTS;
 
   const socketRef = useRef(null);
   const typingTimerRef = useRef(null);
@@ -1126,6 +1141,7 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
         canSearch={billing.isPro}
         lightfallSettings={activeLightfall}
         galaxySettings={activeGalaxy}
+        orbSettings={activeOrb}
         canCustomize={billing.canCustomize}
         onOpenCustomize={() => setShowCustomize(true)}
         onOpenPlans={() => billing.openUpgrade()}
@@ -1339,6 +1355,15 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
           settings={galaxy}
           onChange={changeGalaxy}
           onReset={resetGalaxy}
+          onClose={() => setShowCustomize(false)}
+        />
+      )}
+      {showCustomize && !isDark && !isSpecial && (
+        <OrbCustomizePanel
+          isDark={isDark}
+          settings={orb}
+          onChange={changeOrb}
+          onReset={resetOrb}
           onClose={() => setShowCustomize(false)}
         />
       )}

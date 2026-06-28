@@ -48,11 +48,12 @@ src/
 │       ├── card.jsx                  # shadcn-pattern Card family
 │       ├── Galaxy.jsx                # WebGL animated galaxy/starfield (React Bits, ogl) — the Dark-mode hub background. `paused` prop freezes (skips draw) for play/stop + while hidden
 │       ├── Galaxy.css                # Galaxy container styles
+│       ├── Orb.jsx                   # WebGL animated orb (React Bits, ogl) — the Light-mode hub background (white `backgroundColor`). `paused` freezes; tunables synced in place
+│       ├── Orb.css                   # Orb container styles
 │       ├── Lightfall.jsx             # WebGL falling-light-streaks background (React Bits, ogl) — the Special-mode background
 │       ├── Lightfall.css             # Lightfall container styles
 │       ├── ContactStatusButton.jsx   # Add / remove contact button (status-aware)
 │       ├── shader-background.jsx     # Three.js GLSL shader canvas background
-│       ├── star-field.jsx            # Canvas starfield + comets (dark) / sunrise + birds (light)
 │       └── TypingIndicator.jsx       # "X is typing…" label
 └── lib/
     ├── api.js        # fetch() wrappers for every REST endpoint
@@ -139,13 +140,14 @@ Message deletion is also optimistic: message removed from state immediately, the
   `constants.js`) and renders the **`Lightfall`** WebGL background (React Bits,
   `ogl`) instead in the hub — a field of falling light streaks, no overlay text.
   The hub background is one canvas per mode, cross-faded by opacity: **`Galaxy`**
-  (dark), **`StarField`** sunrise (light), **`Lightfall`** (special). Each is
-  paused while it isn't the active mode so only the visible one renders. **Pro**
-  users can customise BOTH the special Lightfall (`CustomizePanel`) and the dark
-  Galaxy (`GalaxyCustomizePanel`) backgrounds live; each updates its WebGL
+  (dark), **`Orb`** on a white background (light), **`Lightfall`** (special). Each
+  is paused while it isn't the active mode so only the visible one renders. **Pro**
+  users can customise ALL three live — Lightfall (`CustomizePanel`), Galaxy
+  (`GalaxyCustomizePanel`) and Orb (`OrbCustomizePanel`); each updates its WebGL
   uniforms in place (no GL rebuild per change) and persists to localStorage
-  (`linkloop_lightfall` / `linkloop_galaxy`). The mobile Customize (Wand2) button
-  shows in dark + special modes and opens the panel for the active mode. Because the background is dark, the hub keeps white top-bar
+  (`linkloop_lightfall` / `linkloop_galaxy` / `linkloop_orb`). The Customize (Wand2)
+  button shows in every mode and opens the panel for the active one (mobile: in
+  the bottom bubble; desktop: a bottom-right button). Because the background is dark, the hub keeps white top-bar
   text. Special mode is a **Lite** feature (the Sparkles button is hidden below
   Lite). **Pro** users can additionally **customise** the Lightfall look via the
   `CustomizePanel` (colors / speed / streaks / glow / density / twinkle / zoom /
@@ -155,12 +157,12 @@ Message deletion is also optimistic: message removed from state immediately, the
   change, so dragging a slider stays smooth and never exhausts WebGL contexts.
 - **Background animation play/stop** — a play/pause button on the hub top-right
   (below the Sun/Moon toggle) freezes only the **current mode's animated
-  background** — `StarField` (dark/light) or `Lightfall` (special) — while the
-  orbit bubbles keep spinning. State lives in `OrbitalHub` (`bgPaused`), persists
-  in localStorage `linkloop_bg_paused`, and is passed as `paused` to both canvases
-  (Lightfall gets `!isSpecial || bgPaused`). `StarField` honours `paused` by not
-  scheduling its rAF and leaving the last frame on the canvas (no clear), so the
-  background freezes in place; the effect re-runs when `paused` flips.
+  background** — `Orb` (light), `Galaxy` (dark) or `Lightfall` (special) — while
+  the orbit bubbles keep spinning. State lives in `OrbitalHub` (`bgPaused`),
+  persists in localStorage `linkloop_bg_paused`, and is passed as `paused` to the
+  active canvas. Each WebGL background reads `paused` from a ref in its loop and
+  skips the draw when set, leaving the last frame on the canvas so it freezes in
+  place (no GL teardown), then resumes cleanly when `paused` flips.
 - **Tailwind v4 syntax** — this project uses `@import "tailwindcss"` + `@theme {}` blocks in `globals.css`. There is no `tailwind.config.js`. Do not add one.
 - **`@` path alias** — configured in `vite.config.js` via `resolve.alias`. Import as `@/lib/utils`, `@/components/ui/button`, etc.
 
@@ -183,13 +185,13 @@ Message deletion is also optimistic: message removed from state immediately, the
 - **Orbit rotation is driven by `requestAnimationFrame`, not `setInterval` + CSS transition** — the rotation loop updates `rotationAngle` (and thus each node's inline `translate`) once per animation frame (~60 fps) with a 50 ms delta cap (so an iOS background/resume cycle can't jump the angle). The orbital node MUST therefore use `transition-none` on its transform. Do NOT add `transition-transform duration-[…]` back: a CSS transition restarts every frame before it finishes, so each node chases its target with uneven velocity — the motion looks glitchy/wobbly instead of smooth. At 60 fps the per-frame position updates are already smooth and need no CSS easing. Rotation is paused (rAF cancelled) while a node is hovered or while a mode-switch view transition is cross-fading (`freezeRotation`).
 - **Animation loops are capped to ~30fps to limit battery/heat on mobile** — the
   hub keeps several always-on `requestAnimationFrame` loops while open: the orbit
-  rotation (which re-renders the whole hub each tick), the background canvas
-  (`StarField`) and the WebGL backgrounds (`Galaxy`, `Lightfall`). At the
+  rotation (which re-renders the whole hub each tick) and the WebGL backgrounds
+  (`Orb`, `Galaxy`, `Lightfall`). At the
   display's full 60fps these pegged CPU+GPU and overheated phones. Each loop now
   gates work behind a `1000/30` ms frame interval (still scheduling via rAF, so
   the browser can throttle when hidden). Motion stays correct because it's
-  dt-/elapsed-time-based, not per-frame. `Lightfall`'s renderer dpr is also
+  dt-/elapsed-time-based, not per-frame. `Lightfall`'s and `Orb`'s renderer dpr is also
   clamped to 2 (high-DPI phones report 3 → 9× shader work). Don't remove these
   caps; if you add another hub animation loop, gate it the same way.
-- **`filter: blur()` on large elements causes sustained rendering lag** — CSS `filter: blur()` on any element (even a static div) creates a separate GPU compositor layer. When multiple large blurred divs (e.g. 60–70 px blur, 50–70% of viewport) are visible alongside a canvas `requestAnimationFrame` animation, all compositor layers are re-composited every frame, causing dark-mode-style lag. **Fix:** render atmospheric glows directly inside the canvas. Pre-bake `createRadialGradient` objects in a `resize()` function (allocated once) and draw them with `ctx.fillRect(0, 0, w, h)` each frame — zero extra compositor layers, zero per-frame heap allocation. Never add `filter: blur()` divs to the OrbitalHub background; put all visual effects on the StarField canvas.
+- **`filter: blur()` on large elements causes sustained rendering lag** — CSS `filter: blur()` on any element (even a static div) creates a separate GPU compositor layer. When multiple large blurred divs (e.g. 60–70 px blur, 50–70% of viewport) are visible alongside a canvas `requestAnimationFrame` animation, all compositor layers are re-composited every frame, causing dark-mode-style lag. **Fix:** render atmospheric glows directly inside the canvas. Pre-bake `createRadialGradient` objects in a `resize()` function (allocated once) and draw them with `ctx.fillRect(0, 0, w, h)` each frame — zero extra compositor layers, zero per-frame heap allocation. Never add `filter: blur()` divs to the OrbitalHub background; keep visual effects inside the WebGL background canvases.
 - **Native caret blinking suppressed by GPU compositor layers** — WebKit/iOS Safari does not blink the text cursor inside inputs or textareas that are rendered in a GPU compositor layer owned by an ancestor or sibling element. Any of the following on an ancestor OR a sibling in the same stacking context will suppress blinking: `backdrop-filter`, `filter`, `will-change: transform`, an active CSS `animation`, or `transform` (when it promotes to a layer). **Diagnosis:** if the cursor is visible but not blinking, audit every ancestor and same-stacking-context sibling for these properties. **Fix:** remove the triggering property, or restructure so the inputs are not inside any element whose stacking context is promoted to a compositor layer. In this app the culprits were (1) a `backdropFilter: blur(24px)` sibling div that promoted the parent wrapper to a compositor layer and (2) the `hub-breathe` CSS animation on the logo div inside the same card. **Never use CSS `focus:` pseudo-class utilities (e.g. Tailwind `focus:ring-*`, `focus:border-*`) on inputs** — WebKit pre-allocates a compositor layer for elements with focus pseudo-class style rules, which also suppresses blinking. Use `onFocus`/`onBlur` handlers to set `borderColor` and `boxShadow` as inline styles instead. **Never use `transition-all` on inputs** — WebKit intercepts its own caret blink timer when `transition-property: all` is active. Use `transition-[border-color,box-shadow]` or no transition at all. **CSS `animation` on `caret-color` (e.g. a custom caretBlink keyframe) causes iOS to dismiss the native paste/autofill menu** — each animation step fires a repaint; iOS treats any repaint as a page change and closes its native menus. Do not animate `caret-color`; rely on the browser's native blink once compositor layer issues are resolved.
