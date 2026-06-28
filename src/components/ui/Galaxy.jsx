@@ -293,12 +293,20 @@ export default function Galaxy({
     // (e.g. while another mode is showing) before the first loop draw.
     renderer.render({ scene: mesh });
     let animateId;
+    // Cap to ~30fps. The fragment shader samples dozens of stars per pixel, so
+    // every frame is GPU-heavy; halving the frame rate roughly halves that load
+    // (a big battery/heat win on mobile) and a slow starfield looks the same.
+    // uTime uses real elapsed time, so animation speed is unchanged.
+    const FRAME_MS = 1000 / 30;
+    let lastFrame = 0;
 
     function update(t) {
       animateId = requestAnimationFrame(update);
       // While paused, keep the loop alive but skip the draw — the last frame
       // stays on the canvas (frozen), and work resumes cleanly when unpaused.
       if (pausedRef.current) return;
+      if (t - lastFrame < FRAME_MS) return;
+      lastFrame = t;
       if (!disableAnimationRef.current) {
         program.uniforms.uTime.value = t * 0.001;
         program.uniforms.uStarSpeed.value =

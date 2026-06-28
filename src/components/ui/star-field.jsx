@@ -343,9 +343,16 @@ function StarField({ isDark = true, paused = false }) {
       }
     }
 
+    // Cap to ~30fps — ambient stars/clouds don't need 60fps and the lower rate
+    // roughly halves the canvas work, easing battery/heat on mobile. Motion is
+    // dt-based in renderFrame, so the apparent speed is unchanged.
+    const FRAME_MS = 1000 / 30;
+    let lastFrame = 0;
     function loop(timestamp) {
-      renderFrame(timestamp);
       rafRef.current = requestAnimationFrame(loop);
+      if (timestamp - lastFrame < FRAME_MS) return;
+      lastFrame = timestamp;
+      renderFrame(timestamp);
     }
 
     // When the PWA is backgrounded, rAF stops and iOS may discard the canvas

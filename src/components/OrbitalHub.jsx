@@ -163,17 +163,24 @@ export function OrbitalHub({
     if (hoveredId !== null || freezeRotation) return;
     let rafId;
     let lastTime = null;
+    // Cap the rotation to ~30fps. Each tick re-renders the whole hub, so running
+    // at the display's full 60fps doubles the main-thread cost for no real gain
+    // on a slow spin — a meaningful battery/heat saving on mobile.
+    const FRAME_MS = 1000 / 30;
     const step = (now) => {
-      if (lastTime !== null) {
-        // Cap delta at 50 ms so that an iOS background/resume cycle (which can
-        // deliver a single rAF call spanning seconds of elapsed time) never
-        // causes a visible position jump in the orbit nodes.
-        const delta = Math.min(now - lastTime, 50);
-        angleRef.current = (angleRef.current + delta * 0.006) % 360;
-        setRotationAngle(Number(angleRef.current.toFixed(3)));
-      }
-      lastTime = now;
       rafId = requestAnimationFrame(step);
+      if (lastTime === null) {
+        lastTime = now;
+        return;
+      }
+      if (now - lastTime < FRAME_MS) return;
+      // Cap delta at 50 ms so that an iOS background/resume cycle (which can
+      // deliver a single rAF call spanning seconds of elapsed time) never
+      // causes a visible position jump in the orbit nodes.
+      const delta = Math.min(now - lastTime, 50);
+      angleRef.current = (angleRef.current + delta * 0.006) % 360;
+      setRotationAngle(Number(angleRef.current.toFixed(3)));
+      lastTime = now;
     };
     rafId = requestAnimationFrame(step);
     return () => cancelAnimationFrame(rafId);
