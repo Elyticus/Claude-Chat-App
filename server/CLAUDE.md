@@ -98,6 +98,17 @@ Authentication: token is passed in the handshake `auth` object and validated bef
 - Unread counts are **durable** (survive reload/app-close) — the client must
   rebuild its badges from `unread_count`, never keep them only in memory.
 
+## Unfriending cascades to shared chats
+
+- `DELETE /api/contacts/:contactId` removes the contact relationship **and**
+  cleans up the chats the two users share: the direct **DM is deleted** for both
+  (`room:deleted`), and the ex-contact is **removed from any channel where the
+  remover is an owner/admin who outranks them** (reuses the channel-kick rules +
+  `channel:member_kicked`). Only the other person is removed — the remover stays
+  in the channels. **Plain groups have no role/ownership model**, so there is no
+  authority to remove anyone and group membership is intentionally left
+  untouched. If group removal is ever wanted, groups need an owner concept first.
+
 ## Backend Pitfalls
 
 - **Socket handlers MUST be wrapped in `safe()` and validate ids with `isId()`**

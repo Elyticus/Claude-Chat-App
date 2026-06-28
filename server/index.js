@@ -565,6 +565,66 @@ app.delete("/api/contacts/:contactId", requireAuth, async (req, res) => {
       });
     });
   }
+
+  // Unfriending also removes the now-ex-contact from chats we share: the direct
+  // DM is deleted (it only existed for the two of us), and they are removed from
+  // any channel where I'm an owner/admin who outranks them. Plain groups have no
+  // ownership/moderation model, so they're left untouched. Only the other person
+  // is removed — I stay in the channels.
+  const shared = await queries.getSharedRoomIds.all(req.user.id, contactId);
+  for (const { room_id } of shared) {
+    const room = await queries.getRoomById.get(room_id);
+    if (!room) continue;
+    const isChannelRoom =
+      room.type === "channel" || room.type === "private_channel";
+
+    if (isChannelRoom) {
+      const myRole = await queries.getMemberRole.get(room_id, req.user.id);
+      const targetRole = await queries.getMemberRole.get(room_id, contactId);
+      if (!myRole || !targetRole) continue;
+      // Mirror the channel kick rules: I must be admin/owner, can't remove the
+      // owner, and must outrank the target.
+      if (ROLE_LEVEL[myRole] < ROLE_LEVEL.admin) continue;
+      if (targetRole === "owner") continue;
+      if (ROLE_LEVEL[myRole] <= ROLE_LEVEL[targetRole]) continue;
+
+      await queries.removeMember.run(room_id, contactId);
+      online.get(contactId)?.forEach((sid) => {
+        io.sockets.sockets.get(sid)?.leave(`room:${room_id}`);
+      });
+      const kickedUser = await queries.getUserById.get(contactId);
+      const systemMsg = await saveSystemMsg(
+        room_id,
+        req.user.id,
+        `${kickedUser?.username} was removed by ${req.user.username}`,
+      );
+      const kickPayload = {
+        roomId: room_id,
+        kickedUserId: contactId,
+        kickedUsername: kickedUser?.username,
+        kickedBy: req.user.username,
+        channelName: room.name || "",
+        systemMsg,
+      };
+      io.to(`room:${room_id}`).emit("channel:member_kicked", kickPayload);
+      online.get(contactId)?.forEach((sid) => {
+        io.sockets.sockets.get(sid)?.emit("channel:member_kicked", kickPayload);
+      });
+    } else if (!room.is_group) {
+      // DM between exactly the two of us — delete the direct chat for both.
+      await queries.deleteRoom.run(room_id);
+      [req.user.id, contactId].forEach((uid) => {
+        online.get(uid)?.forEach((sid) => {
+          io.sockets.sockets
+            .get(sid)
+            ?.emit("room:deleted", { roomId: room_id });
+        });
+      });
+    }
+    // Plain groups (is_group = 1, no roles): no manager to authorise removal,
+    // so membership is left as-is.
+  }
+
   res.json({ ok: true });
 });
 
