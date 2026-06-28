@@ -264,6 +264,15 @@ input, textarea {
 .rotate-slow     { animation: rotateSlow 12s linear infinite;         will-change: transform; }
 .rotate-slow-rev { animation: rotateSlow 20s linear infinite reverse; will-change: transform; }
 
+/* Chat-header action buttons reveal — each pops in from the right; a staggered
+   animation-delay (largest on the leftmost button) makes them appear right→left
+   out of the menu toggle. */
+@keyframes headerActionIn {
+  from { opacity: 0; transform: translateX(14px) scale(0.6); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+.animate-header-action { animation: headerActionIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
 /* Pause all CSS animations while the page is backgrounded (data-anim-paused
    set on <html> by ChatApp on visibilitychange=hidden). Prevents the one-frame
    flash-to-initial-keyframe that iOS Safari can show when resuming animations
