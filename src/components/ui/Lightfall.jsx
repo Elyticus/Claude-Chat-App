@@ -214,7 +214,10 @@ const Lightfall = ({
     if (!container) return;
 
     const renderer = new Renderer({
-      dpr: dpr ?? (typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1),
+      // Clamp the device pixel ratio to 2. High-DPI phones report 3, which means
+      // 9× the fragment-shader work for a full-screen effect — a major battery /
+      // heat cost on mobile for no visible benefit on a soft streak background.
+      dpr: dpr ?? Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 2),
       alpha: true,
       antialias: true
     });
@@ -292,8 +295,15 @@ const Lightfall = ({
       canvas.addEventListener('pointermove', onPointerMove);
     }
 
+    // Cap to ~30fps — full-screen shader work is GPU-heavy; halving the frame
+    // rate roughly halves it, easing battery/heat on mobile. iTime tracks real
+    // elapsed time, so the streak speed is unchanged.
+    const FRAME_MS = 1000 / 30;
+    let lastFrame = 0;
     const loop = t => {
       rafRef.current = requestAnimationFrame(loop);
+      if (t - lastFrame < FRAME_MS) return;
+      lastFrame = t;
       uniforms.iTime.value = t * 0.001;
       if (mouseDampening > 0) {
         if (!lastTimeRef.current) lastTimeRef.current = t;
