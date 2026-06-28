@@ -104,6 +104,10 @@ export function OrbitalHub({
       return next;
     });
   const isSpecial = theme === "special";
+  // Lite tier = can use special mode but can't customise (that's Pro). Lite users
+  // get the special-mode button in the bottom bubble on mobile instead of the top
+  // bar; Pro keeps it on top.
+  const isLite = canSpecial && !canCustomize;
   const bg0 = isSpecial ? specialBg0 : isDark ? darkBg0 : lightBg0;
 
   // Special mode now renders the dark Lightfall background, so it follows the
@@ -273,6 +277,17 @@ export function OrbitalHub({
       render: () => <Crown size={16} />,
     },
     {
+      // Lite only — for Pro the special toggle stays in the top-right bar. On
+      // desktop the bubble is hidden, so it's excluded from the inline group too
+      // (the top button covers desktop).
+      key: "special",
+      accent: "teal",
+      onClick: onToggleSpecial,
+      title: isSpecial ? "Exit special mode" : "Special mode",
+      show: isLite,
+      render: () => <Sparkles size={16} />,
+    },
+    {
       key: "customize",
       accent: "indigo",
       onClick: onOpenCustomize,
@@ -419,11 +434,13 @@ export function OrbitalHub({
             </span>
           </button>
           {/* Desktop: the bottom-bubble controls shown inline (the bubble is
-              mobile-only). Customize is excluded here — on desktop it gets its
-              own bottom-right button next to where its panel opens. */}
+              mobile-only). Customize is excluded (own bottom-right button) and
+              so is special (it stays as the top-right button on desktop). */}
           <div className="hidden sm:flex items-center gap-2">
             {menuItems
-              .filter((i) => i.show && i.key !== "customize")
+              .filter(
+                (i) => i.show && i.key !== "customize" && i.key !== "special",
+              )
               .map((item) => renderMenuButton(item, "", 0))}
           </div>
           {canSpecial && (
@@ -431,7 +448,10 @@ export function OrbitalHub({
               onClick={onToggleSpecial}
               title={isSpecial ? "Exit special mode" : "Special mode"}
               aria-label={isSpecial ? "Exit special mode" : "Switch to special mode"}
-              className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+              // Lite users get special in the bottom bubble on mobile, so hide
+              // this top button for them on mobile (still shown on desktop where
+              // there's no bubble). Pro keeps it on top everywhere.
+              className={`${isLite ? "hidden sm:flex" : "flex"} w-9 h-9 sm:w-11 sm:h-11 rounded-full items-center justify-center transition-all hover:scale-105 active:scale-95`}
               style={chipStyle("teal")}
             >
               <Sparkles size={16} />
