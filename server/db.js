@@ -355,6 +355,30 @@ export async function initDb() {
         INSERT INTO app_migrations (name) VALUES ('rename_plans_lite_pro_v1');
       END IF;
     END $do$;
+
+    -- Backfill a group owner for groups created before group ownership existed.
+    -- The creator is the only group member with NULL added_by (everyone else was
+    -- added by someone, which sets added_by). Channels already assign an owner at
+    -- creation, so they're excluded; groups that already have an owner are
+    -- skipped. Lets the group owner remove ex-contacts on unfriend.
+    DO $do$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM app_migrations WHERE name = 'group_owner_backfill_v1') THEN
+        UPDATE room_members rm
+        SET role = 'owner'
+        WHERE rm.added_by IS NULL
+          AND rm.room_id IN (
+            SELECT r.id FROM rooms r
+            WHERE r.is_group = 1
+              AND COALESCE(r.type, 'room') NOT IN ('channel', 'private_channel')
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM room_members o
+            WHERE o.room_id = rm.room_id AND o.role = 'owner'
+          );
+        INSERT INTO app_migrations (name) VALUES ('group_owner_backfill_v1');
+      END IF;
+    END $do$;
   `);
 }
 

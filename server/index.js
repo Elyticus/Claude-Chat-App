@@ -567,10 +567,9 @@ app.delete("/api/contacts/:contactId", requireAuth, async (req, res) => {
   }
 
   // Unfriending also removes the now-ex-contact from chats we share: the direct
-  // DM is deleted (it only existed for the two of us), and they are removed from
-  // any channel where I'm an owner/admin who outranks them. Plain groups have no
-  // ownership/moderation model, so they're left untouched. Only the other person
-  // is removed — I stay in the channels.
+  // DM is deleted (it only existed for the two of us), they are removed from any
+  // channel where I'm an owner/admin who outranks them, and from any group I
+  // own. Only the other person is removed — I stay in the groups/channels.
   const shared = await queries.getSharedRoomIds.all(req.user.id, contactId);
   for (const { room_id } of shared) {
     const room = await queries.getRoomById.get(room_id);
@@ -610,7 +609,33 @@ app.delete("/api/contacts/:contactId", requireAuth, async (req, res) => {
       online.get(contactId)?.forEach((sid) => {
         io.sockets.sockets.get(sid)?.emit("channel:member_kicked", kickPayload);
       });
-    } else if (!room.is_group) {
+    } else if (room.is_group) {
+      // Plain group — only the group owner may remove the ex-contact.
+      const myRole = await queries.getMemberRole.get(room_id, req.user.id);
+      if (myRole !== "owner") continue;
+
+      await queries.removeMember.run(room_id, contactId);
+      online.get(contactId)?.forEach((sid) => {
+        io.sockets.sockets.get(sid)?.leave(`room:${room_id}`);
+      });
+      const removedUser = await queries.getUserById.get(contactId);
+      const systemMessage = await saveSystemMsg(
+        room_id,
+        req.user.id,
+        `${removedUser?.username} was removed by ${req.user.username}`,
+      );
+      // Remaining members see the removal; the removed user (already off the
+      // socket room) gets room:deleted so the group disappears for them.
+      io.to(`room:${room_id}`).emit("room:member_left", {
+        roomId: room_id,
+        userId: contactId,
+        username: removedUser?.username,
+        systemMessage,
+      });
+      online.get(contactId)?.forEach((sid) => {
+        io.sockets.sockets.get(sid)?.emit("room:deleted", { roomId: room_id });
+      });
+    } else {
       // DM between exactly the two of us — delete the direct chat for both.
       await queries.deleteRoom.run(room_id);
       [req.user.id, contactId].forEach((uid) => {
@@ -621,8 +646,6 @@ app.delete("/api/contacts/:contactId", requireAuth, async (req, res) => {
         });
       });
     }
-    // Plain groups (is_group = 1, no roles): no manager to authorise removal,
-    // so membership is left as-is.
   }
 
   res.json({ ok: true });
@@ -725,7 +748,10 @@ app.post("/api/rooms/group", requireAuth, async (req, res) => {
 
   const { lastInsertRowid: roomId } = await queries.createRoom.run(1, name.trim());
   const allMembers = [req.user.id, ...userIds];
-  await Promise.all(allMembers.map((uid) => queries.addMember.run(roomId, uid)));
+  // The creator owns the group (so they can remove members, e.g. on unfriend);
+  // everyone else joins as a plain member.
+  await queries.addMember.run(roomId, req.user.id, "owner");
+  await Promise.all(userIds.map((uid) => queries.addMember.run(roomId, uid, "member")));
   await Promise.all(userIds.map((uid) => queries.setRoomNew.run(roomId, uid, req.user.username)));
 
   notifyNewRoom(roomId, allMembers, {

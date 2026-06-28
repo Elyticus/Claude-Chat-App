@@ -98,16 +98,25 @@ Authentication: token is passed in the handshake `auth` object and validated bef
 - Unread counts are **durable** (survive reload/app-close) — the client must
   rebuild its badges from `unread_count`, never keep them only in memory.
 
+## Group ownership
+
+- The group **creator is the `owner`** (`room_members.role = 'owner'`), set when
+  the group is created. Existing groups are backfilled by the
+  `group_owner_backfill_v1` migration, which marks the member with `added_by IS
+  NULL` (the only one not added by someone else — i.e. the creator) as owner.
+  Channels already assign an owner at creation and are excluded.
+
 ## Unfriending cascades to shared chats
 
 - `DELETE /api/contacts/:contactId` removes the contact relationship **and**
   cleans up the chats the two users share: the direct **DM is deleted** for both
-  (`room:deleted`), and the ex-contact is **removed from any channel where the
+  (`room:deleted`); the ex-contact is **removed from any channel where the
   remover is an owner/admin who outranks them** (reuses the channel-kick rules +
-  `channel:member_kicked`). Only the other person is removed — the remover stays
-  in the channels. **Plain groups have no role/ownership model**, so there is no
-  authority to remove anyone and group membership is intentionally left
-  untouched. If group removal is ever wanted, groups need an owner concept first.
+  `channel:member_kicked`); and **from any group the remover owns** (removed user
+  gets `room:deleted`, remaining members get `room:member_left` carrying an
+  accurate `systemMessage`). Only the other person is removed — the remover stays
+  in the groups/channels. Groups the remover doesn't own (and channels where they
+  lack rank) are left untouched.
 
 ## Backend Pitfalls
 
