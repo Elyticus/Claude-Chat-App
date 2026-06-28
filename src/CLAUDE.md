@@ -162,7 +162,11 @@ Message deletion is also optimistic: message removed from state immediately, the
   persists in localStorage `linkloop_bg_paused`, and is passed as `paused` to the
   active canvas. Each WebGL background reads `paused` from a ref in its loop and
   skips the draw when set, leaving the last frame on the canvas so it freezes in
-  place (no GL teardown), then resumes cleanly when `paused` flips.
+  place (no GL teardown), then resumes cleanly when `paused` flips. Because a
+  paused canvas never re-renders, each background ALSO paints one frame on mount
+  and one on `visibilitychange`→visible — otherwise a stopped background is blank
+  on first load or after returning from the background (the browser discards the
+  GL drawing buffer while hidden) until the user presses play.
 - **Tailwind v4 syntax** — this project uses `@import "tailwindcss"` + `@theme {}` blocks in `globals.css`. There is no `tailwind.config.js`. Do not add one.
 - **`@` path alias** — configured in `vite.config.js` via `resolve.alias`. Import as `@/lib/utils`, `@/components/ui/button`, etc.
 

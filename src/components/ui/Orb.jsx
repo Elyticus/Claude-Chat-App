@@ -341,6 +341,27 @@ function Orb({
     container.addEventListener("mousemove", handleMouseMove);
     container.addEventListener("mouseleave", handleMouseLeave);
 
+    // Paint one frame up front so the orb is visible immediately even if it
+    // mounts paused (e.g. a persisted play/stop = stopped).
+    program.uniforms.iTime.value = 0;
+    renderer.render({ scene: mesh });
+
+    // Repaint one frame when the app returns to the foreground. While paused the
+    // loop skips rendering, and the browser can discard the GL drawing buffer
+    // while backgrounded — so without this the orb is blank on resume until the
+    // user presses play.
+    const handleVisibility = () => {
+      if (document.hidden) return;
+      requestAnimationFrame(() => {
+        try {
+          renderer.render({ scene: mesh });
+        } catch {
+          /* context lost — will recover on next live frame */
+        }
+      });
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
     // ~30fps cap (see file header).
     const FRAME_MS = 1000 / 30;
     let lastFrame = 0;
@@ -371,6 +392,7 @@ function Orb({
     return () => {
       cancelAnimationFrame(rafId);
       window.removeEventListener("resize", resize);
+      document.removeEventListener("visibilitychange", handleVisibility);
       container.removeEventListener("mousemove", handleMouseMove);
       container.removeEventListener("mouseleave", handleMouseLeave);
       container.removeChild(gl.canvas);

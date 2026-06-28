@@ -345,9 +345,26 @@ function Galaxy({
       ctn.addEventListener("mouseleave", handleMouseLeave);
     }
 
+    // Repaint one frame when the app returns to the foreground. While paused the
+    // loop skips rendering, and the browser can discard the GL drawing buffer
+    // while backgrounded — so without this the canvas is blank on resume until
+    // the user presses play.
+    const handleVisibility = () => {
+      if (document.hidden) return;
+      requestAnimationFrame(() => {
+        try {
+          renderer.render({ scene: mesh });
+        } catch {
+          /* context lost — will recover on next live frame */
+        }
+      });
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
     return () => {
       cancelAnimationFrame(animateId);
       window.removeEventListener("resize", resize);
+      document.removeEventListener("visibilitychange", handleVisibility);
       if (mouseInteraction) {
         ctn.removeEventListener("mousemove", handleMouseMove);
         ctn.removeEventListener("mouseleave", handleMouseLeave);
