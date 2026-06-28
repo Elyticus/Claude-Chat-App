@@ -822,7 +822,7 @@ export function OrbitalHub({
           const mid = Math.ceil(shown.length / 2);
           const left = shown.slice(0, mid);
           const right = shown.slice(mid);
-          const STEP = 0.04;
+          const STEP = 0.028;
           return (
             <>
               {bottomMenuOpen &&

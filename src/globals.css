@@ -34,7 +34,7 @@
    AuroraField canvas swap in one pass. */
 ::view-transition-old(root),
 ::view-transition-new(root) {
-  animation-duration: 0.45s;
+  animation-duration: 0.3s;
   animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -271,7 +271,7 @@ input, textarea {
   from { opacity: 0; transform: translateX(14px) scale(0.6); }
   to   { opacity: 1; transform: translateX(0) scale(1); }
 }
-.animate-header-action { animation: headerActionIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-header-action { animation: headerActionIn 0.16s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
 /* Bottom hub menu — buttons fan out from the centre bubble: those to the left
    slide left, those to the right slide right, each starting near the centre.
@@ -285,8 +285,8 @@ input, textarea {
   from { opacity: 0; transform: translateX(-22px) scale(0.3); }
   to   { opacity: 1; transform: translateX(0) scale(1); }
 }
-.animate-fan-left  { animation: fanOutLeft 0.24s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
-.animate-fan-right { animation: fanOutRight 0.24s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+.animate-fan-left  { animation: fanOutLeft 0.18s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+.animate-fan-right { animation: fanOutRight 0.18s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
 
 /* Pause all CSS animations while the page is backgrounded (data-anim-paused
    set on <html> by ChatApp on visibilitychange=hidden). Prevents the one-frame

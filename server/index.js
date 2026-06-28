@@ -170,6 +170,10 @@ async function saveSystemMsg(roomId, actorId, text) {
 
 const io = new Server(httpServer, {
   cors: { origin: CLIENT_ORIGIN, credentials: true },
+  // Cap the socket frame size. Real events (messages, reactions, typing) are
+  // tiny and media is uploaded over REST, so 512 KB is generous while limiting a
+  // single-frame memory DoS (the default is 1 MB).
+  maxHttpBufferSize: 512 * 1024,
 });
 
 app.disable("x-powered-by");
@@ -206,6 +210,20 @@ app.use((req, res, next) => {
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 app.use(cors({ origin: CLIENT_ORIGIN, credentials: true }));
 app.use(express.json({ limit: "512kb" }));
+
+// Defense-in-depth ceiling across every API route — the per-surface limiters
+// below stay stricter for sensitive endpoints. Keyed on the real client IP when
+// TRUST_PROXY is set. Generous enough that normal use never hits it (the client
+// is socket-driven, not polling), strict enough to blunt scripted abuse of any
+// endpoint that lacks a dedicated limiter.
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 600,
+  message: { error: "Too many requests — slow down" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use("/api", apiLimiter);
 
 // ─── Rate limiters ────────────────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 import { Renderer, Program, Mesh, Color, Triangle } from "ogl";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, memo } from "react";
 import "./Galaxy.css";
 
 // Galaxy — animated WebGL starfield (React Bits, ogl). Used as the dark-mode
@@ -179,7 +179,7 @@ void main() {
 }
 `;
 
-export default function Galaxy({
+function Galaxy({
   focal = [0.5, 0.5],
   rotation = [1.0, 0.0],
   starSpeed = 0.5,
@@ -397,3 +397,7 @@ export default function Galaxy({
 
   return <div ref={ctnDom} className="galaxy-container" {...rest} />;
 }
+
+// Memoised: the hub re-renders ~30x/s to spin its bubbles. Props are stable
+// (settings object + booleans), so memo skips re-running this body each tick.
+export default memo(Galaxy);
