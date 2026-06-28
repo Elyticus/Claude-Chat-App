@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   ArrowLeft,
   Search,
@@ -8,6 +9,8 @@ import {
   Trash2,
   Lock,
   Sparkles,
+  MoreHorizontal,
+  X,
 } from "lucide-react";
 import { Avatar } from "../ui/Avatar.jsx";
 import { TypingIndicator } from "../ui/TypingIndicator.jsx";
@@ -40,6 +43,9 @@ export function ChatHeader({
   aiEnabled,
   onCatchUp,
 }) {
+  // The action buttons collapse behind a single menu toggle; opening it pops
+  // them out right→left.
+  const [menuOpen, setMenuOpen] = useState(false);
   const actions = [
     {
       icon: <Sparkles size={16} />,
@@ -176,59 +182,113 @@ export function ChatHeader({
         </div>
       </div>
 
-      {actions
-        .filter((b) => b.show)
-        .map((btn, i) => (
-          <button
-            key={i}
-            onClick={btn.onClick}
-            title={btn.title}
-            aria-label={btn.title}
-            className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all shrink-0"
-            style={{
-              background: btn.active
-                ? isDark
-                  ? "rgba(99,102,241,0.15)"
-                  : "rgba(99,102,241,0.1)"
-                : "transparent",
-              color: btn.active
-                ? isDark
-                  ? "#a5b4fc"
-                  : "#6366f1"
-                : isDark
-                  ? "rgba(238,242,255,0.4)"
-                  : "#94a3b8",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = btn.danger
-                ? "rgba(239,68,68,0.1)"
-                : isDark
+      {(() => {
+        const shown = actions.filter((b) => b.show);
+        return (
+          <>
+            {menuOpen &&
+              shown.map((btn, i) => (
+                <button
+                  key={i}
+                  onClick={btn.onClick}
+                  title={btn.title}
+                  aria-label={btn.title}
+                  className="animate-header-action w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all shrink-0"
+                  style={{
+                    // Rightmost button (nearest the toggle) animates first, so
+                    // the row appears to spill out right→left.
+                    animationDelay: `${(shown.length - 1 - i) * 0.04}s`,
+                    background: btn.active
+                      ? isDark
+                        ? "rgba(99,102,241,0.15)"
+                        : "rgba(99,102,241,0.1)"
+                      : "transparent",
+                    color: btn.active
+                      ? isDark
+                        ? "#a5b4fc"
+                        : "#6366f1"
+                      : isDark
+                        ? "rgba(238,242,255,0.4)"
+                        : "#94a3b8",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = btn.danger
+                      ? "rgba(239,68,68,0.1)"
+                      : isDark
+                        ? "rgba(99,102,241,0.1)"
+                        : "rgba(99,102,241,0.07)";
+                    e.currentTarget.style.color = btn.danger
+                      ? "#f87171"
+                      : isDark
+                        ? "#a5b4fc"
+                        : "#6366f1";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = btn.active
+                      ? isDark
+                        ? "rgba(99,102,241,0.15)"
+                        : "rgba(99,102,241,0.1)"
+                      : "transparent";
+                    e.currentTarget.style.color = btn.active
+                      ? isDark
+                        ? "#a5b4fc"
+                        : "#6366f1"
+                      : isDark
+                        ? "rgba(238,242,255,0.4)"
+                        : "#94a3b8";
+                  }}
+                >
+                  {btn.icon}
+                </button>
+              ))}
+
+            {/* Single wrapper toggle — collapses the action menu into one icon. */}
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              title={menuOpen ? "Close menu" : "Menu"}
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={menuOpen}
+              className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all shrink-0"
+              style={{
+                background: menuOpen
+                  ? isDark
+                    ? "rgba(99,102,241,0.15)"
+                    : "rgba(99,102,241,0.1)"
+                  : "transparent",
+                color: menuOpen
+                  ? isDark
+                    ? "#a5b4fc"
+                    : "#6366f1"
+                  : isDark
+                    ? "rgba(238,242,255,0.4)"
+                    : "#94a3b8",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = isDark
                   ? "rgba(99,102,241,0.1)"
                   : "rgba(99,102,241,0.07)";
-              e.currentTarget.style.color = btn.danger
-                ? "#f87171"
-                : isDark
-                  ? "#a5b4fc"
-                  : "#6366f1";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = btn.active
-                ? isDark
-                  ? "rgba(99,102,241,0.15)"
-                  : "rgba(99,102,241,0.1)"
-                : "transparent";
-              e.currentTarget.style.color = btn.active
-                ? isDark
-                  ? "#a5b4fc"
-                  : "#6366f1"
-                : isDark
-                  ? "rgba(238,242,255,0.4)"
-                  : "#94a3b8";
-            }}
-          >
-            {btn.icon}
-          </button>
-        ))}
+                e.currentTarget.style.color = isDark ? "#a5b4fc" : "#6366f1";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = menuOpen
+                  ? isDark
+                    ? "rgba(99,102,241,0.15)"
+                    : "rgba(99,102,241,0.1)"
+                  : "transparent";
+                e.currentTarget.style.color = menuOpen
+                  ? isDark
+                    ? "#a5b4fc"
+                    : "#6366f1"
+                  : isDark
+                    ? "rgba(238,242,255,0.4)"
+                    : "#94a3b8";
+              }}
+            >
+              {menuOpen ? <X size={18} /> : <MoreHorizontal size={18} />}
+            </button>
+          </>
+        );
+      })()}
     </div>
   );
 }
