@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { MessageCircle, Sun, Moon, Sparkles, Users, Search, Crown, Wand2, Play, Pause, Menu, X } from "lucide-react";
-import StarField from "./ui/star-field.jsx";
+import Orb from "./ui/Orb.jsx";
 import Galaxy from "./ui/Galaxy.jsx";
 import Lightfall from "./ui/Lightfall.jsx";
 import { AllChatsPanel } from "./AllChatsPanel.jsx";
@@ -32,6 +32,7 @@ export function OrbitalHub({
   canSearch = false,
   lightfallSettings,
   galaxySettings,
+  orbSettings,
   canCustomize = false,
   onOpenCustomize,
   onOpenPlans,
@@ -91,8 +92,8 @@ export function OrbitalHub({
   const [bottomMenuOpen, setBottomMenuOpen] = useState(false);
   const [nowMs] = useState(Date.now);
   // Background animation play/stop. Freezes only the animated background of the
-  // current mode (StarField for dark/light, Lightfall for special) — the orbit
-  // bubbles keep spinning. Persisted so the choice sticks across reloads.
+  // current mode (Orb for light, Galaxy for dark, Lightfall for special) — the
+  // orbit bubbles keep spinning. Persisted so the choice sticks across reloads.
   const [bgPaused, setBgPaused] = useState(
     () => localStorage.getItem("linkloop_bg_paused") === "1",
   );
@@ -276,7 +277,7 @@ export function OrbitalHub({
       accent: "indigo",
       onClick: onOpenCustomize,
       title: "Customize background",
-      show: canCustomize && isDark,
+      show: canCustomize,
       render: () => <Wand2 size={16} />,
     },
   ];
@@ -311,20 +312,21 @@ export function OrbitalHub({
       className="relative w-full h-dvh flex items-center justify-center overflow-hidden"
       style={{ background: bg0 }}
     >
-      {/* Background — one canvas per mode: Galaxy (dark), StarField sunrise
-          (light), Lightfall (special). All stay mounted and are cross-faded by
-          opacity so switching modes never tears down / re-inits a canvas
+      {/* Background — one canvas per mode: Galaxy (dark), Orb (light, white
+          background), Lightfall (special). All stay mounted and are cross-faded
+          by opacity so switching modes never tears down / re-inits a canvas
           mid-transition. Each is paused while it isn't the active mode (and via
           the bgPaused play/stop control) so only the visible one does work. No
           overlay text. */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {/* Light mode — StarField sunrise/clouds/birds */}
+        {/* Light mode — Orb on a white background */}
         <div
           className="absolute inset-0"
           style={{ opacity: !isDark && !isSpecial ? 1 : 0 }}
         >
-          <StarField
-            isDark={isDark}
+          <Orb
+            {...orbSettings}
+            backgroundColor="#ffffff"
             paused={bgPaused || isDark || isSpecial}
           />
         </div>
@@ -699,7 +701,7 @@ export function OrbitalHub({
             {/* Hover glow — mounted ONLY for the hovered node. A `filter: blur()`
                 element is promoted to its own GPU compositor layer; keeping one
                 per node permanently mounted (even at opacity 0) means N blurred
-                layers get re-composited every frame alongside the StarField rAF
+                layers get re-composited every frame alongside the background rAF
                 loop, which makes iOS standalone (home-screen) blink under load.
                 Mobile has no hover, so this is zero blur layers there. */}
             {hoveredId === room.id && (
@@ -835,8 +837,9 @@ export function OrbitalHub({
       </div>
 
       {/* Desktop-only Customize button — bottom-right, next to where its panel
-          opens. On mobile, Customize lives inside the bubble menu instead. */}
-      {canCustomize && isDark && (
+          opens. On mobile, Customize lives inside the bubble menu instead.
+          Available in every mode (orb/galaxy/lightfall). */}
+      {canCustomize && (
         <button
           onClick={onOpenCustomize}
           title="Customize background"
