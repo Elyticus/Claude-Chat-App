@@ -11,7 +11,7 @@ export function UpgradeModal({ currentPlan, reason, isDark, onSelect, onClose })
 
   return (
     <div
-      className="fixed inset-0 flex items-end sm:items-center justify-center p-3 sm:p-4"
+      className="fixed inset-0 flex items-center justify-center p-3 sm:p-4"
       style={{ zIndex: 700 }}
     >
       <div
