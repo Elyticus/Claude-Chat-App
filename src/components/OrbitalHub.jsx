@@ -258,7 +258,7 @@ export function OrbitalHub({
       title: "Friends",
       show: true,
       badge: friendBadge,
-      render: () => <Users size={16} />,
+      render: () => <Users size={18} />,
     },
     {
       key: "search",
@@ -266,7 +266,7 @@ export function OrbitalHub({
       onClick: onOpenSearch,
       title: "Search messages",
       show: canSearch,
-      render: () => <Search size={16} />,
+      render: () => <Search size={18} />,
     },
     {
       key: "plans",
@@ -274,7 +274,7 @@ export function OrbitalHub({
       onClick: onOpenPlans,
       title: "Plans & pricing",
       show: !!onOpenPlans,
-      render: () => <Crown size={16} />,
+      render: () => <Crown size={18} />,
     },
     {
       // Lite only — for Pro the special toggle stays in the top-right bar. On
@@ -285,7 +285,7 @@ export function OrbitalHub({
       onClick: onToggleSpecial,
       title: isSpecial ? "Exit special mode" : "Special mode",
       show: isLite,
-      render: () => <Sparkles size={16} />,
+      render: () => <Sparkles size={18} />,
     },
     {
       key: "customize",
@@ -293,7 +293,7 @@ export function OrbitalHub({
       onClick: onOpenCustomize,
       title: "Customize background",
       show: canCustomize,
-      render: () => <Wand2 size={16} />,
+      render: () => <Wand2 size={18} />,
     },
   ];
 
@@ -303,7 +303,7 @@ export function OrbitalHub({
       onClick={item.onClick}
       title={item.title}
       aria-label={item.title}
-      className={`${animClass} relative w-11 h-11 rounded-full flex items-center justify-center overflow-visible transition-transform hover:scale-105 active:scale-95 shrink-0`}
+      className={`${animClass} relative w-13 h-13 rounded-full flex items-center justify-center overflow-visible transition-transform hover:scale-105 active:scale-95 shrink-0`}
       style={{ animationDelay: `${delay}s`, ...(item.bare ? {} : chipStyle(item.accent)) }}
     >
       {item.render()}
@@ -412,7 +412,7 @@ export function OrbitalHub({
               <Avatar
                 userId={currentUser.id}
                 username={currentUser.username}
-                size={42}
+                size={48}
                 avatar={myAvatar}
               />
               <span
@@ -451,20 +451,20 @@ export function OrbitalHub({
               // Lite users get special in the bottom bubble on mobile, so hide
               // this top button for them on mobile (still shown on desktop where
               // there's no bubble). Pro keeps it on top everywhere.
-              className={`${isLite ? "hidden sm:flex" : "flex"} w-9 h-9 sm:w-11 sm:h-11 rounded-full items-center justify-center transition-all hover:scale-105 active:scale-95`}
+              className={`${isLite ? "hidden sm:flex" : "flex"} w-11 h-11 sm:w-13 sm:h-13 rounded-full items-center justify-center transition-all hover:scale-105 active:scale-95`}
               style={chipStyle("teal")}
             >
-              <Sparkles size={16} />
+              <Sparkles size={18} />
             </button>
           )}
           <button
             onClick={onToggleTheme}
             title={baseIsDark ? "Light mode" : "Dark mode"}
             aria-label={baseIsDark ? "Switch to light mode" : "Switch to dark mode"}
-            className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+            className="w-11 h-11 sm:w-13 sm:h-13 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
             style={chipStyle("indigo")}
           >
-            {baseIsDark ? <Sun size={16} /> : <Moon size={16} />}
+            {baseIsDark ? <Sun size={18} /> : <Moon size={18} />}
           </button>
           <button
             onClick={toggleBgPaused}
@@ -473,10 +473,10 @@ export function OrbitalHub({
               bgPaused ? "Play background animation" : "Stop background animation"
             }
             aria-pressed={bgPaused}
-            className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+            className="w-11 h-11 sm:w-13 sm:h-13 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
             style={chipStyle("indigo")}
           >
-            {bgPaused ? <Play size={16} /> : <Pause size={16} />}
+            {bgPaused ? <Play size={18} /> : <Pause size={18} />}
           </button>
         </div>
       </div>
@@ -838,14 +838,14 @@ export function OrbitalHub({
                 aria-expanded={bottomMenuOpen}
                 aria-label={bottomMenuOpen ? "Close menu" : "Open menu"}
                 title={bottomMenuOpen ? "Close menu" : "Menu"}
-                className="w-14 h-14 rounded-full flex items-center justify-center transition-transform hover:scale-105 active:scale-95 shrink-0"
+                className="w-16 h-16 rounded-full flex items-center justify-center transition-transform hover:scale-105 active:scale-95 shrink-0"
                 style={{
                   background: "linear-gradient(145deg, #9f7aea, #6366f1, #3b82f6)",
                   color: "#fff",
                   boxShadow: "0 6px 20px rgba(99,102,241,0.5)",
                 }}
               >
-                {bottomMenuOpen ? <X size={22} /> : <Menu size={22} />}
+                {bottomMenuOpen ? <X size={26} /> : <Menu size={26} />}
               </button>
               {bottomMenuOpen &&
                 right.map((item, k) =>
@@ -864,7 +864,7 @@ export function OrbitalHub({
           onClick={onOpenCustomize}
           title="Customize background"
           aria-label="Customize background"
-          className="hidden sm:flex absolute bottom-6 right-6 z-30 w-12 h-12 rounded-full items-center justify-center transition-transform hover:scale-105 active:scale-95"
+          className="hidden sm:flex absolute bottom-6 right-6 z-30 w-13 h-13 rounded-full items-center justify-center transition-transform hover:scale-105 active:scale-95"
           style={chipStyle("indigo")}
         >
           <Wand2 size={18} />
