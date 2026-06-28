@@ -239,19 +239,33 @@ export function useChatSocket({
       }
     });
 
-    s.on("room:member_left", ({ roomId, username }) => {
+    s.on("room:member_left", ({ roomId, username, systemMessage }) => {
+      // systemMessage is supplied when a member is *removed* (e.g. by the group
+      // owner on unfriend) so the text is accurate; a plain self-leave omits it
+      // and falls back to "X left the group".
+      const msg = systemMessage ?? {
+        id: `sys_${Date.now()}`,
+        text: `${username} left the group`,
+        system: true,
+        created_at: Math.floor(Date.now() / 1000),
+      };
       setMessages((prev) => ({
         ...prev,
-        [roomId]: [
-          ...(prev[roomId] || []),
-          {
-            id: `sys_${Date.now()}`,
-            text: `${username} left the group`,
-            system: true,
-            created_at: Math.floor(Date.now() / 1000),
-          },
-        ],
+        [roomId]: [...(prev[roomId] || []), msg],
       }));
+      // Keep an open members panel in sync (someone left/was removed).
+      setGroupMembersPanel((prev) => {
+        if (prev?.roomId !== roomId) return prev;
+        api
+          .getRoomMembers(roomId)
+          .then((members) =>
+            setGroupMembersPanel((cur) =>
+              cur?.roomId === roomId ? { ...cur, members } : cur,
+            ),
+          )
+          .catch(console.error);
+        return prev;
+      });
     });
 
     // Someone was added to a group this user is already in — append the system
