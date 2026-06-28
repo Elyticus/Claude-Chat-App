@@ -207,7 +207,7 @@ export function ChatHeader({
                   style={{
                     // Rightmost button (nearest the toggle) animates first, so
                     // the row appears to spill out right→left.
-                    animationDelay: `${(shown.length - 1 - i) * 0.04}s`,
+                    animationDelay: `${(shown.length - 1 - i) * 0.028}s`,
                     background: btn.active
                       ? isDark
                         ? "rgba(99,102,241,0.15)"

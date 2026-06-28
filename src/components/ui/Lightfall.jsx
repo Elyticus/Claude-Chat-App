@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, memo } from 'react';
 import { Renderer, Program, Mesh, Triangle } from 'ogl';
 import './Lightfall.css';
 
@@ -407,4 +407,6 @@ const Lightfall = ({
   );
 };
 
-export default Lightfall;
+// Memoised: the hub re-renders ~30x/s to spin its bubbles; stable props mean
+// memo skips re-running this body each tick.
+export default memo(Lightfall);

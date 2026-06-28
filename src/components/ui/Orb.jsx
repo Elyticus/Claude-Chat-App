@@ -1,5 +1,5 @@
 import { Mesh, Program, Renderer, Triangle, Vec3 } from "ogl";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, memo } from "react";
 import "./Orb.css";
 
 // Orb — animated WebGL orb (React Bits, ogl). Used as the light-mode hub
@@ -231,7 +231,7 @@ function hexToVec3(color) {
   return new Vec3(0, 0, 0);
 }
 
-export default function Orb({
+function Orb({
   hue = 0,
   hoverIntensity = 0.2,
   rotateOnHover = true,
@@ -383,3 +383,7 @@ export default function Orb({
 
   return <div ref={ctnDom} className="orb-container" />;
 }
+
+// Memoised: the hub re-renders ~30x/s to spin its bubbles; stable props mean
+// memo skips re-running this body each tick.
+export default memo(Orb);
