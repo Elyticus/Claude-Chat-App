@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { MessageCircle, Sun, Moon, Sparkles, Users, Search, Crown, Wand2, Play, Pause } from "lucide-react";
+import { MessageCircle, Sun, Moon, Sparkles, Users, Search, Crown, Wand2, Play, Pause, Menu, X } from "lucide-react";
 import StarField from "./ui/star-field.jsx";
 import Galaxy from "./ui/Galaxy.jsx";
 import Lightfall from "./ui/Lightfall.jsx";
@@ -86,6 +86,9 @@ export function OrbitalHub({
   const containerRef = useRef(null);
   const angleRef = useRef(0);
   const [showContactsList, setShowContactsList] = useState(false);
+  // Bottom hub menu: all the control buttons collapse into one centre bubble and
+  // fan out left/right when opened.
+  const [bottomMenuOpen, setBottomMenuOpen] = useState(false);
   const [nowMs] = useState(Date.now);
   // Background animation play/stop. Freezes only the animated background of the
   // current mode (StarField for dark/light, Lightfall for special) — the orbit
@@ -210,6 +213,137 @@ export function OrbitalHub({
     [unreadCounts],
   );
 
+  // Themed chip style for a bottom-menu button by accent colour.
+  const chipStyle = (accent) => {
+    if (isSpecial) {
+      const map = { gold: "#ca8a04", teal: "#0d9488" };
+      return specialChip(map[accent] || "#4f46e5");
+    }
+    if (accent === "gold") {
+      return {
+        background: isDark ? "rgba(234,179,8,0.12)" : "rgba(234,179,8,0.1)",
+        border: `1px solid ${isDark ? "rgba(250,204,21,0.34)" : "rgba(202,138,4,0.26)"}`,
+        color: isDark ? "#facc15" : "#ca8a04",
+        boxShadow: isDark ? "0 0 10px rgba(234,179,8,0.14)" : "0 2px 8px rgba(234,179,8,0.12)",
+      };
+    }
+    if (accent === "teal") {
+      return {
+        background: isDark ? "rgba(45,212,191,0.10)" : "rgba(13,148,136,0.08)",
+        border: `1px solid ${isDark ? "rgba(45,212,191,0.28)" : "rgba(13,148,136,0.22)"}`,
+        color: isDark ? "#2dd4bf" : "#0d9488",
+        boxShadow: isDark ? "0 0 10px rgba(45,212,191,0.12)" : "0 2px 8px rgba(13,148,136,0.10)",
+      };
+    }
+    return {
+      background: isDark ? "rgba(99,102,241,0.12)" : "rgba(99,102,241,0.08)",
+      border: `1px solid ${isDark ? "rgba(129,140,248,0.32)" : "rgba(99,102,241,0.24)"}`,
+      color: isDark ? "#a5b4fc" : "#4f46e5",
+      boxShadow: isDark ? "0 0 10px rgba(99,102,241,0.14)" : "0 2px 8px rgba(99,102,241,0.1)",
+    };
+  };
+
+  // Every hub control, in left→right order; the centre bubble splits the shown
+  // ones into a left and a right half. `bare` items (the avatar) skip the chip.
+  const menuItems = [
+    {
+      key: "account",
+      onClick: onOpenAccount,
+      title: "Your profile",
+      show: true,
+      bare: true,
+      render: () => (
+        <Avatar
+          userId={currentUser.id}
+          username={currentUser.username}
+          size={44}
+          avatar={myAvatar}
+        />
+      ),
+    },
+    {
+      key: "friends",
+      accent: "indigo",
+      onClick: onOpenFriends,
+      title: "Friends",
+      show: true,
+      badge: friendBadge,
+      render: () => <Users size={16} />,
+    },
+    {
+      key: "search",
+      accent: "indigo",
+      onClick: onOpenSearch,
+      title: "Search messages",
+      show: canSearch,
+      render: () => <Search size={16} />,
+    },
+    {
+      key: "plans",
+      accent: "gold",
+      onClick: onOpenPlans,
+      title: "Plans & pricing",
+      show: !!onOpenPlans,
+      render: () => <Crown size={16} />,
+    },
+    {
+      key: "special",
+      accent: "teal",
+      onClick: onToggleSpecial,
+      title: isSpecial ? "Exit special mode" : "Special mode",
+      show: canSpecial,
+      render: () => <Sparkles size={16} />,
+    },
+    {
+      key: "theme",
+      accent: "indigo",
+      onClick: onToggleTheme,
+      title: baseIsDark ? "Light mode" : "Dark mode",
+      show: true,
+      render: () => (baseIsDark ? <Sun size={16} /> : <Moon size={16} />),
+    },
+    {
+      key: "bg",
+      accent: "indigo",
+      onClick: toggleBgPaused,
+      title: bgPaused ? "Play background animation" : "Stop background animation",
+      show: true,
+      render: () => (bgPaused ? <Play size={16} /> : <Pause size={16} />),
+    },
+    {
+      key: "customize",
+      accent: "indigo",
+      onClick: onOpenCustomize,
+      title: "Customize background",
+      show: canCustomize && isDark,
+      render: () => <Wand2 size={16} />,
+    },
+  ];
+
+  const renderMenuButton = (item, animClass, delay) => (
+    <button
+      key={item.key}
+      onClick={item.onClick}
+      title={item.title}
+      aria-label={item.title}
+      className={`${animClass} relative w-11 h-11 rounded-full flex items-center justify-center overflow-visible transition-transform hover:scale-105 active:scale-95 shrink-0`}
+      style={{ animationDelay: `${delay}s`, ...(item.bare ? {} : chipStyle(item.accent)) }}
+    >
+      {item.render()}
+      {item.badge > 0 && (
+        <span
+          className="absolute -top-1 -right-1 min-w-4 h-4 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1"
+          style={{
+            background: "linear-gradient(135deg,#ef4444,#dc2626)",
+            boxShadow: "0 2px 6px rgba(239,68,68,0.5)",
+          }}
+        >
+          {item.badge > 9 ? "9+" : item.badge}
+        </span>
+      )}
+    </button>
+  );
+
   return (
     <div
       ref={containerRef}
@@ -286,195 +420,7 @@ export function OrbitalHub({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-          <button
-            onClick={onOpenAccount}
-            title="Your profile"
-            aria-label="Your profile"
-            className="flex items-center gap-2 rounded-full focus:outline-none group cursor-pointer"
-          >
-            <div className="relative">
-              <Avatar
-                userId={currentUser.id}
-                username={currentUser.username}
-                size={42}
-                avatar={myAvatar}
-              />
-              <span
-                className="absolute inset-0 rounded-full flex items-center justify-center transition-all"
-                style={{ background: "rgba(0,0,0,0)" }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "rgba(0,0,0,0.35)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "rgba(0,0,0,0)")
-                }
-              />
-            </div>
-            <span
-              className="text-sm font-semibold hidden sm:block"
-              style={{ color: textStrong, textShadow: textStrongShadow }}
-            >
-              {currentUser.username}
-            </span>
-          </button>
-          <button
-            onClick={onOpenFriends}
-            title="Friends"
-            aria-label="Friends"
-            className="relative w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-            style={
-              isSpecial
-                ? specialChip("#4f46e5")
-                : {
-                    background: isDark
-                      ? "rgba(99,102,241,0.12)"
-                      : "rgba(99,102,241,0.08)",
-                    border: `1px solid ${isDark ? "rgba(129,140,248,0.32)" : "rgba(99,102,241,0.24)"}`,
-                    color: isDark ? "#a5b4fc" : "#4f46e5",
-                    boxShadow: isDark
-                      ? "0 0 10px rgba(99,102,241,0.14)"
-                      : "0 2px 8px rgba(99,102,241,0.1)",
-                  }
-            }
-          >
-            <Users size={16} />
-            {/* Friend activity — incoming requests + accepted/declined
-                confirmations, all surfaced inside the Friends modal. */}
-            {friendBadge > 0 && (
-              <span
-                className="absolute -top-1 -right-1 min-w-4 h-4 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1"
-                style={{
-                  background: "linear-gradient(135deg,#ef4444,#dc2626)",
-                  boxShadow: "0 2px 6px rgba(239,68,68,0.5)",
-                }}
-                aria-label={`${friendBadge} friend notification${friendBadge === 1 ? "" : "s"}`}
-              >
-                {friendBadge > 9 ? "9+" : friendBadge}
-              </span>
-            )}
-          </button>
-          {canSearch && (
-            <button
-              onClick={onOpenSearch}
-              title="Search messages"
-              aria-label="Search messages"
-              className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-              style={
-                isSpecial
-                  ? specialChip("#4f46e5")
-                  : {
-                      background: isDark ? "rgba(99,102,241,0.12)" : "rgba(99,102,241,0.08)",
-                      border: `1px solid ${isDark ? "rgba(129,140,248,0.32)" : "rgba(99,102,241,0.24)"}`,
-                      color: isDark ? "#a5b4fc" : "#4f46e5",
-                      boxShadow: isDark
-                        ? "0 0 10px rgba(99,102,241,0.14)"
-                        : "0 2px 8px rgba(99,102,241,0.1)",
-                    }
-              }
-            >
-              <Search size={16} />
-            </button>
-          )}
-          {onOpenPlans && (
-            <button
-              onClick={onOpenPlans}
-              title="Plans & pricing"
-              aria-label="View plans and pricing"
-              className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-              style={
-                isSpecial
-                  ? specialChip("#ca8a04")
-                  : {
-                      background: isDark ? "rgba(234,179,8,0.12)" : "rgba(234,179,8,0.1)",
-                      border: `1px solid ${isDark ? "rgba(250,204,21,0.34)" : "rgba(202,138,4,0.26)"}`,
-                      color: isDark ? "#facc15" : "#ca8a04",
-                      boxShadow: isDark
-                        ? "0 0 10px rgba(234,179,8,0.14)"
-                        : "0 2px 8px rgba(234,179,8,0.12)",
-                    }
-              }
-            >
-              <Crown size={16} />
-            </button>
-          )}
-          {canSpecial && (
-            <button
-              onClick={onToggleSpecial}
-              title={isSpecial ? "Exit special mode" : "Special mode"}
-              aria-label={isSpecial ? "Exit special mode" : "Switch to special mode"}
-              className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-              style={
-                isSpecial
-                  ? specialChip("#0d9488")
-                  : {
-                      background: isDark
-                        ? "rgba(45,212,191,0.10)"
-                        : "rgba(13,148,136,0.08)",
-                      border: `1px solid ${isDark ? "rgba(45,212,191,0.28)" : "rgba(13,148,136,0.22)"}`,
-                      color: isDark ? "#2dd4bf" : "#0d9488",
-                      boxShadow: isDark
-                        ? "0 0 10px rgba(45,212,191,0.12)"
-                        : "0 2px 8px rgba(13,148,136,0.10)",
-                    }
-              }
-            >
-              <Sparkles size={16} />
-            </button>
-          )}
-          <button
-            onClick={onToggleTheme}
-            title={baseIsDark ? "Light mode" : "Dark mode"}
-            aria-label={baseIsDark ? "Switch to light mode" : "Switch to dark mode"}
-            className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-            style={
-              isSpecial
-                ? specialChip("#4f46e5")
-                : {
-                    background: isDark
-                      ? "rgba(129,140,248,0.14)"
-                      : "rgba(99,102,241,0.10)",
-                    border: `1px solid ${isDark ? "rgba(129,140,248,0.35)" : "rgba(99,102,241,0.28)"}`,
-                    color: isDark ? "#a5b4fc" : "#4f46e5",
-                    boxShadow: isDark
-                      ? "0 0 12px rgba(129,140,248,0.2)"
-                      : "0 2px 8px rgba(99,102,241,0.12)",
-                  }
-            }
-          >
-            {baseIsDark ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
-        </div>
       </div>
-
-      {/* Background animation play/stop — fixed bottom-left. Freezes only the
-          current mode's animated background (StarField / Lightfall); the orbit
-          bubbles keep spinning. */}
-      <button
-        onClick={toggleBgPaused}
-        title={bgPaused ? "Play background animation" : "Stop background animation"}
-        aria-label={
-          bgPaused ? "Play background animation" : "Stop background animation"
-        }
-        aria-pressed={bgPaused}
-        className="absolute left-3 sm:left-6 bottom-6 z-30 w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-        style={
-          isSpecial
-            ? specialChip("#4f46e5")
-            : {
-                background: isDark
-                  ? "rgba(129,140,248,0.14)"
-                  : "rgba(99,102,241,0.10)",
-                border: `1px solid ${isDark ? "rgba(129,140,248,0.35)" : "rgba(99,102,241,0.28)"}`,
-                color: isDark ? "#a5b4fc" : "#4f46e5",
-                boxShadow: isDark
-                  ? "0 0 12px rgba(129,140,248,0.2)"
-                  : "0 2px 8px rgba(99,102,241,0.12)",
-              }
-        }
-      >
-        {bgPaused ? <Play size={16} /> : <Pause size={16} />}
-      </button>
 
       {/* Outer orbit ring */}
       <div
@@ -808,43 +754,47 @@ export function OrbitalHub({
         );
       })}
 
-      {/* Mobile-only Customize button — fixed bottom-right. Shown in special
-          mode (Lightfall) and dark mode (Galaxy); light mode has no tunable
-          background. Opens the matching panel (ChatApp picks by mode). */}
-      {canCustomize && isDark && (
-        <button
-          onClick={onOpenCustomize}
-          title="Customize background"
-          aria-label={
-            isSpecial
-              ? "Customize the Special-mode background"
-              : "Customize the dark-mode background"
-          }
-          className="sm:hidden"
-          style={{
-            display: "flex",
-            position: "fixed",
-            bottom: 24,
-            right: 24,
-            width: 56,
-            height: 56,
-            borderRadius: "50%",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 30,
-            ...(isSpecial
-              ? specialChip("#0d9488")
-              : {
-                  background: "rgba(129,140,248,0.14)",
-                  border: "1px solid rgba(129,140,248,0.35)",
-                  color: "#a5b4fc",
-                  boxShadow: "0 0 12px rgba(129,140,248,0.2)",
-                }),
-          }}
-        >
-          <Wand2 size={22} />
-        </button>
-      )}
+      {/* Bottom hub menu — every control collapsed into one centre bubble; tap
+          to fan the buttons out left/right from the centre. */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center gap-1.5 sm:gap-2 px-2 max-w-full">
+        {(() => {
+          const shown = menuItems.filter((i) => i.show);
+          const mid = Math.ceil(shown.length / 2);
+          const left = shown.slice(0, mid);
+          const right = shown.slice(mid);
+          const STEP = 0.04;
+          return (
+            <>
+              {bottomMenuOpen &&
+                left.map((item, j) =>
+                  renderMenuButton(
+                    item,
+                    "animate-fan-left",
+                    (left.length - 1 - j) * STEP,
+                  ),
+                )}
+              <button
+                onClick={() => setBottomMenuOpen((v) => !v)}
+                aria-expanded={bottomMenuOpen}
+                aria-label={bottomMenuOpen ? "Close menu" : "Open menu"}
+                title={bottomMenuOpen ? "Close menu" : "Menu"}
+                className="w-14 h-14 rounded-full flex items-center justify-center transition-transform hover:scale-105 active:scale-95 shrink-0"
+                style={{
+                  background: "linear-gradient(145deg, #9f7aea, #6366f1, #3b82f6)",
+                  color: "#fff",
+                  boxShadow: "0 6px 20px rgba(99,102,241,0.5)",
+                }}
+              >
+                {bottomMenuOpen ? <X size={22} /> : <Menu size={22} />}
+              </button>
+              {bottomMenuOpen &&
+                right.map((item, k) =>
+                  renderMenuButton(item, "animate-fan-right", k * STEP),
+                )}
+            </>
+          );
+        })()}
+      </div>
 
       {/* All-chats bottom panel */}
       {showContactsList && (
