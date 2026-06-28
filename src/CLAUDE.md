@@ -30,7 +30,7 @@ src/
 │   ├── FriendsModal.jsx         # Friends list + incoming requests (own surface, opened from the hub)
 │   ├── GroupMembersPanel.jsx    # Member list; each row opens UserProfileModal
 │   ├── NewChatModal.jsx         # Group / channel creation + Find (add friends)
-│   ├── OrbitalHub.jsx           # Full-screen radial orbital canvas (room nodes) — renders AllChatsPanel. All controls (account, friends, search, plans, special, theme, bg play/stop, customize) live in one bottom-centre bubble that fans them out left/right when tapped (menuItems + renderMenuButton; .animate-fan-left/right)
+│   ├── OrbitalHub.jsx           # Full-screen radial orbital canvas (room nodes) — renders AllChatsPanel. Top-right keeps profile + special-mode + light/dark toggle; the rest (friends, search, plans, bg play/stop, customize) live in one bottom-centre bubble that fans them out left/right when tapped (menuItems + renderMenuButton; .animate-fan-left/right)
 │   ├── UserProfileModal.jsx     # User profile sheet — all per-user actions live here
 │   ├── chat/                    # ChatApp's chat-panel render pieces
 │   │   ├── ChatBackdrop.jsx         # Static per-room-type faint geometric pattern; rendered in ChatPanel behind the WHOLE chat box (zIndex -1 under the isolate:isolate column) so it spans header→messages→composer (bars are translucent via withAlpha). dm=rose diamond lattice, group=amber chevrons, channel=emerald diagonal crosshatch. Tiled <pattern> + full-size <rect>. No CSS filter/transform/animation (caret-blink/perf safe)
