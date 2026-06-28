@@ -119,7 +119,7 @@ export function SearchModal({ isDark, onClose, onOpenRoom, onGateError, roomName
           />
           {loading && <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse shrink-0" />}
           <button onClick={onClose} aria-label="Close" className="shrink-0" style={{ color: subColor }}>
-            <X size={16} />
+            <X size={22} />
           </button>
         </div>
 

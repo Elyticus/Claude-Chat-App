@@ -76,7 +76,7 @@ export function CheckoutModal({ plan, price, isDark, onPay, onClose }) {
           className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center disabled:opacity-40"
           style={{ color: subColor }}
         >
-          <X size={18} />
+          <X size={22} />
         </button>
 
         <div className="flex items-center gap-2 mb-1" style={{ color: headerColor }}>

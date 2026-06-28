@@ -117,7 +117,7 @@ export function GroupMembersPanel({
               className="w-9 h-9 rounded-full flex items-center justify-center transition-all"
               style={btnBase}
             >
-              <X size={16} />
+              <X size={22} />
             </button>
           </div>
         </div>

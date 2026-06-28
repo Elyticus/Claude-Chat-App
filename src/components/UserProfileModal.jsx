@@ -279,7 +279,7 @@ export function UserProfileModal({
           className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full flex items-center justify-center transition-all"
           style={{ color: isDark ? "rgba(238,242,255,0.45)" : "#64748b" }}
         >
-          <X size={16} />
+          <X size={22} />
         </button>
 
         {/* Identity */}

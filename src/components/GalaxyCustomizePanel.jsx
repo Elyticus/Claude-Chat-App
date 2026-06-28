@@ -103,7 +103,7 @@ export function GalaxyCustomizePanel({ settings, onChange, onReset, onClose, isD
           className="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
           style={{ color: isDark ? "rgba(238,242,255,0.6)" : "#94a3b8" }}
         >
-          <X size={16} />
+          <X size={20} />
         </button>
       </div>
 

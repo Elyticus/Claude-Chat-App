@@ -85,7 +85,7 @@ export function EditChannelModal({
             className="w-9 h-9 rounded-full flex items-center justify-center"
             style={{ color: isDark ? "rgba(238,242,255,0.4)" : "#64748b" }}
           >
-            <X size={16} />
+            <X size={22} />
           </button>
         </div>
         <div className="px-5 py-4 space-y-3">
