@@ -273,6 +273,21 @@ input, textarea {
 }
 .animate-header-action { animation: headerActionIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
+/* Bottom hub menu — buttons fan out from the centre bubble: those to the left
+   slide left, those to the right slide right, each starting near the centre.
+   `backwards` fill keeps them hidden during their stagger delay but lets the
+   resting transform return afterwards so hover/active scaling still works. */
+@keyframes fanOutLeft {
+  from { opacity: 0; transform: translateX(22px) scale(0.3); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+@keyframes fanOutRight {
+  from { opacity: 0; transform: translateX(-22px) scale(0.3); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+.animate-fan-left  { animation: fanOutLeft 0.24s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+.animate-fan-right { animation: fanOutRight 0.24s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+
 /* Pause all CSS animations while the page is backgrounded (data-anim-paused
    set on <html> by ChatApp on visibilitychange=hidden). Prevents the one-frame
    flash-to-initial-keyframe that iOS Safari can show when resuming animations
