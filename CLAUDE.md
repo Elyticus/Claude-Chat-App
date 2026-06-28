@@ -191,6 +191,24 @@ fixes already made; reintroducing the old patterns will rebreak the app.
   ("X joined/left the channel") are channel history and DO still render for
   everyone — that is separate from the activity badge.
 
+### Notifications that are socket-only MUST be recoverable from server state
+
+- The "Channel Activity" list and the "You're now friends with X" banner used
+  to be created **only** from live socket events and kept in per-device
+  localStorage. On mobile the socket is frequently suspended, so those events
+  were missed and — with no server-authoritative source to rebuild from — never
+  appeared (even after reload), while desktop worked. Fix: rebuild them during
+  the normal sync. `syncRooms` re-derives Channel Activity from the persisted
+  room flags (`is_new` = added to a channel, `role_notification` = role change),
+  deduped per `${roomId}|${type}` so it never doubles a live notif; a
+  self-correcting dismissed set (`linkloop_channel_activity_dismissed`, pruned to
+  keys whose flag is still set) keeps "Clear all" sticky without hiding genuinely
+  new activity. `syncPresence` re-derives the friend-accepted banner by diffing a
+  persisted set of our outgoing requests (`linkloop_pending_sent`) against the
+  latest `contact_status`, deduped by message. Rule: any user-facing
+  notification driven by a live socket event needs a server-state fallback on
+  sync, or it will silently never show on mobile.
+
 ## Tech Stack
 
 | Layer     | Technology                                           |

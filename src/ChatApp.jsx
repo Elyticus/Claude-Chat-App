@@ -33,6 +33,79 @@ import {
 } from "./lib/constants.js";
 import { loadLightfall, saveLightfall, LIGHTFALL_DEFAULTS } from "./lib/lightfall.js";
 import { loadGalaxy, saveGalaxy, GALAXY_DEFAULTS } from "./lib/galaxy.js";
+import { isChannel } from "./lib/room-helpers.js";
+
+// Detect friend requests WE sent that have since been accepted, by diffing the
+// persisted set of our outgoing (pending_sent) requests against the latest users
+// list. This recovers the "You're now friends with X" banner on mobile, where
+// the live contact:accepted socket event is often missed (suspended socket) and
+// there is no server-side notification to rebuild from. Deduped by message
+// against the persisted banners so it never doubles the live one on desktop.
+function recoverFriendAccepts(users, addFriendNotif) {
+  let prevSent = [];
+  try {
+    prevSent = JSON.parse(localStorage.getItem("linkloop_pending_sent") || "[]");
+  } catch {
+    /* ignore */
+  }
+  const prevSentSet = new Set(prevSent);
+  let existing = [];
+  try {
+    existing = JSON.parse(
+      localStorage.getItem("linkloop_friend_notifs") || "[]",
+    ).map((n) => n.message);
+  } catch {
+    /* ignore */
+  }
+  const existingMsgs = new Set(existing);
+  const currentSent = [];
+  for (const u of users) {
+    if (u.contact_status === "pending_sent") currentSent.push(u.id);
+    if (prevSentSet.has(u.id) && u.contact_status === "accepted") {
+      const msg = `You're now friends with ${u.username}`;
+      if (!existingMsgs.has(msg)) {
+        addFriendNotif(msg, "accepted");
+        existingMsgs.add(msg);
+      }
+    }
+  }
+  try {
+    localStorage.setItem("linkloop_pending_sent", JSON.stringify(currentSent));
+  } catch {
+    /* ignore */
+  }
+}
+
+// The `${roomId}|${type}` activity keys currently flagged unseen on the server
+// (added to a channel / role change). Used to rebuild the Channel Activity list
+// from server state and to drive dismissal.
+function channelActivityKeys(rooms) {
+  const keys = [];
+  for (const r of rooms) {
+    if (!isChannel(r)) continue;
+    if (r.is_new) keys.push(`${r.id}|added`);
+    if (r.role_notification) keys.push(`${r.id}|role`);
+  }
+  return keys;
+}
+
+const ACTIVITY_DISMISSED_KEY = "linkloop_channel_activity_dismissed";
+
+function loadDismissedActivity() {
+  try {
+    return JSON.parse(localStorage.getItem(ACTIVITY_DISMISSED_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveDismissedActivity(keys) {
+  try {
+    localStorage.setItem(ACTIVITY_DISMISSED_KEY, JSON.stringify(keys));
+  } catch {
+    /* ignore */
+  }
+}
 
 export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) {
   const billing = useBilling({ currentUser, onUserUpdate });
@@ -356,14 +429,67 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
           }
           return next;
         });
-        // Prune persisted notifications whose room no longer exists — covers
-        // rooms deleted while this user was offline (no room:deleted event).
+        // Rebuild channel-activity notifs from the server-persisted room flags
+        // (is_new = added to a channel, role_notification = role change). These
+        // notifs are otherwise created only from live socket events and kept in
+        // per-device localStorage, so on mobile — where the socket is often
+        // suspended — they were missed and never recoverable. Deriving them here
+        // makes the "Channel Activity" list appear after a sync/reload too.
+        // Deterministic per-(room,type) dedup avoids duplicating a live notif.
         const roomIds = new Set(loadedRooms.map((r) => r.id));
+        // Self-correcting dismissal: keep only dismissals whose activity is
+        // still flagged on the server. Once a channel is opened (or otherwise
+        // seen), the server clears its flag, the key drops out here, and any
+        // genuinely-new future activity on that channel surfaces again.
+        const activeKeys = new Set(channelActivityKeys(loadedRooms));
+        const dismissed = new Set(
+          loadDismissedActivity().filter((k) => activeKeys.has(k)),
+        );
+        saveDismissedActivity([...dismissed]);
+        const serverActivity = [];
+        for (const r of loadedRooms) {
+          if (!isChannel(r)) continue;
+          const label = r.name ? `#${r.name}` : `#${r.slug}`;
+          if (r.is_new && !dismissed.has(`${r.id}|added`)) {
+            serverActivity.push({
+              id: `srv-added-${r.id}`,
+              message: r.added_by
+                ? `You were added to ${label} by ${r.added_by}`
+                : `You were added to ${label}`,
+              type: "added",
+              roomId: r.id,
+              ts: r.last_message_at ? r.last_message_at * 1000 : Date.now(),
+            });
+          }
+          if (r.role_notification && !dismissed.has(`${r.id}|role`)) {
+            serverActivity.push({
+              id: `srv-role-${r.id}`,
+              message: r.role_notification,
+              type: "role",
+              roomId: r.id,
+              ts: r.last_message_at ? r.last_message_at * 1000 : Date.now(),
+            });
+          }
+        }
         setChannelNotifs((prev) => {
-          const next = prev.filter(
+          // Prune notifs whose room is gone (covers rooms deleted while offline).
+          const pruned = prev.filter(
             (n) => n.roomId == null || roomIds.has(n.roomId),
           );
-          if (next.length === prev.length) return prev;
+          // One notif per (room, type): skip server-derived items already
+          // represented (e.g. by the live socket notif on desktop).
+          const seen = new Set(
+            pruned
+              .filter((n) => n.roomId != null)
+              .map((n) => `${n.roomId}|${n.type}`),
+          );
+          const additions = serverActivity.filter(
+            (n) => !seen.has(`${n.roomId}|${n.type}`),
+          );
+          if (additions.length === 0 && pruned.length === prev.length) {
+            return prev;
+          }
+          const next = [...additions, ...pruned].slice(0, 50);
           localStorage.setItem("linkloop_channel_notifs", JSON.stringify(next));
           return next;
         });
@@ -381,13 +507,14 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
       .then((users) => {
         setAllUsers(users);
         setOnlineIds(new Set(users.filter((u) => u.online).map((u) => u.id)));
+        recoverFriendAccepts(users, addFriendNotifRef.current);
         return users;
       })
       .catch((err) => {
         console.error(err);
         return null;
       });
-  }, []);
+  }, [addFriendNotifRef]);
 
   // Re-fetch the messages of the currently-open room and merge in anything we
   // don't already have. This is the piece that makes a conversation catch up
@@ -1012,6 +1139,14 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
         onClearChannelNotifs={() => {
           setChannelNotifs([]);
           localStorage.removeItem("linkloop_channel_notifs");
+          // Remember the server-flagged activity as dismissed so syncRooms
+          // doesn't immediately rebuild it from is_new/role_notification.
+          // Cleared automatically once the channel is opened (flag clears).
+          const keys = new Set([
+            ...loadDismissedActivity(),
+            ...channelActivityKeys(rooms),
+          ]);
+          saveDismissedActivity([...keys]);
         }}
         friendNotifs={friendNotifs}
       />
