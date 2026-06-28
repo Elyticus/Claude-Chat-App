@@ -61,7 +61,7 @@ export function AccountModal({
           className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full flex items-center justify-center transition-all"
           style={{ color: isDark ? "rgba(238,242,255,0.45)" : "#64748b" }}
         >
-          <X size={16} />
+          <X size={22} />
         </button>
 
         {/* Identity — tap the avatar to enlarge the picture */}
@@ -167,7 +167,7 @@ export function AccountModal({
             className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center"
             style={{ color: "rgba(255,255,255,0.7)" }}
           >
-            <X size={20} />
+            <X size={24} />
           </button>
           {myAvatar ? (
             // Render the full-resolution source directly and let it scale with

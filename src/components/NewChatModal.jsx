@@ -235,7 +235,7 @@ export function NewChatModal({
             className="w-11 h-11 rounded-full flex items-center justify-center transition-all"
             style={{ color: isDark ? "rgba(238,242,255,0.4)" : "#64748b" }}
           >
-            <X size={16} />
+            <X size={22} />
           </button>
         </div>
 

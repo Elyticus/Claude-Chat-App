@@ -250,7 +250,7 @@ function ImageLightbox({ image, onClose }) {
         className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center"
         style={{ background: "rgba(255,255,255,0.12)", color: "#fff" }}
       >
-        <X size={20} />
+        <X size={24} />
       </button>
       <a
         href={image.url}

@@ -99,7 +99,7 @@ export function ManageSubscriptionModal({
           className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center"
           style={{ color: isDark ? "rgba(238,242,255,0.45)" : "#64748b" }}
         >
-          <X size={18} />
+          <X size={22} />
         </button>
 
         <div className="px-6 pt-6 pb-6">

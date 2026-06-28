@@ -39,7 +39,7 @@ export function UpgradeModal({ currentPlan, reason, isDark, onSelect, onClose })
           className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full flex items-center justify-center"
           style={{ color: isDark ? "rgba(238,242,255,0.45)" : "#64748b" }}
         >
-          <X size={18} />
+          <X size={22} />
         </button>
 
         <div className="text-center px-6 pt-9 pb-3">
