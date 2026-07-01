@@ -53,7 +53,6 @@ src/
 │       ├── Lightfall.jsx             # WebGL falling-light-streaks background (React Bits, ogl) — the Special-mode background
 │       ├── Lightfall.css             # Lightfall container styles
 │       ├── ContactStatusButton.jsx   # Add / remove contact button (status-aware)
-│       ├── shader-background.jsx     # Three.js GLSL shader canvas background
 │       └── TypingIndicator.jsx       # "X is typing…" label
 └── lib/
     ├── api.js        # fetch() wrappers for every REST endpoint

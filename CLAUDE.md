@@ -85,7 +85,6 @@ Gate-error contract: server returns `402/503` with `{ code: 'UPGRADE_REQUIRED' |
 │   │       ├── card.jsx                  # shadcn-pattern Card family
 │   │       ├── Lightfall.jsx             # WebGL falling-light-streaks background (React Bits, ogl) — the Special-mode background
 │   │       ├── ContactStatusButton.jsx   # Add / remove contact button (status-aware)
-│   │       ├── shader-background.jsx     # Three.js GLSL shader canvas background
 │   │       ├── star-field.jsx            # Canvas starfield + comets (dark) / sunrise + birds (light)
 │   │       └── TypingIndicator.jsx       # "X is typing…" label
 │   └── lib/

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
 import { MessageCircle, Sun, Moon, Sparkles, Users, Search, Crown, Wand2, Play, Pause, Menu, X } from "lucide-react";
 import Orb from "./ui/Orb.jsx";
 import Galaxy from "./ui/Galaxy.jsx";
@@ -13,6 +13,23 @@ import { darkBg0, lightBg0, specialBg0 } from "@/lib/constants.js";
 // rooms live in the all-chats list rather than crowding the orbit.
 const MAX_ORBIT_BUBBLES = 8;
 
+// Orbit geometry for one node. Pure — used by the rAF loop that positions the
+// nodes by writing straight to the DOM (no React re-render per frame).
+function nodePosition(index, total, angleDeg, w, h) {
+  const radius = Math.min(w * 0.32, h * 0.35, 240);
+  const angle = ((index / total) * 360 + angleDeg) % 360;
+  const radian = (angle * Math.PI) / 180;
+  return {
+    x: radius * Math.cos(radian),
+    y: radius * Math.sin(radian),
+    zIndex: Math.round(100 + 50 * Math.cos(radian)),
+    opacity: Math.max(
+      0.35,
+      Math.min(1, 0.35 + 0.65 * ((1 + Math.sin(radian)) / 2)),
+    ),
+  };
+}
+
 export function OrbitalHub({
   rooms,
   hasGroupNewNotif,
@@ -26,6 +43,9 @@ export function OrbitalHub({
   baseIsDark = isDark,
   theme,
   freezeRotation = false,
+  // True while the chat panel fully covers the hub — pauses the orbit rotation
+  // and the active WebGL background so an invisible hub costs nothing.
+  covered = false,
   onToggleTheme,
   onToggleSpecial,
   canSpecial = false,
@@ -78,7 +98,6 @@ export function OrbitalHub({
   // confirmations — every friend notification, all viewable in the Friends modal.
   const friendBadge = pendingCount + friendNotifs.length;
 
-  const [rotationAngle, setRotationAngle] = useState(0);
   const [hoveredId, setHoveredId] = useState(null);
   const [containerSize, setContainerSize] = useState(() => ({
     w: window.innerWidth,
@@ -86,6 +105,12 @@ export function OrbitalHub({
   }));
   const containerRef = useRef(null);
   const angleRef = useRef(0);
+  // Mirrors read by the rAF rotation loop / positioning pass.
+  const sizeRef = useRef(containerSize);
+  const orbitRoomsRef = useRef([]);
+  const isSpecialRef = useRef(false);
+  // roomId -> { wrap, fill, label } DOM elements, written by callback refs.
+  const nodeElsRef = useRef(new Map());
   const [showContactsList, setShowContactsList] = useState(false);
   // Bottom hub menu: all the control buttons collapse into one centre bubble and
   // fan out left/right when opened.
@@ -154,26 +179,59 @@ export function OrbitalHub({
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    setContainerSize({ w: el.clientWidth, h: el.clientHeight });
+    sizeRef.current = { w: el.clientWidth, h: el.clientHeight };
+    setContainerSize(sizeRef.current);
     const ro = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
-      setContainerSize({ w: width, h: height });
+      sizeRef.current = { w: width, h: height };
+      setContainerSize(sizeRef.current);
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
+  // Compute + write every node's orbit position straight to the DOM. Shared by
+  // the rAF rotation loop and the layout effect that places freshly-mounted
+  // nodes before first paint (so they never flash at the center). Doing this
+  // outside React means the rotation costs zero re-renders per frame — the old
+  // setRotationAngle tick re-rendered the whole hub tree 30×/sec forever.
+  const positionNodes = useCallback(() => {
+    const { w, h } = sizeRef.current;
+    const list = orbitRoomsRef.current;
+    const special = isSpecialRef.current;
+    list.forEach((room, i) => {
+      const els = nodeElsRef.current.get(room.id);
+      if (!els?.wrap) return;
+      const pos = nodePosition(i, list.length, angleRef.current, w, h);
+      els.wrap.style.transform = `translate(${pos.x}px, ${pos.y}px)`;
+      els.wrap.style.zIndex = pos.zIndex;
+      // Keep more of the fill in Special mode so bubbles don't wash out
+      // against the bright Lightfall streaks.
+      if (els.fill)
+        els.fill.style.opacity = special
+          ? Math.max(0.9, pos.opacity)
+          : pos.opacity;
+      // Floor the label fade so names stay legible at the back of the orbit.
+      if (els.label) els.label.style.opacity = Math.max(0.75, pos.opacity);
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    orbitRoomsRef.current = orbitRooms;
+    isSpecialRef.current = isSpecial;
+    positionNodes();
+  }, [orbitRooms, containerSize, isSpecial, positionNodes]);
+
   useEffect(() => {
-    // Pause while a node is hovered (desktop) or while a mode-switch view
-    // transition is cross-fading: during the cross-fade the user sees a frozen
+    // Pause while a node is hovered (desktop), while a mode-switch view
+    // transition is cross-fading (during the cross-fade the user sees a frozen
     // snapshot, so the live nodes must stay put or taps land where the bubble
-    // has rotated to (empty space / the centre hub) instead of where it's seen.
-    if (hoveredId !== null || freezeRotation) return;
+    // has rotated to), or while the chat panel covers the hub entirely.
+    if (hoveredId !== null || freezeRotation || covered) return;
     let rafId;
     let lastTime = null;
-    // Cap the rotation to ~30fps. Each tick re-renders the whole hub, so running
-    // at the display's full 60fps doubles the main-thread cost for no real gain
-    // on a slow spin — a meaningful battery/heat saving on mobile.
+    // Cap the rotation to ~30fps — a slow spin gains nothing from 60fps, and
+    // halving the tick rate is a meaningful battery/heat saving on mobile.
     const FRAME_MS = 1000 / 30;
     const step = (now) => {
       rafId = requestAnimationFrame(step);
@@ -187,31 +245,26 @@ export function OrbitalHub({
       // causes a visible position jump in the orbit nodes.
       const delta = Math.min(now - lastTime, 50);
       angleRef.current = (angleRef.current + delta * 0.006) % 360;
-      setRotationAngle(Number(angleRef.current.toFixed(3)));
+      positionNodes();
       lastTime = now;
     };
     rafId = requestAnimationFrame(step);
     return () => cancelAnimationFrame(rafId);
-  }, [hoveredId, freezeRotation]);
+  }, [hoveredId, freezeRotation, covered, positionNodes]);
 
-  const getNodePosition = useCallback(
-    (index, total) => {
-      const { w, h } = containerSize;
-      const radius = Math.min(w * 0.32, h * 0.35, 240);
-      const angle = ((index / total) * 360 + rotationAngle) % 360;
-      const radian = (angle * Math.PI) / 180;
-      return {
-        x: radius * Math.cos(radian),
-        y: radius * Math.sin(radian),
-        zIndex: Math.round(100 + 50 * Math.cos(radian)),
-        opacity: Math.max(
-          0.35,
-          Math.min(1, 0.35 + 0.65 * ((1 + Math.sin(radian)) / 2)),
-        ),
-      };
-    },
-    [rotationAngle, containerSize],
-  );
+  // Callback ref for one element of one node; drops the map entry when a node
+  // fully unmounts so it never grows past the live room set.
+  const setNodeEl = (roomId, key) => (el) => {
+    let entry = nodeElsRef.current.get(roomId);
+    if (!entry) {
+      entry = {};
+      nodeElsRef.current.set(roomId, entry);
+    }
+    entry[key] = el;
+    if (!entry.wrap && !entry.fill && !entry.label) {
+      nodeElsRef.current.delete(roomId);
+    }
+  };
 
   const totalUnread = useMemo(
     () => Object.values(unreadCounts).reduce((a, b) => a + b, 0),
@@ -342,7 +395,7 @@ export function OrbitalHub({
           <Orb
             {...orbSettings}
             backgroundColor="#ffffff"
-            paused={bgPaused || isDark || isSpecial}
+            paused={bgPaused || isDark || isSpecial || covered}
           />
         </div>
         {/* Dark mode — Galaxy. pointer-events are enabled only when the (Pro)
@@ -363,12 +416,12 @@ export function OrbitalHub({
                 : "none",
           }}
         >
-          <Galaxy {...galaxySettings} paused={bgPaused || !isDark || isSpecial} />
+          <Galaxy {...galaxySettings} paused={bgPaused || !isDark || isSpecial || covered} />
         </div>
         {/* Special mode — Lightfall (entitled users) */}
         {(canSpecial || isSpecial) && (
           <div className="absolute inset-0" style={{ opacity: isSpecial ? 1 : 0 }}>
-            <Lightfall {...lightfallSettings} paused={!isSpecial || bgPaused} />
+            <Lightfall {...lightfallSettings} paused={!isSpecial || bgPaused || covered} />
           </div>
         )}
       </div>
@@ -668,9 +721,10 @@ export function OrbitalHub({
         )}
       </button>
 
-      {/* Room nodes */}
-      {orbitRooms.map((room, index) => {
-        const pos = getNodePosition(index, orbitRooms.length);
+      {/* Room nodes — transform/zIndex/depth-opacity are written directly to
+          the DOM by positionNodes (layout effect for first paint, rAF loop for
+          the rotation), so render never touches them. */}
+      {orbitRooms.map((room) => {
         const isRoomChannel = isChannel(room);
         const displayName = isRoomChannel
           ? room.name || `#${room.slug}`
@@ -709,11 +763,8 @@ export function OrbitalHub({
         return (
           <div
             key={room.id}
+            ref={setNodeEl(room.id, "wrap")}
             className="absolute cursor-pointer flex flex-col items-center select-none active:scale-95 transition-none"
-            style={{
-              transform: `translate(${pos.x}px, ${pos.y}px)`,
-              zIndex: pos.zIndex,
-            }}
             onMouseEnter={() => setHoveredId(room.id)}
             onMouseLeave={() => setHoveredId(null)}
             onClick={() => onSelectRoom(room.id)}
@@ -745,12 +796,10 @@ export function OrbitalHub({
               {/* Bubble fill — per-user gradient only, no initials; the name
                   shows in the hover label. Fades with orbit depth. */}
               <div
+                ref={setNodeEl(room.id, "fill")}
                 className="w-full h-full rounded-full"
                 style={{
                   background: userBg(avatarId),
-                  // Keep more of the fill in Special mode so bubbles don't wash
-                  // out against the bright Lightfall streaks.
-                  opacity: isSpecial ? Math.max(0.9, pos.opacity) : pos.opacity,
                   boxShadow: isSpecial
                     ? "0 2px 14px rgba(0,0,0,0.55), 0 0 0 1.5px rgba(255,255,255,0.4)"
                     : isDark
@@ -798,13 +847,11 @@ export function OrbitalHub({
               )}
             </div>
             <span
+              ref={setNodeEl(room.id, "label")}
               className="mt-2 text-[11px] font-semibold max-w-19 truncate text-center leading-tight"
               style={{
                 color: textStrong,
                 textShadow: textStrongShadow,
-                // Keep the orbit-depth fade but floor it so names stay legible
-                // even at the back of the orbit.
-                opacity: Math.max(0.75, pos.opacity),
               }}
             >
               {displayName}

@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense, useEffect } from "react";
+import { useState, lazy, Suspense } from "react";
 import AuthScreen from "./components/AuthScreen.jsx";
 
 const ChatApp = lazy(() => import("./ChatApp.jsx"));
@@ -17,13 +17,6 @@ const SPLASH_LOGO = (
 );
 
 export default function App() {
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    const t = setTimeout(() => setReady(true), 1000);
-    return () => clearTimeout(t);
-  }, []);
-
   const [authData, setAuthData] = useState(() => {
     try {
       const token = localStorage.getItem("linkloop_token");
@@ -57,14 +50,13 @@ export default function App() {
     });
   }
 
-  if (!ready) return SPLASH_LOGO;
 
   if (!authData.token || !authData.user) {
     return <AuthScreen onAuth={handleAuth} />;
   }
 
   return (
-    <Suspense fallback={<div style={{ height: "100%", background: "#070d1c" }} />}>
+    <Suspense fallback={SPLASH_LOGO}>
       <ChatApp
         token={authData.token}
         currentUser={authData.user}

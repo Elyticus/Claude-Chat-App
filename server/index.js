@@ -288,6 +288,16 @@ const attachmentLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Full-text search hits a GIN-indexed ts_rank query — cheap-ish, but the only
+// expensive read surface without a ceiling. Generous cap for real typing.
+const searchLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  message: { error: "Too many searches — slow down" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // ─── Uploads (Linkloop Pro media & voice) ───────────────────────────────────────
 // Files are buffered in memory, validated against the uploader's plan, then handed
 // to the storage driver (local disk in dev, S3/R2 object storage in production —
@@ -383,16 +393,20 @@ app.post("/api/auth/register", registerLimiter, async (req, res) => {
     return res.status(400).json({ error: "Password is too long (max 128 characters)" });
   }
 
-  const taken = (await queries.getUserByEmail.get(email)) || (await queries.getUserByUsername.get(username));
+  // Check uniqueness against the same trimmed values that get stored, so
+  // " user@x.com" can't slip past the taken-check and 500 later on the
+  // unique constraint at verify time.
+  const cleanEmail = email.trim();
+  const taken = (await queries.getUserByEmail.get(cleanEmail)) || (await queries.getUserByUsername.get(cleanName));
   if (taken) return res.status(409).json({ error: "Username or email already in use" });
 
   const hash = await bcrypt.hash(password, 10);
   const code = generateCode();
   const expiresAt = Date.now() + 15 * 60 * 1000;
-  await queries.upsertPending.run(email.trim(), username.trim(), hash, code, expiresAt);
-  await sendVerificationEmail(email.trim(), username.trim(), code);
+  await queries.upsertPending.run(cleanEmail, cleanName, hash, code, expiresAt);
+  await sendVerificationEmail(cleanEmail, cleanName, code);
 
-  res.status(200).json({ pending: true, email: email.trim() });
+  res.status(200).json({ pending: true, email: cleanEmail });
 });
 
 app.post("/api/auth/verify", authLimiter, async (req, res) => {
@@ -1383,7 +1397,7 @@ app.post("/api/ai/translate", requireAuth, aiLimiter, async (req, res) => {
 // upgrade prompt here. Membership is enforced inside the SQL join, so results
 // never include rooms the requester isn't in.
 
-app.get("/api/search", requireAuth, async (req, res) => {
+app.get("/api/search", requireAuth, searchLimiter, async (req, res) => {
   const query = (req.query.q || "").toString().trim();
   if (query.length < 2) return res.json({ results: [] });
   if (query.length > 200) return res.status(400).json({ error: "Search query is too long" });
@@ -1479,6 +1493,16 @@ app.post("/api/rooms/:roomId/attachments", requireAuth, attachmentLimiter, uploa
   res.status(201).json({ message });
 });
 
+// Mime types that are safe to render inline in the browser. Anything else —
+// critically SVG (image/svg+xml can carry <script>) and HTML/XML — is forced to
+// download. An inline SVG opened via its direct URL would execute attacker
+// script on the API origin with the viewer's JWT sitting in the ?token= query.
+const INLINE_SAFE_MIME = new Set([
+  "image/jpeg", "image/png", "image/webp", "image/gif", "image/avif",
+  "audio/mpeg", "audio/mp4", "audio/ogg", "audio/webm", "audio/wav", "audio/aac",
+  "video/mp4", "video/webm",
+]);
+
 // Stream a private attachment. Auth via header OR ?token=, plus a membership
 // check on the attachment's room — files are never publicly accessible.
 // Handles Range requests so browsers can seek audio/video and Safari can play audio at all.
@@ -1492,6 +1516,7 @@ app.get("/api/attachments/:id", requireAuthAllowQuery, attachmentLimiter, async 
   const fileSize = att.size;
   const rangeHeader = req.headers.range;
 
+  const inline = att.kind !== "file" && INLINE_SAFE_MIME.has(att.mime);
   res.setHeader("Content-Type", att.mime);
   res.setHeader("Cache-Control", "private, max-age=86400");
   res.setHeader("Accept-Ranges", "bytes");
@@ -1501,9 +1526,13 @@ app.get("/api/attachments/:id", requireAuthAllowQuery, attachmentLimiter, async 
   // still works — which is why the file only opened in a new tab). These
   // streams are auth-gated per request, so allow cross-origin embedding.
   res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  // Belt-and-braces: if an attachment ever renders as a document (top-level
+  // navigation to its URL), a sandboxed CSP blocks script execution and
+  // same-origin access. Subresource loads (<img>/<audio>) are unaffected.
+  res.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
   res.setHeader(
     "Content-Disposition",
-    `${att.kind === "file" ? "attachment" : "inline"}; filename="${encodeURIComponent(att.filename)}"`,
+    `${inline ? "inline" : "attachment"}; filename="${encodeURIComponent(att.filename)}"`,
   );
 
   if (rangeHeader && fileSize) {

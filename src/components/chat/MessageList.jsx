@@ -1,4 +1,4 @@
-import { Fragment, useState, useRef, useEffect, useCallback } from "react";
+import { Fragment, memo, useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Sparkles, X, Languages, FileText, Download, ImageIcon, ExternalLink, Play, Pause, Mic } from "lucide-react";
 import { api } from "@/lib/api.js";
@@ -280,7 +280,10 @@ function ImageLightbox({ image, onClose }) {
 // The per-room-type doodle backdrop lives one level up in ChatPanel so it spans
 // the whole chat surface; this area is transparent so it shows through.
 // Extracted from ChatApp verbatim; all state and handlers are passed in.
-export function MessageList({
+// memo() so keystrokes in the composer (which re-render ChatPanel) don't
+// reconcile every message bubble — displayedMessages and the handlers are
+// referentially stable while typing.
+export const MessageList = memo(function MessageList({
   isDark,
   displayedMessages,
   roomLoaded,
@@ -626,4 +629,4 @@ export function MessageList({
       </div>
     </div>
   );
-}
+});

@@ -804,7 +804,7 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
     }
   }, [activeRoomId]);
 
-  async function loadEarlierMessages() {
+  const loadEarlierMessages = useCallback(async () => {
     if (!displayRoomId || loadingMore[displayRoomId]) return;
     const earliest = messages[displayRoomId]?.[0];
     if (!earliest) return;
@@ -824,7 +824,7 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
     } finally {
       setLoadingMore((prev) => ({ ...prev, [displayRoomId]: false }));
     }
-  }
+  }, [displayRoomId, loadingMore, messages]);
 
   const sendMessage = useCallback(() => {
     const text = inputText.trim();
@@ -1121,6 +1121,7 @@ export default function ChatApp({ token, currentUser, onLogout, onUserUpdate }) 
     >
       {/* Orbital Hub — always in background */}
       <OrbitalHub
+        covered={!!displayRoomId}
         rooms={rooms.filter((r) => !pendingRoomIds.has(r.id))}
         hasGroupNewNotif={hasGroupNewNotif}
         onSelectRoom={selectRoom}
