@@ -208,6 +208,17 @@ const Lightfall = ({
   useEffect(() => {
     pausedRef.current = paused;
   }, [paused]);
+  // Same trick for the mouse props: the pointer handler and loop read these
+  // refs, so the Customize "Mouse interaction" toggle (and dampening slider)
+  // apply instantly instead of tearing down / recompiling the GL context.
+  const mouseInteractionRef = useRef(mouseInteraction);
+  const mouseDampeningRef = useRef(mouseDampening);
+  useEffect(() => {
+    mouseInteractionRef.current = mouseInteraction;
+  }, [mouseInteraction]);
+  useEffect(() => {
+    mouseDampeningRef.current = mouseDampening;
+  }, [mouseDampening]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -282,18 +293,17 @@ const Lightfall = ({
     ro.observe(container);
 
     const onPointerMove = e => {
+      if (!mouseInteractionRef.current) return;
       const rect = canvas.getBoundingClientRect();
       const scale = renderer.dpr || 1;
       const x = (e.clientX - rect.left) * scale;
       const y = (rect.height - (e.clientY - rect.top)) * scale;
       mouseTargetRef.current = [x, y];
-      if (mouseDampening <= 0) {
+      if (mouseDampeningRef.current <= 0) {
         uniforms.iMouse.value = [x, y];
       }
     };
-    if (mouseInteraction) {
-      canvas.addEventListener('pointermove', onPointerMove);
-    }
+    canvas.addEventListener('pointermove', onPointerMove);
 
     // Cap to ~30fps — full-screen shader work is GPU-heavy; halving the frame
     // rate roughly halves it, easing battery/heat on mobile. iTime tracks real
@@ -305,11 +315,11 @@ const Lightfall = ({
       if (t - lastFrame < FRAME_MS) return;
       lastFrame = t;
       uniforms.iTime.value = t * 0.001;
-      if (mouseDampening > 0) {
+      if (mouseDampeningRef.current > 0) {
         if (!lastTimeRef.current) lastTimeRef.current = t;
         const dt = (t - lastTimeRef.current) / 1000;
         lastTimeRef.current = t;
-        const tau = Math.max(1e-4, mouseDampening);
+        const tau = Math.max(1e-4, mouseDampeningRef.current);
         let factor = 1 - Math.exp(-dt / tau);
         if (factor > 1) factor = 1;
         const target = mouseTargetRef.current;
@@ -355,7 +365,7 @@ const Lightfall = ({
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       document.removeEventListener('visibilitychange', handleVisibility);
-      if (mouseInteraction) canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointermove', onPointerMove);
       ro.disconnect();
       if (canvas.parentElement === container) {
         container.removeChild(canvas);
@@ -375,10 +385,10 @@ const Lightfall = ({
       rendererRef.current = null;
     };
     // Re-init only on structural changes; the tunable props are synced live in
-    // the effect below, and `paused` is read via a ref — neither rebuilds the
-    // GL context.
+    // the effect below, and paused / mouseInteraction / mouseDampening are read
+    // via refs — none of them rebuilds the GL context.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dpr, mouseInteraction, mouseDampening]);
+  }, [dpr]);
 
   // Live-update tunable uniforms in place so the Customize panel can tweak the
   // look smoothly — recreating the WebGL context on every slider tick would
@@ -401,6 +411,7 @@ const Lightfall = ({
     u.uZoom.value = zoom;
     u.uBgGlow.value = backgroundGlow;
     u.uOpacity.value = opacity;
+    u.uMouseEnabled.value = mouseInteraction ? 1 : 0;
     u.uMouseStrength.value = mouseStrength;
     u.uMouseRadius.value = mouseRadius;
   }, [
@@ -416,6 +427,7 @@ const Lightfall = ({
     zoom,
     backgroundGlow,
     opacity,
+    mouseInteraction,
     mouseStrength,
     mouseRadius
   ]);

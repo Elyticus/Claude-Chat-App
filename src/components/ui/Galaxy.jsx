@@ -216,12 +216,19 @@ function Galaxy({
   // GL context.
   const starSpeedRef = useRef(starSpeed);
   const disableAnimationRef = useRef(disableAnimation);
+  const mouseInteractionRef = useRef(mouseInteraction);
   useEffect(() => {
     starSpeedRef.current = starSpeed;
   }, [starSpeed]);
   useEffect(() => {
     disableAnimationRef.current = disableAnimation;
   }, [disableAnimation]);
+  useEffect(() => {
+    mouseInteractionRef.current = mouseInteraction;
+    // When interaction is switched off, ease the parallax/repulsion back to
+    // neutral instead of freezing it at the last mouse position.
+    if (!mouseInteraction) targetMouseActive.current = 0.0;
+  }, [mouseInteraction]);
 
   useEffect(() => {
     if (!ctnDom.current) return;
@@ -329,6 +336,7 @@ function Galaxy({
     ctn.appendChild(gl.canvas);
 
     function handleMouseMove(e) {
+      if (!mouseInteractionRef.current) return;
       const rect = ctn.getBoundingClientRect();
       const x = (e.clientX - rect.left) / rect.width;
       const y = 1.0 - (e.clientY - rect.top) / rect.height;
@@ -340,10 +348,11 @@ function Galaxy({
       targetMouseActive.current = 0.0;
     }
 
-    if (mouseInteraction) {
-      ctn.addEventListener("mousemove", handleMouseMove);
-      ctn.addEventListener("mouseleave", handleMouseLeave);
-    }
+    // Listeners are always attached; handleMouseMove checks the ref, so the
+    // Customize "Mouse interaction" toggle takes effect instantly instead of
+    // tearing down / recompiling the GL context (which froze the page ~1s).
+    ctn.addEventListener("mousemove", handleMouseMove);
+    ctn.addEventListener("mouseleave", handleMouseLeave);
 
     // Repaint one frame when the app returns to the foreground. While paused the
     // loop skips rendering, and the browser can discard the GL drawing buffer
@@ -365,20 +374,19 @@ function Galaxy({
       cancelAnimationFrame(animateId);
       window.removeEventListener("resize", resize);
       document.removeEventListener("visibilitychange", handleVisibility);
-      if (mouseInteraction) {
-        ctn.removeEventListener("mousemove", handleMouseMove);
-        ctn.removeEventListener("mouseleave", handleMouseLeave);
-      }
+      ctn.removeEventListener("mousemove", handleMouseMove);
+      ctn.removeEventListener("mouseleave", handleMouseLeave);
       ctn.removeChild(gl.canvas);
       programRef.current = null;
       gl.getExtension("WEBGL_lose_context")?.loseContext();
     };
     // Only structural props rebuild the context; the tunables below are synced
-    // in place via the next effect, and starSpeed/disableAnimation are read from
-    // refs in the loop — so dragging a Customize slider never rebuilds the GL
-    // context (which would be laggy and could exhaust WebGL contexts).
+    // in place via the next effect, and starSpeed/disableAnimation/
+    // mouseInteraction are read from refs in the loop and handlers — so no
+    // Customize control ever rebuilds the GL context (which would be laggy and
+    // could exhaust WebGL contexts).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transparent, mouseInteraction]);
+  }, [transparent]);
 
   // Live-update tunable uniforms in place (no GL rebuild) so Customize changes
   // apply smoothly — mirrors Lightfall.
